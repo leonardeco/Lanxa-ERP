@@ -25,17 +25,17 @@ Sistema de gestión empresarial (ERP) desarrollado a medida para **TECNOLOGÍA E
 
 | Módulo | Estado | Descripción |
 |--------|--------|-------------|
-| **Auth & Seguridad** | ✅ Producción | JWT RS256, RBAC con 6 roles, refresh token |
+| **Auth & Seguridad** | ✅ Producción | JWT + bcrypt, RBAC con 3 roles, sesión por token |
+| **Dashboard** | ✅ Producción | Stats en tiempo real: contabilidad + ventas del mes + cartera |
 | **Contabilidad** | ✅ Producción | PUC (Decreto 2650), Centros de Costo, Períodos, Parámetros tributarios y de nómina |
-| **Ventas & Comercial** | ✅ Producción | Productos (catálogo multimarca), Clientes B2B, Documentos de venta con retenciones |
-| **Cartera** | ✅ Producción | Cuentas por cobrar (CxC) y por pagar (CxP), abonos, aging automático |
+| **Ventas & Comercial** | ✅ Producción | Productos (catálogo multimarca), Clientes B2B, Documentos de venta con retenciones, impresión PDF |
+| **Compras & Proveedores** | ✅ Producción | CRUD proveedores, documentos de compra con retenciones, confirmación/anulación, impresión PDF |
+| **Cartera CxC & CxP** | ✅ Producción | CxC y CxP con abonos, aging automático, CxP generada automáticamente al confirmar compras |
 | **Usuarios** | ✅ Producción | CRUD de usuarios, gestión de roles, cambio de contraseña |
-| **Dashboard** | ✅ Producción | Stats en tiempo real desde la API: contabilidad + ventas del mes + cartera |
 | **Alegra** | ✅ Construido | Integración con API de Alegra para facturación electrónica DIAN Colombia |
-| **Inventario** | 🔄 Fase 1 | Entradas/salidas, ajustes, valorización por marca |
-| **Proveedores** | 🔄 Fase 2 | CRUD proveedores, órdenes de compra |
+| **Inventario** | 🔄 Fase 2 | Entradas/salidas automáticas desde compras, ajustes, valorización por marca |
 | **RRHH & Nómina** | 🔄 Fase 2 | Empleados, contratos, liquidación mensual |
-| **Reportes & BI** | 🔄 Fase 4 | P&L, Balance General, cartera aging, ventas por período |
+| **Reportes & BI** | 🔄 Fase 3 | P&L, Balance General, cartera aging, compras por período |
 | **Electron** | 🔄 Fase 4 | Empaquetado como aplicación de escritorio (.exe) |
 
 ---
@@ -44,22 +44,23 @@ Sistema de gestión empresarial (ERP) desarrollado a medida para **TECNOLOGÍA E
 
 ```
 superozono-erp/
-├── backend/          # FastAPI — API REST async
+├── backend/              # FastAPI — API REST async
 │   └── app/
-│       ├── api/      # Dependencias compartidas (auth, sesión DB)
-│       ├── core/     # Config, database, security (JWT + bcrypt)
-│       ├── modules/  # Módulos de negocio (contabilidad, ventas, alegra...)
-│       └── main.py   # App factory + lifespan (migrations + seeds)
-├── frontend/         # React 19 + TypeScript + Vite
+│       ├── api/          # Dependencias compartidas (auth, sesión DB)
+│       ├── core/         # Config, database, security (JWT + bcrypt)
+│       ├── modules/      # Módulos de negocio
+│       └── main.py       # App factory + lifespan (create_all + seeds)
+├── frontend/             # React 19 + TypeScript + Vite
 │   └── src/
 │       ├── components/   # Sidebar, HeaderBar, StatusBar
 │       ├── contexts/     # AuthContext (JWT decode + /users/me)
 │       ├── services/     # API clients (axios) por módulo
+│       ├── utils/        # printFactura.ts, printCompra.ts
 │       └── views/        # Una vista por módulo
 ├── docker-compose.yml    # PostgreSQL 16 + Redis 7 + pgAdmin 4
+├── frontend/Dockerfile   # Nginx + Vite build para producción
 ├── start.bat             # Inicio local Windows (doble clic)
-├── stop.bat              # Parada limpia Windows
-└── .env.example          # Plantilla de variables de entorno
+└── stop.bat              # Parada limpia Windows
 ```
 
 **Patrón de módulos backend:**
@@ -80,7 +81,7 @@ modules/<nombre>/
 | Librería | Versión | Uso |
 |----------|---------|-----|
 | FastAPI | 0.115 | Framework web async |
-| SQLAlchemy | 2.0 | ORM async con soporte PostgreSQL y SQLite |
+| SQLAlchemy | 2.0 | ORM async — PostgreSQL y SQLite |
 | Pydantic | 2.11 | Validación y serialización |
 | python-jose | 3.5 | Generación y verificación JWT |
 | passlib + bcrypt | 1.7 / 4.3 | Hash seguro de contraseñas |
@@ -105,6 +106,7 @@ modules/<nombre>/
 | Servicio | Imagen | Puerto |
 |----------|--------|--------|
 | API Backend | Python 3.13 + uvicorn | 8000 |
+| Frontend | nginx + Vite build | 80 |
 | PostgreSQL | postgres:16-alpine | 5432 |
 | Redis | redis:7-alpine | 6379 |
 | pgAdmin | dpage/pgadmin4 | 5050 |
@@ -116,15 +118,20 @@ modules/<nombre>/
 ```
 backend/app/modules/
 ├── contabilidad/
-│   ├── models.py    # PlanCuentas, CentroCosto, PeriodoContable, Tercero,
-│   │                # CuentaPorCobrar, CuentaPorPagar, ParametroTributario,
-│   │                # ParametroNomina
-│   ├── schemas.py   # Pydantic schemas + DashboardStats + CarteraStats
-│   └── router.py    # /api/v1/contabilidad/* (PUC, centros, periodos, cartera)
+│   ├── models.py    # PlanCuentas, CentroCosto, PeriodoContable,
+│   │                # CuentaPorCobrar, CuentaPorPagar (con compra_id),
+│   │                # ParametroTributario, ParametroNomina
+│   ├── schemas.py   # Pydantic schemas + CarteraStats
+│   └── router.py    # /api/v1/contabilidad/* (PUC, centros, periodos,
+│                    # cartera CxC/CxP con sincronización a compras)
 ├── ventas/
 │   ├── models.py    # Producto, Cliente, VentaDocumento, VentaDetalle
-│   ├── schemas.py   # CRUD schemas + VentaDashboardStats
-│   └── router.py    # /api/v1/ventas/* (productos, clientes, facturas, dashboard)
+│   ├── schemas.py   # CRUD schemas + VentaDashboard
+│   └── router.py    # /api/v1/ventas/*
+├── compras/
+│   ├── models.py    # Proveedor, CompraDocumento, CompraDetalle
+│   ├── schemas.py   # CRUD schemas + ComprasDashboard
+│   └── router.py    # /api/v1/compras/* (al confirmar → crea CxP automática)
 ├── usuarios/
 │   ├── models.py    # Usuario (email, rol, bcrypt hash)
 │   ├── schemas.py   # Token, UsuarioCreate/Update/Response
@@ -132,26 +139,32 @@ backend/app/modules/
 └── alegra/
     ├── client.py    # HTTP client Basic Auth → api.alegra.com/api/v1
     ├── mappers.py   # ERP models → Alegra JSON format
-    └── router.py    # /api/v1/alegra/* (status, taxes, sync, facturas)
+    └── router.py    # /api/v1/alegra/*
 
 frontend/src/
 ├── services/
-│   ├── api.ts          # Axios base con interceptor JWT
-│   ├── dashboardApi.ts # /contabilidad/dashboard + /ventas/dashboard
-│   ├── ventasApi.ts    # Productos, clientes, ventas
-│   ├── carteraApi.ts   # CxC, CxP, stats
-│   └── usuariosApi.ts  # CRUD usuarios + cambio contraseña
+│   ├── api.ts              # Axios base con interceptor JWT
+│   ├── dashboardApi.ts     # Stats dashboard
+│   ├── ventasApi.ts        # Productos, clientes, ventas
+│   ├── comprasApi.ts       # Proveedores, compras, dashboard compras
+│   ├── carteraApi.ts       # CxC, CxP (con compra_id), stats
+│   ├── contabilidadApi.ts  # PUC, centros, periodos, tributarios, nomina
+│   └── usuariosApi.ts      # CRUD usuarios + cambio contraseña
+├── utils/
+│   ├── printFactura.ts     # Impresión PDF documentos de venta
+│   └── printCompra.ts      # Impresión PDF documentos de compra
 └── views/
     ├── DashboardView.tsx    # Stats dinámicas + ventas por marca
     ├── PucView.tsx          # Plan Único de Cuentas
     ├── CentrosCostoView.tsx # Centros de costo por marca
-    ├── PeriodosView.tsx     # Períodos contables 2026
+    ├── PeriodosView.tsx     # Períodos contables
     ├── TributariosView.tsx  # Parámetros IVA, retenciones
     ├── NominaView.tsx       # Parámetros SMMLV, aportes
     ├── VentasView.tsx       # Dashboard + Productos + Clientes + Facturas
-    ├── CarteraView.tsx      # CxC & CxP con abonos y aging
-    ├── UsuariosView.tsx     # CRUD usuarios (Superadmin)
-    └── LoginView.tsx        # Autenticación OAuth2
+    ├── ComprasView.tsx      # Dashboard + Proveedores + Compras + Nueva Compra
+    ├── CarteraView.tsx      # CxC & CxP con abonos, aging y origen (compra/manual)
+    ├── UsuariosView.tsx     # CRUD usuarios (Admin)
+    └── LoginView.tsx        # Autenticación
 ```
 
 ---
@@ -172,16 +185,17 @@ cd superozono-erp
 
 ### 2. Configurar variables de entorno
 
+El archivo `.env` ya está configurado para desarrollo local con SQLite. Si necesitas personalizarlo:
+
 ```bash
-# Backend (desarrollo local con SQLite)
-cp .env.example backend/.env
+# El backend busca backend/.env — ya existe con SQLite por defecto
 ```
 
-Edita `backend/.env` y completa al menos:
+Para producción con PostgreSQL usa `.env.produccion` como plantilla:
 
-```env
-DATABASE_URL=sqlite+aiosqlite:///./superozono.db
-SECRET_KEY=genera-una-clave-con-python-secrets-token-hex-32
+```bash
+cp .env.produccion .env
+# Edita .env con las credenciales reales
 ```
 
 ### 3. Instalar dependencias backend
@@ -211,15 +225,15 @@ start.bat
 
 ```bash
 # Terminal 1 — Backend
-cd backend && venv\Scripts\activate
-uvicorn app.main:app --reload --port 8000
+cd backend
+venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 # Terminal 2 — Frontend
 cd frontend
-node node_modules/vite/bin/vite.js --port 5173
+node node_modules/vite/bin/vite.js --host 0.0.0.0 --port 5173
 ```
 
-El primer arranque ejecuta automáticamente los seeders con datos base (PUC, centros de costo, períodos contables, parámetros tributarios, productos de ejemplo, clientes de ejemplo).
+El primer arranque ejecuta automáticamente los seeders con datos base (PUC completo según Decreto 2650, centros de costo por marca, períodos contables, parámetros tributarios y de nómina).
 
 ### 6. Acceder
 
@@ -227,7 +241,6 @@ El primer arranque ejecuta automáticamente los seeders con datos base (PUC, cen
 |----------|-----|
 | Aplicación | http://localhost:5173 |
 | API Docs (Swagger) | http://localhost:8000/docs |
-| API Docs (ReDoc) | http://localhost:8000/redoc |
 
 **Credenciales por defecto:**
 
@@ -236,7 +249,7 @@ Email:      admin@superozonoglobal.com
 Contraseña: Admin2026!
 ```
 
-> ⚠️ Cambia la contraseña del administrador en el primer inicio desde **Usuarios & Accesos → Cambiar mi contraseña**.
+> Cambia la contraseña desde **Usuarios & Accesos → Cambiar mi contraseña** en el primer inicio.
 
 ---
 
@@ -249,10 +262,9 @@ Contraseña: Admin2026!
 ### 1. Configurar entorno
 
 ```bash
-cp .env.example .env
+cp .env.produccion .env
+# Edita .env con SECRET_KEY y credenciales PostgreSQL reales
 ```
-
-Edita `.env` con las credenciales de PostgreSQL y la `SECRET_KEY`.
 
 ### 2. Levantar servicios
 
@@ -262,51 +274,46 @@ docker-compose up -d
 
 | Servicio | URL |
 |----------|-----|
+| Frontend | http://localhost |
 | API | http://localhost:8000 |
 | pgAdmin | http://localhost:5050 |
-
-> El frontend en Docker requiere un contenedor adicional (nginx). Por ahora corre localmente con `npm run dev` apuntando al backend en `localhost:8000`.
 
 ---
 
 ## Variables de entorno
 
-Copia `.env.example` como `.env` (raíz para Docker, `backend/.env` para desarrollo local).
-
 | Variable | Requerida | Descripción |
 |----------|-----------|-------------|
 | `DATABASE_URL` | ✅ | `postgresql+asyncpg://...` (prod) o `sqlite+aiosqlite:///./superozono.db` (dev) |
-| `SECRET_KEY` | ✅ | Clave secreta JWT — genera con `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `SECRET_KEY` | ✅ | Clave JWT — genera con `python -c "import secrets; print(secrets.token_hex(32))"` |
 | `POSTGRES_USER` | Docker | Usuario PostgreSQL |
 | `POSTGRES_PASSWORD` | Docker | Contraseña PostgreSQL |
 | `POSTGRES_DB` | Docker | Nombre de la base de datos |
-| `REDIS_URL` | No | `redis://redis:6379/0` (por defecto) |
+| `REDIS_URL` | No | `redis://redis:6379/0` |
 | `ACCESS_TOKEN_EXPIRE_HOURS` | No | Expiración JWT en horas (default: 8) |
 | `DEBUG` | No | `true` en desarrollo, `false` en producción |
 | `ALEGRA_EMAIL` | Alegra | Email de la cuenta Alegra |
-| `ALEGRA_TOKEN` | Alegra | Token de API de Alegra (`Configuración → API`) |
-| `PGADMIN_EMAIL` | Docker | Email de acceso a pgAdmin |
-| `PGADMIN_PASSWORD` | Docker | Contraseña de pgAdmin |
+| `ALEGRA_TOKEN` | Alegra | Token API de Alegra (`Configuración → API`) |
 
 ---
 
 ## API Reference
 
-La documentación interactiva completa está disponible en `/docs` (Swagger UI) o `/redoc` cuando el backend está corriendo.
+Documentación interactiva completa en `/docs` cuando el backend está corriendo.
 
 ### Endpoints principales
 
 ```
 # Auth
-POST   /api/login/access-token          Login → JWT
-GET    /api/users/me                    Usuario actual
+POST   /api/login/access-token            Login → JWT
+GET    /api/users/me                      Usuario actual
 
 # Dashboard
-GET    /api/v1/contabilidad/dashboard   Stats contabilidad
-GET    /api/v1/ventas/dashboard         Stats ventas del mes
+GET    /api/v1/contabilidad/dashboard     Stats contabilidad
+GET    /api/v1/ventas/dashboard           Stats ventas del mes
 
 # Contabilidad
-GET    /api/v1/contabilidad/puc         Plan de Cuentas
+GET    /api/v1/contabilidad/puc
 GET    /api/v1/contabilidad/centros-costo
 GET    /api/v1/contabilidad/periodos
 GET    /api/v1/contabilidad/parametros-tributarios
@@ -315,12 +322,11 @@ GET    /api/v1/contabilidad/parametros-nomina
 # Cartera
 GET    /api/v1/contabilidad/cartera/stats
 GET    /api/v1/contabilidad/cartera/cxc
-POST   /api/v1/contabilidad/cartera/cxc
 POST   /api/v1/contabilidad/cartera/cxc/{id}/abonar
 PATCH  /api/v1/contabilidad/cartera/cxc/{id}/anular
 GET    /api/v1/contabilidad/cartera/cxp
-POST   /api/v1/contabilidad/cartera/cxp
-POST   /api/v1/contabilidad/cartera/cxp/{id}/abonar
+POST   /api/v1/contabilidad/cartera/cxp/{id}/abonar   # sincroniza estado_pago en compra
+PATCH  /api/v1/contabilidad/cartera/cxp/{id}/anular
 
 # Ventas
 GET    /api/v1/ventas/productos
@@ -330,7 +336,18 @@ POST   /api/v1/ventas/clientes
 GET    /api/v1/ventas/documentos
 POST   /api/v1/ventas/documentos
 
-# Usuarios (Superadmin)
+# Compras & Proveedores
+GET    /api/v1/compras/dashboard
+GET    /api/v1/compras/proveedores
+POST   /api/v1/compras/proveedores
+PUT    /api/v1/compras/proveedores/{id}
+DELETE /api/v1/compras/proveedores/{id}
+GET    /api/v1/compras/
+POST   /api/v1/compras/                   # crea en borrador
+POST   /api/v1/compras/{id}/confirmar     # confirma + genera CxP automática
+POST   /api/v1/compras/{id}/anular
+
+# Usuarios
 GET    /api/v1/usuarios
 POST   /api/v1/usuarios
 PUT    /api/v1/usuarios/{id}
@@ -349,42 +366,41 @@ POST   /api/v1/alegra/facturas/{venta_id}
 
 ## Roles y permisos
 
-| Rol | Módulos accesibles |
-|-----|--------------------|
-| **Superadmin** | Todo — incluyendo usuarios y configuración |
-| **Contabilidad** | Dashboard, PUC, Centros de Costo, Períodos, Tributarios, Nómina, Cartera |
-| **Ventas** | Dashboard, Ventas & Comercial |
-| **Bodega** | Dashboard, Inventario |
-| **RRHH** | Dashboard, Nómina, Talento Humano |
-| **Solo lectura** | Dashboard, Reportes |
+El sistema tiene 3 roles, diseñados para una red LAN de 5 PCs:
+
+| Rol | Descripción | Módulos accesibles |
+|-----|-------------|-------------------|
+| **Admin** | PC servidor — acceso total | Todo el sistema |
+| **Administradora** | PC administrativo | Dashboard, Contabilidad, Ventas, Compras, Cartera |
+| **Auxiliar** | 3 PCs operativos | Dashboard, Ventas, Compras, Cartera |
 
 ---
 
 ## Roadmap
 
-### Fase 1 — En progreso
-- [x] Auth JWT + RBAC
-- [x] Módulo Contabilidad (PUC, períodos, parámetros)
-- [x] Módulo Ventas (productos, clientes, documentos)
-- [x] Cartera CxC & CxP
+### Fase 1 — Completada
+- [x] Auth JWT + RBAC (3 roles)
+- [x] Módulo Contabilidad (PUC, períodos, parámetros tributarios y nómina)
+- [x] Módulo Ventas (productos, clientes, facturas, impresión PDF)
+- [x] Módulo Compras & Proveedores (CRUD, documentos, impresión PDF)
+- [x] Cartera CxC & CxP (abonos, aging, CxP automática desde compras)
 - [x] Gestión de Usuarios
 - [x] Dashboard dinámico
 - [x] Integración Alegra (base construida)
-- [ ] Inventario (pendiente datos)
 
 ### Fase 2
-- [ ] Proveedores y órdenes de compra
+- [ ] Inventario — entradas automáticas al confirmar compra
+- [ ] Comprobante de pago al registrar abono en CxP
 - [ ] Módulo RRHH (empleados, contratos)
-- [ ] Liquidación de nómina
+- [ ] Liquidación de nómina mensual
 - [ ] Activación Alegra con facturación electrónica DIAN
 
 ### Fase 3
-- [ ] Devoluciones en ventas
-- [ ] Integración Mercado Libre
-- [ ] Notificaciones y alertas
+- [ ] Reportes & BI (P&L, Balance General, aging cartera, compras por período)
+- [ ] Devoluciones en ventas y compras
+- [ ] Notificaciones y alertas de vencimiento CxP
 
 ### Fase 4
-- [ ] Reportes & BI (P&L, Balance General, aging cartera)
 - [ ] Empaquetado Electron (app de escritorio .exe)
 - [ ] Auditoría completa (log de cambios por usuario)
 
@@ -392,11 +408,11 @@ POST   /api/v1/alegra/facturas/{venta_id}
 
 ## Empresa
 
-**TECNOLOGÍA E INNOVACIÓN SUPER OZONO S.A.S.**  
-NIT: 901841798-5  
-Armenia, Quindío — Colombia  
+**TECNOLOGÍA E INNOVACIÓN SUPER OZONO S.A.S.**
+NIT: 901.841.798-5
+Armenia, Quindío — Colombia
 Sector: Agroindustria / Biocidas naturales con tecnología de ozono
 
 ---
 
-*Desarrollado con ❤️ para Super Ozono Global — 2026*
+*Desarrollado a medida para Super Ozono Global — 2026*
