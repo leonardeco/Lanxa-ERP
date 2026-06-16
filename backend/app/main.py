@@ -14,6 +14,7 @@ from app.core.database import engine, async_session, Base
 from app.modules.contabilidad.router import router as contabilidad_router
 from app.modules.ventas.router import router as ventas_router
 from app.modules.usuarios.router import router as usuarios_router
+from app.modules.alegra.router import router as alegra_router
 from app.modules.contabilidad.schemas import HealthResponse
 
 # ── Structured Logging ───────────────────────────────────
@@ -129,3 +130,4 @@ async def root():
 app.include_router(usuarios_router, prefix="/api", tags=["Usuarios y Seguridad"])
 app.include_router(contabilidad_router)
 app.include_router(ventas_router)
+app.include_router(alegra_router)

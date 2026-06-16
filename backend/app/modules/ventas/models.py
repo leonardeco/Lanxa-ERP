@@ -71,6 +71,7 @@ class Producto(Base):
     stock_actual = Column(Integer, default=0)
     stock_minimo = Column(Integer, default=5)
     activo = Column(Boolean, default=True)
+    alegra_id = Column(Integer, nullable=True, index=True)
     registro_ica = Column(String(50), nullable=True)  # Registro ICA (para biocidas)
     notas = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -107,6 +108,7 @@ class Cliente(Base):
     cupo_credito = Column(Numeric(18, 2), default=Decimal("0.00"))
     dias_credito = Column(Integer, default=30)
     activo = Column(Boolean, default=True)
+    alegra_id = Column(Integer, nullable=True, index=True)
     notas = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -143,6 +145,11 @@ class VentaDocumento(Base):
     # Estado
     estado = Column(SAEnum(EstadoVenta), default=EstadoVenta.BORRADOR)
     estado_pago = Column(SAEnum(EstadoPago), default=EstadoPago.PENDIENTE)
+
+    # Alegra (facturación electrónica)
+    alegra_id = Column(Integer, nullable=True, index=True)
+    alegra_numero = Column(String(50), nullable=True)
+    cufe = Column(String(200), nullable=True)
 
     observaciones = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

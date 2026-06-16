@@ -1,5 +1,5 @@
 """
-Super Ozono Global — ERP Backend Configuration
+Super Ozono Global -- ERP Backend Configuration
 """
 
 from pydantic_settings import BaseSettings
@@ -7,27 +7,31 @@ from functools import lru_cache
 
 
 class Settings(BaseSettings):
-    # ── Database ─────────────────────────────────────────
+    # Database
     DATABASE_URL: str
 
-    # ── Redis ────────────────────────────────────────────
+    # Redis
     REDIS_URL: str = "redis://redis:6379/0"
 
-    # ── Security ─────────────────────────────────────────
+    # Security
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_HOURS: int = 8
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     ALGORITHM: str = "HS256"
 
-    # ── App ──────────────────────────────────────────────
+    # App
     DEBUG: bool = False
     APP_NAME: str = "Super Ozono Global ERP"
     APP_VERSION: str = "0.2.0"
 
-    # ── Empresa ──────────────────────────────────────────
+    # Empresa
     EMPRESA_NIT: str = "901841798-5"
-    EMPRESA_RAZON_SOCIAL: str = "TECNOLOGÍA E INNOVACIÓN SUPER OZONO S.A.S."
-    EMPRESA_CIUDAD: str = "Armenia, Quindío"
+    EMPRESA_RAZON_SOCIAL: str = "TECNOLOGIA E INNOVACION SUPER OZONO S.A.S."
+    EMPRESA_CIUDAD: str = "Armenia, Quindio"
+
+    # Alegra (facturacion electronica)
+    ALEGRA_EMAIL: str = ""
+    ALEGRA_TOKEN: str = ""
 
     class Config:
         env_file = ".env"
