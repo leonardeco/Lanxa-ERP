@@ -9,6 +9,7 @@ import PeriodosView from './views/PeriodosView'
 import TributariosView from './views/TributariosView'
 import NominaView from './views/NominaView'
 import VentasView from './views/VentasView'
+import UsuariosView from './views/UsuariosView'
 import LoginView from './views/LoginView'
 import { useAuth } from './contexts/AuthContext'
 
@@ -18,6 +19,7 @@ export type ViewId =
   | 'centros-costo'
   | 'periodos'
   | 'tributarios'
+  | 'usuarios'
   | 'nomina'
   | 'ventas'
   | 'inventario'
@@ -45,11 +47,12 @@ const VIEW_TITLES: Record<ViewId, string> = {
   rrhh: 'Talento Humano',
   plataformas: 'Plataformas & Marketing',
   reportes: 'Reportes & BI',
+  usuarios: 'Gestión de Usuarios',
 }
 
 // Qué módulos puede ver cada rol
 const ROLE_VIEWS: Record<RolUsuario, ViewId[]> = {
-  Superadmin: ['dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios', 'nomina', 'ventas', 'inventario', 'rrhh', 'plataformas', 'reportes'],
+  Superadmin: ['dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios', 'nomina', 'ventas', 'inventario', 'rrhh', 'plataformas', 'reportes', 'usuarios'],
   Contabilidad: ['dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios', 'nomina'],
   Ventas: ['dashboard', 'ventas'],
   Bodega: ['dashboard', 'inventario'],
@@ -112,6 +115,8 @@ function App() {
         return <NominaView />
       case 'ventas':
         return <VentasView />
+      case 'usuarios':
+        return <UsuariosView />
       case 'inventario':
       case 'rrhh':
       case 'plataformas':

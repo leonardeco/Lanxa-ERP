@@ -37,6 +37,12 @@ const NAV_SECTIONS = [
       { id: 'reportes' as ViewId, icon: '📈', label: 'Reportes & BI' },
     ],
   },
+  {
+    title: 'Administración',
+    items: [
+      { id: 'usuarios' as ViewId, icon: '⚙️', label: 'Usuarios & Accesos' },
+    ],
+  },
 ]
 
 

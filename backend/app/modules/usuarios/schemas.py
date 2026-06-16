@@ -18,6 +18,15 @@ class UsuarioBase(BaseModel):
 class UsuarioCreate(UsuarioBase):
     password: str
 
+class UsuarioUpdate(BaseModel):
+    nombre_completo: str | None = None
+    rol: str | None = None
+    is_active: bool | None = None
+
+class UsuarioPasswordChange(BaseModel):
+    current_password: str
+    new_password: str
+
 class UsuarioResponse(UsuarioBase):
     id: int
 
