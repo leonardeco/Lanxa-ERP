@@ -12,7 +12,7 @@ class TokenPayload(BaseModel):
 class UsuarioBase(BaseModel):
     email: EmailStr
     nombre_completo: str
-    rol: str = "Ventas"
+    rol: str = "Auxiliar"
     is_active: bool = True
 
 class UsuarioCreate(UsuarioBase):

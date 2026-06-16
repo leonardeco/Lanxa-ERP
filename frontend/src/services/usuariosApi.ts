@@ -22,7 +22,7 @@ export interface UsuarioUpdate {
   is_active?: boolean;
 }
 
-export const ROLES = ['Superadmin', 'Contabilidad', 'Ventas', 'Bodega', 'RRHH', 'Solo lectura'] as const;
+export const ROLES = ['Admin', 'Administradora', 'Auxiliar'] as const;
 
 export const usuariosApi = {
   list: () => api.get<Usuario[]>('/v1/usuarios').then(r => r.data),

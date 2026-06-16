@@ -10,5 +10,5 @@ class Usuario(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     nombre_completo: Mapped[str] = mapped_column(String(255), nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
-    rol: Mapped[str] = mapped_column(String(50), nullable=False, default="Ventas")
+    rol: Mapped[str] = mapped_column(String(50), nullable=False, default="Auxiliar")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)

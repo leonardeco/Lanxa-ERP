@@ -11,6 +11,7 @@ from decimal import Decimal
 from datetime import date, datetime
 
 from app.core.database import get_db
+from app.api.deps import CurrentUser, AdminOrAdministradoraDep
 from app.modules.ventas.models import (
     Producto, Cliente, VentaDocumento, VentaDetalle,
     EstadoVenta, EstadoPago,
@@ -63,7 +64,7 @@ def _calcular_detalle(detalle_data) -> dict:
 # ══════════════════════════════════════════════════════════
 
 @router.get("/dashboard", response_model=VentaDashboardStats)
-async def get_ventas_dashboard(db: AsyncSession = Depends(get_db)):
+async def get_ventas_dashboard(_: CurrentUser, db: AsyncSession = Depends(get_db)):
     """Estadísticas del módulo de ventas."""
     hoy = date.today()
     mes_actual = hoy.month
@@ -155,6 +156,7 @@ async def get_ventas_dashboard(db: AsyncSession = Depends(get_db)):
 
 @router.get("/productos", response_model=List[ProductoResponse])
 async def list_productos(
+    _: CurrentUser,
     marca: Optional[str] = Query(None, description="Filtrar por marca"),
     activo: Optional[bool] = Query(None, description="Filtrar por estado activo"),
     db: AsyncSession = Depends(get_db),
@@ -170,7 +172,7 @@ async def list_productos(
 
 
 @router.get("/productos/{producto_id}", response_model=ProductoResponse)
-async def get_producto(producto_id: int, db: AsyncSession = Depends(get_db)):
+async def get_producto(producto_id: int, _: CurrentUser, db: AsyncSession = Depends(get_db)):
     """Obtener un producto por ID."""
     producto = await db.get(Producto, producto_id)
     if not producto:
@@ -179,7 +181,7 @@ async def get_producto(producto_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/productos", response_model=ProductoResponse, status_code=201)
-async def create_producto(data: ProductoCreate, db: AsyncSession = Depends(get_db)):
+async def create_producto(data: ProductoCreate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
     """Crear un nuevo producto."""
     # Verificar SKU único
     existing = await db.scalar(select(Producto.id).where(Producto.sku == data.sku))
@@ -195,7 +197,7 @@ async def create_producto(data: ProductoCreate, db: AsyncSession = Depends(get_d
 
 @router.put("/productos/{producto_id}", response_model=ProductoResponse)
 async def update_producto(
-    producto_id: int, data: ProductoUpdate, db: AsyncSession = Depends(get_db)
+    producto_id: int, data: ProductoUpdate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
 ):
     """Actualizar un producto existente."""
     producto = await db.get(Producto, producto_id)
@@ -212,7 +214,7 @@ async def update_producto(
 
 
 @router.delete("/productos/{producto_id}")
-async def delete_producto(producto_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_producto(producto_id: int, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
     """Desactivar un producto (soft delete)."""
     producto = await db.get(Producto, producto_id)
     if not producto:
@@ -229,6 +231,7 @@ async def delete_producto(producto_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.get("/clientes", response_model=List[ClienteResponse])
 async def list_clientes(
+    _: CurrentUser,
     activo: Optional[bool] = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
@@ -241,7 +244,7 @@ async def list_clientes(
 
 
 @router.get("/clientes/{cliente_id}", response_model=ClienteResponse)
-async def get_cliente(cliente_id: int, db: AsyncSession = Depends(get_db)):
+async def get_cliente(cliente_id: int, _: CurrentUser, db: AsyncSession = Depends(get_db)):
     """Obtener un cliente por ID."""
     cliente = await db.get(Cliente, cliente_id)
     if not cliente:
@@ -250,7 +253,7 @@ async def get_cliente(cliente_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/clientes", response_model=ClienteResponse, status_code=201)
-async def create_cliente(data: ClienteCreate, db: AsyncSession = Depends(get_db)):
+async def create_cliente(data: ClienteCreate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
     """Crear un nuevo cliente."""
     existing = await db.scalar(select(Cliente.id).where(Cliente.nit_cc == data.nit_cc))
     if existing:
@@ -265,7 +268,7 @@ async def create_cliente(data: ClienteCreate, db: AsyncSession = Depends(get_db)
 
 @router.put("/clientes/{cliente_id}", response_model=ClienteResponse)
 async def update_cliente(
-    cliente_id: int, data: ClienteUpdate, db: AsyncSession = Depends(get_db)
+    cliente_id: int, data: ClienteUpdate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
 ):
     """Actualizar un cliente existente."""
     cliente = await db.get(Cliente, cliente_id)
@@ -282,7 +285,7 @@ async def update_cliente(
 
 
 @router.delete("/clientes/{cliente_id}")
-async def delete_cliente(cliente_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_cliente(cliente_id: int, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
     """Desactivar un cliente (soft delete)."""
     cliente = await db.get(Cliente, cliente_id)
     if not cliente:
@@ -299,6 +302,7 @@ async def delete_cliente(cliente_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.get("/", response_model=List[VentaResponse])
 async def list_ventas(
+    _: CurrentUser,
     estado: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
@@ -368,7 +372,7 @@ async def list_ventas(
 
 
 @router.get("/{venta_id}", response_model=VentaResponse)
-async def get_venta(venta_id: int, db: AsyncSession = Depends(get_db)):
+async def get_venta(venta_id: int, _: CurrentUser, db: AsyncSession = Depends(get_db)):
     """Obtener un documento de venta por ID con detalles."""
     venta = await db.get(VentaDocumento, venta_id)
     if not venta:
@@ -427,7 +431,7 @@ async def get_venta(venta_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/", response_model=VentaResponse, status_code=201)
-async def create_venta(data: VentaCreate, db: AsyncSession = Depends(get_db)):
+async def create_venta(data: VentaCreate, _: CurrentUser, db: AsyncSession = Depends(get_db)):
     """Crear un nuevo documento de venta con detalles. Calcula totales automáticamente."""
     if not data.detalles:
         raise HTTPException(status_code=400, detail="La venta debe tener al menos una línea de detalle")
@@ -552,7 +556,7 @@ async def create_venta(data: VentaCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/{venta_id}/confirmar", response_model=VentaResponse)
-async def confirmar_venta(venta_id: int, db: AsyncSession = Depends(get_db)):
+async def confirmar_venta(venta_id: int, _: CurrentUser, db: AsyncSession = Depends(get_db)):
     """Confirmar un documento de venta (pasa de Borrador a Confirmada)."""
     venta = await db.get(VentaDocumento, venta_id)
     if not venta:
@@ -569,7 +573,7 @@ async def confirmar_venta(venta_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/{venta_id}/anular")
-async def anular_venta(venta_id: int, db: AsyncSession = Depends(get_db)):
+async def anular_venta(venta_id: int, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
     """Anular un documento de venta."""
     venta = await db.get(VentaDocumento, venta_id)
     if not venta:

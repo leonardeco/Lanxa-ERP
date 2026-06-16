@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     EMPRESA_RAZON_SOCIAL: str = "TECNOLOGIA E INNOVACION SUPER OZONO S.A.S."
     EMPRESA_CIUDAD: str = "Armenia, Quindio"
 
+    # CORS — orígenes permitidos separados por coma
+    CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
+
     # Alegra (facturacion electronica)
     ALEGRA_EMAIL: str = ""
     ALEGRA_TOKEN: str = ""

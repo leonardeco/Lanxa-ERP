@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated
 
-from app.api.deps import SessionDep, CurrentUser, get_current_active_superuser
+from app.api.deps import SessionDep, CurrentUser, AdminDep
 from app.core.config import get_settings
 from app.modules.alegra.client import alegra_get, alegra_post
 from app.modules.alegra.mappers import cliente_to_alegra, producto_to_alegra, venta_to_alegra, detalle_to_alegra_item
@@ -17,7 +17,7 @@ from sqlalchemy.orm import selectinload
 
 router = APIRouter(prefix="/api/v1/alegra", tags=["Alegra - Facturacion Electronica"])
 settings = get_settings()
-SuperuserDep = Annotated[object, Depends(get_current_active_superuser)]
+SuperuserDep = AdminDep
 
 
 def _check_credentials():

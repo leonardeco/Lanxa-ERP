@@ -12,14 +12,14 @@ echo.
 
 :: ── Backend (FastAPI) ─────────────────────
 echo  [1/3] Arrancando backend (FastAPI)...
-start "Backend — FastAPI :8000" cmd /k "cd /d "%~dp0backend" && venv\Scripts\python.exe -m uvicorn app.main:app --port 8000"
+start "Backend — FastAPI :8000" cmd /k "cd /d "%~dp0backend" && venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
 
 :: Esperar que el backend levante
 timeout /t 4 /nobreak > /dev/null
 
 :: ── Frontend (Vite) ───────────────────────
 echo  [2/3] Arrancando frontend (Vite)...
-start "Frontend — Vite :5173" cmd /k "cd /d "%~dp0frontend" && node node_modules\vite\bin\vite.js --port 5173"
+start "Frontend — Vite :5173" cmd /k "cd /d "%~dp0frontend" && node node_modules\vite\bin\vite.js --host 0.0.0.0 --port 5173"
 
 :: Esperar que el frontend levante
 timeout /t 4 /nobreak > /dev/null

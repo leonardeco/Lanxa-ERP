@@ -1,56 +1,180 @@
-/**
- * Parámetros Tributarios View
- */
+import { useState, useEffect, useCallback } from 'react';
+import { contabilidadApi, type ParametroTributario } from '../services/contabilidadApi';
+import { useAuth } from '../contexts/AuthContext';
 
-const TRIBUTARIOS_DATA = [
-  { concepto: 'IVA general', tarifa: '19.000%', base: 'Ventas gravadas', puc: '2408', notas: 'Tarifa general vigente' },
-  { concepto: 'IVA tarifa reducida', tarifa: '5.000%', base: 'Productos tarifa 5%', puc: '2408', notas: 'Confirmar productos aplicables' },
-  { concepto: 'Retención en la fuente - compras', tarifa: '2.500%', base: 'Compras a declarantes', puc: '2365', notas: 'Confirmar tarifa por concepto' },
-  { concepto: 'Retención en la fuente - servicios', tarifa: '4.000%', base: 'Servicios', puc: '2365', notas: 'Confirmar tarifa por concepto' },
-  { concepto: 'Retención en la fuente - honorarios', tarifa: '11.000%', base: 'Honorarios', puc: '2365', notas: 'Confirmar tarifa por concepto' },
-  { concepto: 'ReteIVA', tarifa: '15.000%', base: '% del IVA en compras', puc: '2367', notas: 'Sobre el valor del IVA' },
-  { concepto: 'ReteICA', tarifa: '—', base: 'Según municipio (por mil)', puc: '2368', notas: '⚠️ Depende del municipio' },
-  { concepto: 'ICA (industria y comercio)', tarifa: '—', base: 'Tarifa municipal (por mil)', puc: '2412', notas: '⚠️ Tarifa de Armenia/Quindío' },
-]
+function Toast({ message, type, onClose }: { message: string; type: 'success' | 'error'; onClose: () => void }) {
+  useEffect(() => { const t = setTimeout(onClose, 3500); return () => clearTimeout(t); }, [onClose]);
+  return (
+    <div className={`toast toast-${type} fade-in`}>
+      <span>{type === 'success' ? '✅' : '❌'}</span><span>{message}</span>
+      <button className="toast-close" onClick={onClose}>×</button>
+    </div>
+  );
+}
+
+function EditModal({ param, onSave, onClose }: {
+  param: ParametroTributario;
+  onSave: (data: Partial<ParametroTributario>) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [tarifa, setTarifa] = useState(param.tarifa_valor?.toString() ?? '');
+  const [base, setBase] = useState(param.base_aplica ?? '');
+  const [puc, setPuc] = useState(param.cuenta_puc ?? '');
+  const [notas, setNotas] = useState(param.notas ?? '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    try {
+      await onSave({
+        tarifa_valor: tarifa !== '' ? parseFloat(tarifa) : null,
+        base_aplica: base || null,
+        cuenta_puc: puc || null,
+        notas: notas || null,
+      });
+    } catch (err: any) {
+      setError(err?.response?.data?.detail ?? 'Error al guardar');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal-card fade-in">
+        <div className="modal-header">
+          <h3>Editar parámetro tributario</h3>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="form-group">
+              <label className="form-label">Concepto</label>
+              <input className="form-input" value={param.concepto} disabled style={{ opacity: 0.5 }} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Tarifa / Valor (%)</label>
+              <input className="form-input" type="number" step="0.001" min="0" max="100"
+                value={tarifa} onChange={e => setTarifa(e.target.value)} placeholder="Ej: 19.000" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Base de aplicación</label>
+              <input className="form-input" value={base} onChange={e => setBase(e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Cuenta PUC</label>
+              <input className="form-input" value={puc} onChange={e => setPuc(e.target.value)} placeholder="Ej: 2365" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Notas</label>
+              <input className="form-input" value={notas} onChange={e => setNotas(e.target.value)} />
+            </div>
+            {error && <div className="form-error">{error}</div>}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancelar</button>
+              <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function TributariosView() {
+  const { user } = useAuth();
+  const canEdit = user?.rol === 'Admin' || user?.rol === 'Administradora';
+
+  const [params, setParams] = useState<ParametroTributario[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [editing, setEditing] = useState<ParametroTributario | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      setParams(await contabilidadApi.getTributarios());
+    } catch {
+      setToast({ message: 'Error al cargar parámetros tributarios', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleSave = async (data: Partial<ParametroTributario>) => {
+    if (!editing) return;
+    await contabilidadApi.updateTributario(editing.id, data);
+    setToast({ message: 'Parámetro actualizado', type: 'success' });
+    setEditing(null);
+    load();
+  };
+
+  const handleToggle = async (p: ParametroTributario) => {
+    try {
+      await contabilidadApi.toggleTributario(p.id);
+      setToast({ message: `Parámetro ${p.activo ? 'desactivado' : 'activado'}`, type: 'success' });
+      load();
+    } catch {
+      setToast({ message: 'Error al cambiar estado', type: 'error' });
+    }
+  };
+
+  if (loading) return <div className="loading-screen" style={{ minHeight: 200 }}><div className="loading-spinner" /></div>;
+
   return (
     <div className="fade-in">
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {editing && <EditModal param={editing} onSave={handleSave} onClose={() => setEditing(null)} />}
+
       <div className="table-container">
         <div className="table-header">
           <div className="table-title">🏛️ Parámetros Tributarios e Impuestos</div>
+          <div className="table-count">{params.length} parámetros</div>
         </div>
         <table className="data-table">
           <thead>
             <tr>
               <th>Concepto</th>
-              <th>Tarifa / Valor</th>
+              <th>Tarifa</th>
               <th>Base de Aplicación</th>
               <th>Cuenta PUC</th>
               <th>Notas</th>
+              <th>Estado</th>
+              {canEdit && <th style={{ textAlign: 'right' }}>Acciones</th>}
             </tr>
           </thead>
           <tbody>
-            {TRIBUTARIOS_DATA.map((t) => (
-              <tr key={t.concepto}>
-                <td style={{ fontWeight: 500 }}>{t.concepto}</td>
-                <td className="code" style={{ color: t.tarifa === '—' ? 'var(--neutral-500)' : 'var(--blue-400)' }}>
-                  {t.tarifa}
+            {params.map(p => (
+              <tr key={p.id} style={{ opacity: p.activo ? 1 : 0.5 }}>
+                <td style={{ fontWeight: 500 }}>{p.concepto}</td>
+                <td className="code" style={{ color: p.tarifa_valor != null ? 'var(--blue-400)' : 'var(--neutral-500)' }}>
+                  {p.tarifa_valor != null ? `${(p.tarifa_valor * 100).toFixed(3)}%` : '—'}
                 </td>
-                <td>{t.base}</td>
-                <td className="code">{t.puc}</td>
-                <td>
-                  {t.notas.includes('⚠️') ? (
-                    <span style={{ color: 'var(--amber-400)', fontSize: '0.75rem' }}>{t.notas}</span>
-                  ) : (
-                    <span style={{ color: 'var(--neutral-500)', fontSize: '0.75rem' }}>{t.notas}</span>
-                  )}
+                <td style={{ fontSize: '0.85rem' }}>{p.base_aplica ?? '—'}</td>
+                <td className="code">{p.cuenta_puc ?? '—'}</td>
+                <td style={{ fontSize: '0.75rem', color: p.notas?.includes('⚠️') ? 'var(--amber-400)' : 'var(--neutral-500)' }}>
+                  {p.notas ?? '—'}
                 </td>
+                <td><span className={`badge ${p.activo ? 'green' : 'neutral'}`}>{p.activo ? 'Activo' : 'Inactivo'}</span></td>
+                {canEdit && (
+                  <td>
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                      <button className="btn btn-ghost" style={{ fontSize: '0.78rem', padding: '4px 10px' }} onClick={() => setEditing(p)}>✏️ Editar</button>
+                      <button className={`btn ${p.activo ? 'btn-ghost' : 'btn-primary'}`} style={{ fontSize: '0.78rem', padding: '4px 10px' }} onClick={() => handleToggle(p)}>
+                        {p.activo ? '🚫 Desactivar' : '✅ Activar'}
+                      </button>
+                    </div>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
     </div>
-  )
+  );
 }

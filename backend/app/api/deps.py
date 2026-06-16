@@ -17,6 +17,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login/access-token")
 SessionDep = Annotated[AsyncSession, Depends(get_db)]
 TokenDep = Annotated[str, Depends(oauth2_scheme)]
 
+
 async def get_current_user(session: SessionDep, token: TokenDep) -> Usuario:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -32,7 +33,7 @@ async def get_current_user(session: SessionDep, token: TokenDep) -> Usuario:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-        
+
     user = await session.scalar(select(Usuario).where(Usuario.id == int(token_data.sub)))
     if user is None:
         raise credentials_exception
@@ -40,11 +41,31 @@ async def get_current_user(session: SessionDep, token: TokenDep) -> Usuario:
         raise HTTPException(status_code=400, detail="Usuario inactivo")
     return user
 
+
+# Alias base — cualquier usuario autenticado
 CurrentUser = Annotated[Usuario, Depends(get_current_user)]
 
+
 async def get_current_active_superuser(current_user: CurrentUser) -> Usuario:
-    if current_user.rol != "Superadmin":
+    """Solo Admin."""
+    if current_user.rol != "Admin":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="El usuario no tiene suficientes privilegios"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="El usuario no tiene suficientes privilegios",
         )
     return current_user
+
+
+async def get_admin_or_administradora(current_user: CurrentUser) -> Usuario:
+    """Admin o Administradora — operaciones sensibles (anular, abonar, maestros contables)."""
+    if current_user.rol not in ("Admin", "Administradora"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tiene permisos para realizar esta operación",
+        )
+    return current_user
+
+
+# Aliases de dependencia para usar en firmas de endpoints
+AdminDep = Annotated[Usuario, Depends(get_current_active_superuser)]
+AdminOrAdministradoraDep = Annotated[Usuario, Depends(get_admin_or_administradora)]

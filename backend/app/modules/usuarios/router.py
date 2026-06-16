@@ -4,7 +4,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import SessionDep, CurrentUser, get_current_active_superuser
+from app.api.deps import SessionDep, CurrentUser, AdminDep
 from app.core.security import verify_password, create_access_token, get_password_hash
 from app.modules.usuarios.models import Usuario
 from app.modules.usuarios.schemas import (
@@ -13,9 +13,9 @@ from app.modules.usuarios.schemas import (
 
 router = APIRouter()
 
-SuperuserDep = Annotated[Usuario, Depends(get_current_active_superuser)]
+SuperuserDep = AdminDep
 
-ROLES_VALIDOS = {"Superadmin", "Contabilidad", "Ventas", "Bodega", "RRHH", "Solo lectura"}
+ROLES_VALIDOS = {"Admin", "Administradora", "Auxiliar"}
 
 
 # ── Auth ─────────────────────────────────────────────────

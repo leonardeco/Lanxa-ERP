@@ -9,12 +9,9 @@ function getInitials(name: string) {
 }
 
 const ROL_COLORS: Record<string, string> = {
-  Superadmin: 'red',
-  Contabilidad: 'purple',
-  Ventas: 'green',
-  Bodega: 'amber',
-  RRHH: 'cyan',
-  'Solo lectura': 'neutral',
+  Admin: 'red',
+  Administradora: 'purple',
+  Auxiliar: 'green',
 };
 
 // ── Toast ────────────────────────────────────────────────
@@ -52,7 +49,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 // ── Modal Crear / Editar usuario ─────────────────────────
 
 const EMPTY_FORM: UsuarioCreate = {
-  email: '', nombre_completo: '', rol: 'Ventas', is_active: true, password: '',
+  email: '', nombre_completo: '', rol: 'Auxiliar', is_active: true, password: '',
 };
 
 function UsuarioFormModal({
@@ -216,7 +213,7 @@ function ChangePasswordModal({ onClose, onSaved }: { onClose: () => void; onSave
 
 export default function UsuariosView() {
   const { user: me } = useAuth();
-  const isSuperadmin = me?.rol === 'Superadmin';
+  const isSuperadmin = me?.rol === 'Admin';
 
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
@@ -399,7 +396,7 @@ export default function UsuariosView() {
         <div className="empty-state">
           <div className="empty-state-icon">🔒</div>
           <div className="empty-state-text">Acceso restringido</div>
-          <div className="empty-state-sub">Solo el Superadmin puede gestionar usuarios. Puedes cambiar tu contraseña desde el botón de arriba.</div>
+          <div className="empty-state-sub">Solo el Admin puede gestionar usuarios. Puedes cambiar tu contraseña desde el botón de arriba.</div>
         </div>
       )}
 

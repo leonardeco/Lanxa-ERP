@@ -12,6 +12,7 @@ import {
   type VentaDashboard,
   type VentaDetalleInput,
 } from '../services/ventasApi';
+import { printFactura } from '../utils/printFactura';
 
 type VentasTab = 'dashboard' | 'productos' | 'clientes' | 'facturas';
 
@@ -834,6 +835,7 @@ function FacturasTab() {
                     <td>
                       <div className="action-btns">
                         <button className="btn-icon" title="Ver detalle" onClick={() => setShowDetalle(v)}>👁️</button>
+                        <button className="btn-icon" title="Imprimir / PDF" onClick={() => printFactura(v)}>🖨️</button>
                         {v.estado === 'Borrador' && (
                           <button className="btn-icon" title="Confirmar" onClick={() => handleConfirmar(v)}>✅</button>
                         )}
@@ -859,6 +861,11 @@ function FacturasTab() {
 
       {showDetalle && (
         <Modal title={`Detalle — ${showDetalle.numero}`} onClose={() => setShowDetalle(null)} wide>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+            <button className="btn btn-primary" style={{ fontSize: '0.85rem' }} onClick={() => printFactura(showDetalle)}>
+              🖨️ Imprimir / Guardar PDF
+            </button>
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
             <div>
               <div className="detail-label">Cliente</div>

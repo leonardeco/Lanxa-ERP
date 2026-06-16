@@ -274,7 +274,7 @@ async def seed_usuarios(session):
         email="admin@superozonoglobal.com",
         nombre_completo="Administrador del Sistema",
         hashed_password=get_password_hash("Admin2026!"),
-        rol="Superadmin",
+        rol="Admin",
         is_active=True
     )
     session.add(admin)

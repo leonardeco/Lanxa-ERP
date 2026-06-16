@@ -1,4 +1,18 @@
 services:
+  # ── Frontend (React + nginx) ───────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: superozono-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - superozono-net
+
   # ── Backend API (FastAPI) ──────────────────────────────
   backend:
     build:
@@ -20,7 +34,7 @@ services:
         condition: service_healthy
     networks:
       - superozono-net
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
 
   # ── PostgreSQL 16 ──────────────────────────────────────
   db:
@@ -43,7 +57,7 @@ services:
     networks:
       - superozono-net
 
-  # ── Redis 7 (caché y colas) ────────────────────────────
+  # ── Redis 7 ───────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: superozono-redis
@@ -58,7 +72,7 @@ services:
     networks:
       - superozono-net
 
-  # ── pgAdmin 4 (admin DB) ──────────────────────────────
+  # ── pgAdmin 4 ─────────────────────────────────────────
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: superozono-pgadmin

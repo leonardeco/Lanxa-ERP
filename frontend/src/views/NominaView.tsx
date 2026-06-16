@@ -1,31 +1,137 @@
-/**
- * Parámetros de Nómina View
- */
+import { useState, useEffect, useCallback } from 'react';
+import { contabilidadApi, type ParametroNomina } from '../services/contabilidadApi';
+import { useAuth } from '../contexts/AuthContext';
 
-const NOMINA_DATA = [
-  { concepto: 'Salario / Honorarios', valor: '—', tipo: '$', notas: 'Pago por prestación de servicios' },
-  { concepto: 'Auxilio de transporte', valor: '0.000%', tipo: '%', notas: 'No aplica (Prestación de servicios)' },
-  { concepto: 'Tope auxilio transporte', valor: '0.000%', tipo: '%', notas: 'No aplica (Prestación de servicios)' },
-  { concepto: 'Salud - aporte empleado', valor: '—', tipo: '%', notas: 'El contratista aporta como independiente' },
-  { concepto: 'Pensión - aporte empleado', valor: '0.000%', tipo: '%', notas: 'No aplica (Prestación de servicios)' },
-  { concepto: 'Salud - aporte empresa', valor: '0.000%', tipo: '%', notas: 'No aplica (Prestación de servicios)' },
-  { concepto: 'Pensión - aporte empresa', valor: '0.000%', tipo: '%', notas: 'No aplica (Prestación de servicios)' },
-  { concepto: 'ARL', valor: '—', tipo: '%', notas: 'Según nivel de riesgo acordado' },
-  { concepto: 'Caja de compensación', valor: '0.000%', tipo: '%', notas: 'No aplica (Prestación de servicios)' },
-  { concepto: 'SENA', valor: '0.000%', tipo: '%', notas: 'No aplica (Prestación de servicios)' },
-  { concepto: 'ICBF', valor: '0.000%', tipo: '%', notas: 'No aplica (Prestación de servicios)' },
-  { concepto: 'Cesantías', valor: '0.000%', tipo: '%', notas: 'No aplica (Prestación de servicios)' },
-  { concepto: 'Intereses sobre cesantías', valor: '0.000%', tipo: '%', notas: 'No aplica (Prestación de servicios)' },
-  { concepto: 'Prima de servicios', valor: '0.000%', tipo: '%', notas: 'No aplica (Prestación de servicios)' },
-  { concepto: 'Vacaciones', valor: '0.000%', tipo: '%', notas: 'No aplica (Prestación de servicios)' },
-]
+function Toast({ message, type, onClose }: { message: string; type: 'success' | 'error'; onClose: () => void }) {
+  useEffect(() => { const t = setTimeout(onClose, 3500); return () => clearTimeout(t); }, [onClose]);
+  return (
+    <div className={`toast toast-${type} fade-in`}>
+      <span>{type === 'success' ? '✅' : '❌'}</span><span>{message}</span>
+      <button className="toast-close" onClick={onClose}>×</button>
+    </div>
+  );
+}
+
+function EditModal({ param, onSave, onClose }: {
+  param: ParametroNomina;
+  onSave: (data: Partial<ParametroNomina>) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [valor, setValor] = useState(param.valor_porcentaje?.toString() ?? '');
+  const [tipo, setTipo] = useState(param.tipo ?? '%');
+  const [notas, setNotas] = useState(param.notas ?? '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    try {
+      await onSave({
+        valor_porcentaje: valor !== '' ? parseFloat(valor) : null,
+        tipo: tipo || null,
+        notas: notas || null,
+      });
+    } catch (err: any) {
+      setError(err?.response?.data?.detail ?? 'Error al guardar');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal-card fade-in">
+        <div className="modal-header">
+          <h3>Editar parámetro de nómina</h3>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="form-group">
+              <label className="form-label">Concepto</label>
+              <input className="form-input" value={param.concepto} disabled style={{ opacity: 0.5 }} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Valor / Porcentaje</label>
+              <input className="form-input" type="number" step="0.001" min="0"
+                value={valor} onChange={e => setValor(e.target.value)} placeholder="Ej: 0.04" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Tipo</label>
+              <select className="form-input" value={tipo} onChange={e => setTipo(e.target.value)}>
+                <option value="%">%</option>
+                <option value="$">$</option>
+                <option value="x SMMLV">x SMMLV</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Notas</label>
+              <input className="form-input" value={notas} onChange={e => setNotas(e.target.value)} />
+            </div>
+            {error && <div className="form-error">{error}</div>}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancelar</button>
+              <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function NominaView() {
+  const { user } = useAuth();
+  const canEdit = user?.rol === 'Admin' || user?.rol === 'Administradora';
+
+  const [params, setParams] = useState<ParametroNomina[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [editing, setEditing] = useState<ParametroNomina | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      setParams(await contabilidadApi.getNomina());
+    } catch {
+      setToast({ message: 'Error al cargar parámetros de nómina', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleSave = async (data: Partial<ParametroNomina>) => {
+    if (!editing) return;
+    await contabilidadApi.updateNomina(editing.id, data);
+    setToast({ message: 'Parámetro actualizado', type: 'success' });
+    setEditing(null);
+    load();
+  };
+
+  const handleToggle = async (p: ParametroNomina) => {
+    try {
+      await contabilidadApi.toggleNomina(p.id);
+      setToast({ message: `Parámetro ${p.activo ? 'desactivado' : 'activado'}`, type: 'success' });
+      load();
+    } catch {
+      setToast({ message: 'Error al cambiar estado', type: 'error' });
+    }
+  };
+
+  if (loading) return <div className="loading-screen" style={{ minHeight: 200 }}><div className="loading-spinner" /></div>;
+
   return (
     <div className="fade-in">
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {editing && <EditModal param={editing} onSave={handleSave} onClose={() => setEditing(null)} />}
+
       <div className="table-container">
         <div className="table-header">
           <div className="table-title">💰 Parámetros de Nómina y Laborales</div>
+          <div className="table-count">{params.length} conceptos</div>
         </div>
         <table className="data-table">
           <thead>
@@ -34,32 +140,37 @@ export default function NominaView() {
               <th>Valor / Porcentaje</th>
               <th>Tipo</th>
               <th>Notas</th>
+              <th>Estado</th>
+              {canEdit && <th style={{ textAlign: 'right' }}>Acciones</th>}
             </tr>
           </thead>
           <tbody>
-            {NOMINA_DATA.map((n) => (
-              <tr key={n.concepto}>
-                <td style={{ fontWeight: 500 }}>{n.concepto}</td>
-                <td className="code" style={{ color: n.valor === '—' ? 'var(--neutral-500)' : 'var(--purple-400)' }}>
-                  {n.valor}
+            {params.map(p => (
+              <tr key={p.id} style={{ opacity: p.activo ? 1 : 0.5 }}>
+                <td style={{ fontWeight: 500 }}>{p.concepto}</td>
+                <td className="code" style={{ color: p.valor_porcentaje != null ? 'var(--purple-400)' : 'var(--neutral-500)' }}>
+                  {p.valor_porcentaje != null ? p.valor_porcentaje : '—'}
                 </td>
-                <td>
-                  <span className={`badge ${n.tipo === '%' ? 'neutral' : 'blue'}`}>
-                    {n.tipo}
-                  </span>
+                <td><span className={`badge ${p.tipo === '%' ? 'neutral' : 'blue'}`}>{p.tipo ?? '—'}</span></td>
+                <td style={{ fontSize: '0.75rem', color: p.notas?.includes('⚠️') ? 'var(--amber-400)' : 'var(--neutral-500)' }}>
+                  {p.notas ?? '—'}
                 </td>
-                <td>
-                  {n.notas.includes('⚠️') ? (
-                    <span style={{ color: 'var(--amber-400)', fontSize: '0.75rem' }}>{n.notas}</span>
-                  ) : (
-                    <span style={{ color: 'var(--neutral-500)', fontSize: '0.75rem' }}>{n.notas}</span>
-                  )}
-                </td>
+                <td><span className={`badge ${p.activo ? 'green' : 'neutral'}`}>{p.activo ? 'Activo' : 'Inactivo'}</span></td>
+                {canEdit && (
+                  <td>
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                      <button className="btn btn-ghost" style={{ fontSize: '0.78rem', padding: '4px 10px' }} onClick={() => setEditing(p)}>✏️ Editar</button>
+                      <button className={`btn ${p.activo ? 'btn-ghost' : 'btn-primary'}`} style={{ fontSize: '0.78rem', padding: '4px 10px' }} onClick={() => handleToggle(p)}>
+                        {p.activo ? '🚫 Desactivar' : '✅ Activar'}
+                      </button>
+                    </div>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
     </div>
-  )
+  );
 }
