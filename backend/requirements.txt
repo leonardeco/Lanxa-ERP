@@ -1,0 +1,26 @@
+# ── Web Framework ────────────────────────────────────────
+fastapi==0.115.12
+uvicorn[standard]==0.34.3
+python-multipart==0.0.20
+
+# ── Database ─────────────────────────────────────────────
+sqlalchemy[asyncio]==2.0.41
+asyncpg==0.30.0
+psycopg2-binary==2.9.10
+aiosqlite==0.20.0
+alembic==1.15.2
+
+# ── Validation & Serialization ───────────────────────────
+pydantic==2.11.3
+pydantic-settings==2.9.1
+
+# ── Security ─────────────────────────────────────────────
+python-jose[cryptography]==3.5.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.3.0
+
+# ── Logging ──────────────────────────────────────────────
+structlog==25.4.0
+
+# ── CORS & Utils ─────────────────────────────────────────
+httpx==0.28.1
