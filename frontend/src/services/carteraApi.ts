@@ -30,6 +30,7 @@ export interface CxP {
   fecha_vencimiento?: string;
   estado: string;
   dias_vencido: number;
+  compra_id?: number;
   notas?: string;
   created_at: string;
 }

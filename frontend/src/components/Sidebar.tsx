@@ -31,6 +31,7 @@ const NAV_SECTIONS = [
     title: 'Operaciones',
     items: [
       { id: 'ventas' as ViewId, icon: '🛒', label: 'Ventas & Comercial' },
+      { id: 'compras' as ViewId, icon: '📥', label: 'Compras & Proveedores' },
       { id: 'cartera' as ViewId, icon: '💰', label: 'Cartera CxC & CxP' },
       { id: 'inventario' as ViewId, icon: '📦', label: 'Inventario' },
       { id: 'rrhh' as ViewId, icon: '👥', label: 'Talento Humano' },

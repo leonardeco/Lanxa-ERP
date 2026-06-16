@@ -359,6 +359,7 @@ export default function CarteraView() {
               <thead>
                 <tr>
                   <th>Documento</th>
+                  <th>Origen</th>
                   <th>Proveedor</th>
                   <th>Concepto</th>
                   <th>Valor</th>
@@ -371,15 +372,21 @@ export default function CarteraView() {
               </thead>
               <tbody>
                 {cxpList.length === 0
-                  ? <tr><td colSpan={9} style={{ textAlign: 'center', padding: 32, color: 'var(--neutral-500)' }}>Sin registros</td></tr>
+                  ? <tr><td colSpan={10} style={{ textAlign: 'center', padding: 32, color: 'var(--neutral-500)' }}>Sin registros</td></tr>
                   : cxpList.map(p => (
                     <tr key={p.id} style={{ background: rowColor(p.dias_vencido, p.estado) }}>
-                      <td style={{ fontWeight: 600, color: 'var(--neutral-100)' }}>{p.numero_documento}</td>
+                      <td style={{ fontWeight: 600, color: 'var(--neutral-100)', fontFamily: 'monospace', fontSize: '0.82rem' }}>{p.numero_documento}</td>
+                      <td>
+                        {p.compra_id
+                          ? <span className="badge" style={{ background: '#dbeafe', color: '#1d4ed8', fontSize: 10 }}>📥 Compra</span>
+                          : <span className="badge" style={{ background: '#f3f4f6', color: '#6b7280', fontSize: 10 }}>Manual</span>
+                        }
+                      </td>
                       <td>
                         <div style={{ fontWeight: 500 }}>{p.razon_social}</div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--neutral-500)' }}>{p.proveedor_nit}</div>
                       </td>
-                      <td style={{ color: 'var(--neutral-400)', fontSize: '0.82rem' }}>{p.concepto || '—'}</td>
+                      <td style={{ color: 'var(--neutral-400)', fontSize: '0.82rem', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.concepto || '—'}</td>
                       <td>{formatCOP(p.valor)}</td>
                       <td style={{ color: 'var(--green-400)' }}>{formatCOP(p.abonos)}</td>
                       <td style={{ fontWeight: 600 }}>{formatCOP(p.saldo_pendiente)}</td>
@@ -392,7 +399,7 @@ export default function CarteraView() {
                           {!['Pagado', 'Anulado'].includes(p.estado) && (
                             <button className="btn btn-ghost" style={{ fontSize: '0.75rem', padding: '3px 8px' }}
                               onClick={() => setAbonoTarget({ id: p.id, saldo: p.saldo_pendiente, tipo: 'cxp' })}>
-                              💵 Abonar
+                              💵 Pagar
                             </button>
                           )}
                           {!['Anulado'].includes(p.estado) && (

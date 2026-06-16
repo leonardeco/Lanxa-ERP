@@ -15,6 +15,7 @@ from app.modules.contabilidad.router import router as contabilidad_router
 from app.modules.ventas.router import router as ventas_router
 from app.modules.usuarios.router import router as usuarios_router
 from app.modules.alegra.router import router as alegra_router
+from app.modules.compras.router import router as compras_router
 from app.modules.contabilidad.schemas import HealthResponse
 
 # ── Structured Logging ───────────────────────────────────
@@ -81,12 +82,7 @@ app = FastAPI(
 # ── CORS ─────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",   # Vite dev server
-        "http://localhost:3000",   # Fallback
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=[o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -131,3 +127,4 @@ app.include_router(usuarios_router, prefix="/api", tags=["Usuarios y Seguridad"]
 app.include_router(contabilidad_router)
 app.include_router(ventas_router)
 app.include_router(alegra_router)
+app.include_router(compras_router)

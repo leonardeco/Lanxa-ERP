@@ -11,6 +11,7 @@ import NominaView from './views/NominaView'
 import VentasView from './views/VentasView'
 import UsuariosView from './views/UsuariosView'
 import CarteraView from './views/CarteraView'
+import ComprasView from './views/ComprasView'
 import LoginView from './views/LoginView'
 import { useAuth } from './contexts/AuthContext'
 
@@ -24,18 +25,16 @@ export type ViewId =
   | 'cartera'
   | 'nomina'
   | 'ventas'
+  | 'compras'
   | 'inventario'
   | 'rrhh'
   | 'plataformas'
   | 'reportes'
 
 export type RolUsuario =
-  | 'Superadmin'
-  | 'Contabilidad'
-  | 'Ventas'
-  | 'Bodega'
-  | 'RRHH'
-  | 'Solo lectura'
+  | 'Admin'
+  | 'Administradora'
+  | 'Auxiliar'
 
 const VIEW_TITLES: Record<ViewId, string> = {
   dashboard: 'Dashboard General',
@@ -45,6 +44,7 @@ const VIEW_TITLES: Record<ViewId, string> = {
   tributarios: 'Parámetros Tributarios',
   nomina: 'Parámetros de Nómina',
   ventas: 'Ventas & Comercial',
+  compras: 'Compras & Proveedores',
   cartera: 'Cartera — CxC & CxP',
   inventario: 'Inventario & Logística',
   rrhh: 'Talento Humano',
@@ -55,12 +55,9 @@ const VIEW_TITLES: Record<ViewId, string> = {
 
 // Qué módulos puede ver cada rol
 const ROLE_VIEWS: Record<RolUsuario, ViewId[]> = {
-  Superadmin: ['dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios', 'nomina', 'ventas', 'cartera', 'inventario', 'rrhh', 'plataformas', 'reportes', 'usuarios'],
-  Contabilidad: ['dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios', 'nomina', 'cartera'],
-  Ventas: ['dashboard', 'ventas'],
-  Bodega: ['dashboard', 'inventario'],
-  RRHH: ['dashboard', 'nomina', 'rrhh'],
-  'Solo lectura': ['dashboard', 'reportes'],
+  Admin: ['dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios', 'nomina', 'ventas', 'compras', 'cartera', 'inventario', 'rrhh', 'plataformas', 'reportes', 'usuarios'],
+  Administradora: ['dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios', 'nomina', 'ventas', 'compras', 'cartera'],
+  Auxiliar: ['dashboard', 'ventas', 'compras', 'cartera'],
 }
 
 function App() {
@@ -118,6 +115,8 @@ function App() {
         return <NominaView />
       case 'ventas':
         return <VentasView />
+      case 'compras':
+        return <ComprasView />
       case 'cartera':
         return <CarteraView />
       case 'usuarios':

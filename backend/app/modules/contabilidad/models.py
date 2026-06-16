@@ -274,6 +274,7 @@ class CuentaPorPagar(Base):
     saldo_pendiente = Column(Numeric(18, 2), nullable=True)  # Calculado
     fecha_vencimiento = Column(Date, nullable=True)
     estado = Column(SAEnum(EstadoDocumento), default=EstadoDocumento.PENDIENTE)
+    compra_id = Column(Integer, nullable=True)  # FK lógica a compras.compradocumento
     notas = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

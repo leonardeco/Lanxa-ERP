@@ -23,6 +23,15 @@ class PlanCuentasBase(BaseModel):
     activo: bool = True
 
 
+class PlanCuentasCreate(PlanCuentasBase):
+    pass
+
+class PlanCuentasUpdate(BaseModel):
+    nombre: Optional[str] = None
+    activo: Optional[bool] = None
+    requiere_tercero: Optional[bool] = None
+    requiere_centro_costo: Optional[bool] = None
+
 class PlanCuentasResponse(PlanCuentasBase):
     id: int
     created_at: datetime
@@ -45,6 +54,17 @@ class CentroCostoBase(BaseModel):
     notas: Optional[str] = None
 
 
+class CentroCostoCreate(CentroCostoBase):
+    pass
+
+class CentroCostoUpdate(BaseModel):
+    nombre: Optional[str] = None
+    tipo: Optional[str] = None
+    marca_asociada: Optional[str] = None
+    responsable: Optional[str] = None
+    activo: Optional[bool] = None
+    notas: Optional[str] = None
+
 class CentroCostoResponse(CentroCostoBase):
     id: int
     created_at: datetime
@@ -64,6 +84,10 @@ class PeriodoContableBase(BaseModel):
     estado: str = "Abierto"
     notas: Optional[str] = None
 
+
+class PeriodoContableCreate(BaseModel):
+    anio: int
+    mes: int
 
 class PeriodoContableResponse(PeriodoContableBase):
     id: int
@@ -112,6 +136,13 @@ class ParametroTributarioBase(BaseModel):
     notas: Optional[str] = None
 
 
+class ParametroTributarioUpdate(BaseModel):
+    tarifa_valor: Optional[Decimal] = None
+    base_aplica: Optional[str] = None
+    cuenta_puc: Optional[str] = None
+    notas: Optional[str] = None
+    activo: Optional[bool] = None
+
 class ParametroTributarioResponse(ParametroTributarioBase):
     id: int
     activo: bool
@@ -131,6 +162,12 @@ class ParametroNominaBase(BaseModel):
     tipo: Optional[str] = None
     notas: Optional[str] = None
 
+
+class ParametroNominaUpdate(BaseModel):
+    valor_porcentaje: Optional[Decimal] = None
+    tipo: Optional[str] = None
+    notas: Optional[str] = None
+    activo: Optional[bool] = None
 
 class ParametroNominaResponse(ParametroNominaBase):
     id: int
@@ -241,6 +278,7 @@ class CxPResponse(BaseModel):
     fecha_vencimiento: Optional[date]
     estado: str
     dias_vencido: int = 0
+    compra_id: Optional[int] = None
     notas: Optional[str]
     created_at: datetime
 
