@@ -13,10 +13,12 @@ frontend/.env
 frontend/.env.local
 frontend/.env.*.local
 
-# Environment files
+# Environment files (nunca subir .env con secretos)
 .env
 .env.local
 .env.*.local
+backend/.env
+backend/.env.*
 
 # IDE
 .vscode/

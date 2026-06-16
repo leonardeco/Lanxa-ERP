@@ -8,22 +8,19 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     # ── Database ─────────────────────────────────────────
-    # Default apunta a PostgreSQL (Docker).
-    # Para desarrollo local sin Docker, sobreescribir con:
-    # DATABASE_URL=sqlite+aiosqlite:///./superozono.db
-    DATABASE_URL: str = "postgresql+asyncpg://superozono:SuperOzono2026!@db:5432/superozono_erp"
+    DATABASE_URL: str
 
     # ── Redis ────────────────────────────────────────────
     REDIS_URL: str = "redis://redis:6379/0"
 
     # ── Security ─────────────────────────────────────────
-    SECRET_KEY: str = "superozono-erp-secret-key-change-in-production-2026"
+    SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_HOURS: int = 8
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     ALGORITHM: str = "HS256"
 
     # ── App ──────────────────────────────────────────────
-    DEBUG: bool = True
+    DEBUG: bool = False
     APP_NAME: str = "Super Ozono Global ERP"
     APP_VERSION: str = "0.2.0"
 
