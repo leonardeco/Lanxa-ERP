@@ -157,6 +157,98 @@ class DashboardStats(BaseModel):
 
 
 # ══════════════════════════════════════════════════════════
+# Cuentas por Cobrar (CxC)
+# ══════════════════════════════════════════════════════════
+
+class CxCCreate(BaseModel):
+    numero_factura: str
+    fecha_emision: date
+    cliente_nit: str
+    nombre_cliente: str
+    marca: Optional[str] = None
+    valor_factura: Decimal
+    fecha_vencimiento: Optional[date] = None
+    notas: Optional[str] = None
+
+class CxCUpdate(BaseModel):
+    nombre_cliente: Optional[str] = None
+    marca: Optional[str] = None
+    fecha_vencimiento: Optional[date] = None
+    notas: Optional[str] = None
+
+class AbonoCreate(BaseModel):
+    valor: Decimal
+    notas: Optional[str] = None
+
+class CxCResponse(BaseModel):
+    id: int
+    numero_factura: str
+    fecha_emision: date
+    cliente_nit: str
+    nombre_cliente: Optional[str]
+    marca: Optional[str]
+    valor_factura: Decimal
+    abonos: Decimal
+    saldo_pendiente: Optional[Decimal]
+    fecha_vencimiento: Optional[date]
+    estado: str
+    dias_vencido: int = 0
+    notas: Optional[str]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class CarteraStats(BaseModel):
+    total_cxc: int = 0
+    total_cxp: int = 0
+    cxc_pendiente: Decimal = Decimal("0")
+    cxc_vencida: Decimal = Decimal("0")
+    cxp_pendiente: Decimal = Decimal("0")
+    cxp_vencida: Decimal = Decimal("0")
+
+
+# ══════════════════════════════════════════════════════════
+# Cuentas por Pagar (CxP)
+# ══════════════════════════════════════════════════════════
+
+class CxPCreate(BaseModel):
+    numero_documento: str
+    fecha: date
+    proveedor_nit: str
+    razon_social: str
+    concepto: Optional[str] = None
+    valor: Decimal
+    fecha_vencimiento: Optional[date] = None
+    notas: Optional[str] = None
+
+class CxPUpdate(BaseModel):
+    razon_social: Optional[str] = None
+    concepto: Optional[str] = None
+    fecha_vencimiento: Optional[date] = None
+    notas: Optional[str] = None
+
+class CxPResponse(BaseModel):
+    id: int
+    numero_documento: str
+    fecha: date
+    proveedor_nit: str
+    razon_social: Optional[str]
+    concepto: Optional[str]
+    valor: Decimal
+    abonos: Decimal
+    saldo_pendiente: Optional[Decimal]
+    fecha_vencimiento: Optional[date]
+    estado: str
+    dias_vencido: int = 0
+    notas: Optional[str]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ══════════════════════════════════════════════════════════
 # Health Check
 # ══════════════════════════════════════════════════════════
 
