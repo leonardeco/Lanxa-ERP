@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, extract, desc
 from typing import List, Optional
 from decimal import Decimal
-from datetime import date, datetime
+from datetime import date
 
 from app.core.database import get_db
 from app.api.deps import CurrentUser, AdminOrAdministradoraDep
@@ -106,16 +106,16 @@ async def get_ventas_dashboard(_: CurrentUser, db: AsyncSession = Depends(get_db
 
     # Clientes y productos activos
     clientes_activos = await db.scalar(
-        select(func.count(Cliente.id)).where(Cliente.activo == True)
+        select(func.count(Cliente.id)).where(Cliente.activo == True)  # noqa: E712
     )
     productos_activos = await db.scalar(
-        select(func.count(Producto.id)).where(Producto.activo == True)
+        select(func.count(Producto.id)).where(Producto.activo == True)  # noqa: E712
     )
 
     # Productos con stock bajo
     stock_bajo = await db.scalar(
         select(func.count(Producto.id))
-        .where(Producto.activo == True, Producto.stock_actual <= Producto.stock_minimo)
+        .where(Producto.activo == True, Producto.stock_actual <= Producto.stock_minimo)  # noqa: E712
     )
 
     # Ticket promedio
@@ -131,7 +131,7 @@ async def get_ventas_dashboard(_: CurrentUser, db: AsyncSession = Depends(get_db
         )
         .join(VentaDetalle, VentaDetalle.producto_id == Producto.id, isouter=True)
         .join(VentaDocumento, VentaDocumento.id == VentaDetalle.venta_id, isouter=True)
-        .where(Producto.activo == True)
+        .where(Producto.activo == True)  # noqa: E712
         .group_by(Producto.marca)
         .order_by(desc("total"))
         .limit(10)
