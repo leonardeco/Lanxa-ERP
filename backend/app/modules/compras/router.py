@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
-from app.api.deps import AdminOrAdministradoraDep
+from app.api.deps import CurrentUser, AdminOrAdministradoraDep
 
 from .models import Proveedor, CompraDocumento, CompraDetalle
 from .schemas import (
@@ -25,7 +25,7 @@ router = APIRouter(prefix="/api/v1/compras", tags=["Compras & Proveedores"])
 
 @router.get("/dashboard", response_model=ComprasDashboard)
 async def get_dashboard(
-    _: AdminOrAdministradoraDep,
+    _: CurrentUser,
     session: AsyncSession = Depends(get_db),
 ):
     hoy = date.today()
@@ -102,7 +102,7 @@ async def get_dashboard(
 
 @router.get("/proveedores", response_model=list[ProveedorResponse])
 async def list_proveedores(
-    _: AdminOrAdministradoraDep,
+    _: CurrentUser,
     session: AsyncSession = Depends(get_db),
 ):
     result = await session.execute(select(Proveedor).order_by(Proveedor.razon_social))
@@ -198,7 +198,7 @@ def _calc_lineas(detalles_input):
 
 @router.get("/", response_model=list[CompraResponse])
 async def list_compras(
-    _: AdminOrAdministradoraDep,
+    _: CurrentUser,
     session: AsyncSession = Depends(get_db),
 ):
     result = await session.execute(
@@ -212,7 +212,7 @@ async def list_compras(
 @router.get("/{id}", response_model=CompraResponse)
 async def get_compra(
     id: int,
-    _: AdminOrAdministradoraDep,
+    _: CurrentUser,
     session: AsyncSession = Depends(get_db),
 ):
     result = await session.execute(
@@ -229,7 +229,7 @@ async def get_compra(
 @router.post("/", response_model=CompraResponse, status_code=201)
 async def create_compra(
     data: CompraInput,
-    _: AdminOrAdministradoraDep,
+    _: CurrentUser,
     session: AsyncSession = Depends(get_db),
 ):
     if not data.detalles:
@@ -288,7 +288,7 @@ async def create_compra(
 @router.post("/{id}/confirmar", response_model=CompraResponse)
 async def confirmar_compra(
     id: int,
-    _: AdminOrAdministradoraDep,
+    _: CurrentUser,
     session: AsyncSession = Depends(get_db),
 ):
     result = await session.execute(
