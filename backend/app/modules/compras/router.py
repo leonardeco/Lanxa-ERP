@@ -15,6 +15,8 @@ from .schemas import (
     CompraInput, CompraResponse, ComprasDashboard, TopProveedor,
 )
 from app.modules.contabilidad.models import CuentaPorPagar, EstadoDocumento
+from app.modules.inventario.models import TipoMovimientoInventario, OrigenMovimiento
+from app.modules.inventario.service import registrar_movimiento
 
 router = APIRouter(prefix="/api/v1/compras", tags=["Compras & Proveedores"])
 
@@ -184,6 +186,7 @@ def _calc_lineas(detalles_input):
 
         lineas.append({
             "descripcion": d.descripcion,
+            "producto_id": d.producto_id,
             "cantidad": cant,
             "precio_unitario": precio,
             "descuento_porcentaje": desc_pct,
@@ -288,7 +291,7 @@ async def create_compra(
 @router.post("/{id}/confirmar", response_model=CompraResponse)
 async def confirmar_compra(
     id: int,
-    _: CurrentUser,
+    current: CurrentUser,
     session: AsyncSession = Depends(get_db),
 ):
     result = await session.execute(
@@ -321,6 +324,22 @@ async def confirmar_compra(
         )
         session.add(cxp)
 
+    # Entradas automáticas de inventario por cada línea vinculada a un producto
+    for d in c.detalles:
+        if d.producto_id:
+            await registrar_movimiento(
+                session,
+                producto_id=d.producto_id,
+                tipo=TipoMovimientoInventario.ENTRADA,
+                origen=OrigenMovimiento.COMPRA,
+                cantidad=d.cantidad,
+                motivo=f"Entrada por compra {c.numero}",
+                usuario_id=current.id,
+                compra_id=c.id,
+                compra_detalle_id=d.id,
+                costo_unitario=d.precio_unitario,
+            )
+
     await session.commit()
     await session.refresh(c)
     return c
@@ -329,7 +348,7 @@ async def confirmar_compra(
 @router.post("/{id}/anular", response_model=CompraResponse)
 async def anular_compra(
     id: int,
-    _: AdminOrAdministradoraDep,
+    current: AdminOrAdministradoraDep,
     session: AsyncSession = Depends(get_db),
 ):
     result = await session.execute(
@@ -340,8 +359,27 @@ async def anular_compra(
         raise HTTPException(status_code=404, detail="Compra no encontrada")
     if c.estado == "Anulada":
         raise HTTPException(status_code=400, detail="La compra ya está anulada")
+
+    estado_anterior = c.estado
     c.estado = "Anulada"
     c.estado_pago = "Anulado"
+
+    # Si la compra ya había generado entradas de inventario, revertirlas
+    if estado_anterior == "Confirmada":
+        for d in c.detalles:
+            if d.producto_id:
+                await registrar_movimiento(
+                    session,
+                    producto_id=d.producto_id,
+                    tipo=TipoMovimientoInventario.SALIDA,
+                    origen=OrigenMovimiento.REVERSO_COMPRA,
+                    cantidad=d.cantidad,
+                    motivo=f"Reverso por anulación de compra {c.numero}",
+                    usuario_id=current.id,
+                    compra_id=c.id,
+                    compra_detalle_id=d.id,
+                )
+
     await session.commit()
     await session.refresh(c)
     return c

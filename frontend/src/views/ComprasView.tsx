@@ -6,6 +6,7 @@ import {
   type ComprasDashboard,
   type CompraDetalleInput,
 } from '../services/comprasApi';
+import { ventasApi, type Producto } from '../services/ventasApi';
 import { printCompra } from '../utils/printCompra';
 
 type ComprasTab = 'dashboard' | 'proveedores' | 'compras' | 'nueva';
@@ -569,6 +570,7 @@ function ComprasListTab({
 
 const DETALLE_EMPTY: CompraDetalleInput = {
   descripcion: '',
+  producto_id: undefined,
   cantidad: 1,
   precio_unitario: 0,
   descuento_porcentaje: 0,
@@ -580,6 +582,7 @@ function NuevaCompraTab({
   onSaved,
 }: { onToast: (msg: string, type: 'success' | 'error') => void; onSaved: () => void }) {
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
+  const [productos, setProductos] = useState<Producto[]>([]);
   const [form, setForm] = useState({
     fecha: new Date().toISOString().slice(0, 10),
     fecha_vencimiento: '',
@@ -595,6 +598,7 @@ function NuevaCompraTab({
 
   useEffect(() => {
     comprasApi.getProveedores().then(r => setProveedores(r.data)).catch(() => {});
+    ventasApi.getProductos().then(r => setProductos(r.data)).catch(() => {});
   }, []);
 
   const F = (field: keyof typeof form, value: string | number) =>
@@ -602,6 +606,20 @@ function NuevaCompraTab({
 
   const setDetalle = (i: number, field: keyof CompraDetalleInput, value: string | number) =>
     setDetalles(ds => ds.map((d, idx) => idx === i ? { ...d, [field]: value } : d));
+
+  const setDetalleProducto = (i: number, productoId: number) => {
+    const producto = productos.find(p => p.id === productoId);
+    setDetalles(ds => ds.map((d, idx) => {
+      if (idx !== i) return d;
+      if (!producto) return { ...d, producto_id: undefined };
+      return {
+        ...d,
+        producto_id: producto.id,
+        descripcion: d.descripcion || `${producto.sku} — ${producto.nombre}`,
+        precio_unitario: Number(d.precio_unitario) || Number(producto.precio_costo ?? 0),
+      };
+    }));
+  };
 
   const addDetalle = () => setDetalles(ds => [...ds, { ...DETALLE_EMPTY }]);
   const removeDetalle = (i: number) => setDetalles(ds => ds.filter((_, idx) => idx !== i));
@@ -692,6 +710,7 @@ function NuevaCompraTab({
             <table className="erp-table">
               <thead>
                 <tr>
+                  <th style={{ width: 170 }}>Producto (opcional)</th>
                   <th>Descripción</th>
                   <th style={{ textAlign: 'right', width: 70 }}>Cant.</th>
                   <th style={{ textAlign: 'right', width: 120 }}>P. Unitario</th>
@@ -709,6 +728,19 @@ function NuevaCompraTab({
                   const total = base - desc + iva;
                   return (
                     <tr key={i}>
+                      <td>
+                        <select
+                          className="form-select" style={{ margin: 0, fontSize: 11 }}
+                          value={d.producto_id ?? 0}
+                          onChange={e => setDetalleProducto(i, Number(e.target.value))}
+                          title="Vincular esta línea a un producto del catálogo para que mueva inventario"
+                        >
+                          <option value={0}>— Sin producto (servicio) —</option>
+                          {productos.map(p => (
+                            <option key={p.id} value={p.id}>{p.sku} — {p.nombre}</option>
+                          ))}
+                        </select>
+                      </td>
                       <td>
                         <input
                           className="form-input" style={{ margin: 0, fontSize: 11 }}

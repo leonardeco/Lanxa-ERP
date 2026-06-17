@@ -22,6 +22,8 @@ from app.modules.ventas.schemas import (
     VentaCreate, VentaResponse, VentaDetalleResponse,
     VentaDashboardStats,
 )
+from app.modules.inventario.models import TipoMovimientoInventario, OrigenMovimiento
+from app.modules.inventario.service import registrar_movimiento
 
 router = APIRouter(prefix="/api/v1/ventas", tags=["Ventas & Comercial"])
 
@@ -556,7 +558,7 @@ async def create_venta(data: VentaCreate, _: CurrentUser, db: AsyncSession = Dep
 
 
 @router.post("/{venta_id}/confirmar", response_model=VentaResponse)
-async def confirmar_venta(venta_id: int, _: CurrentUser, db: AsyncSession = Depends(get_db)):
+async def confirmar_venta(venta_id: int, current: CurrentUser, db: AsyncSession = Depends(get_db)):
     """Confirmar un documento de venta (pasa de Borrador a Confirmada)."""
     venta = await db.get(VentaDocumento, venta_id)
     if not venta:
@@ -565,15 +567,31 @@ async def confirmar_venta(venta_id: int, _: CurrentUser, db: AsyncSession = Depe
         raise HTTPException(status_code=400, detail="Solo se pueden confirmar ventas en estado Borrador")
 
     venta.estado = EstadoVenta.CONFIRMADA
+
+    # Salidas automáticas de inventario por cada línea
+    detalles_result = await db.execute(select(VentaDetalle).where(VentaDetalle.venta_id == venta.id))
+    for d in detalles_result.scalars().all():
+        await registrar_movimiento(
+            db,
+            producto_id=d.producto_id,
+            tipo=TipoMovimientoInventario.SALIDA,
+            origen=OrigenMovimiento.VENTA,
+            cantidad=d.cantidad,
+            motivo=f"Salida por venta {venta.numero}",
+            usuario_id=current.id,
+            venta_id=venta.id,
+            venta_detalle_id=d.id,
+        )
+
     await db.flush()
     await db.refresh(venta)
 
     # Re-fetch for response (reuse get_venta logic)
-    return await get_venta(venta_id, db)
+    return await get_venta(venta_id, current, db)
 
 
 @router.post("/{venta_id}/anular")
-async def anular_venta(venta_id: int, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def anular_venta(venta_id: int, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
     """Anular un documento de venta."""
     venta = await db.get(VentaDocumento, venta_id)
     if not venta:
@@ -581,6 +599,24 @@ async def anular_venta(venta_id: int, _: AdminOrAdministradoraDep, db: AsyncSess
     if venta.estado == EstadoVenta.ANULADA:
         raise HTTPException(status_code=400, detail="La venta ya está anulada")
 
+    estado_anterior = venta.estado
     venta.estado = EstadoVenta.ANULADA
+
+    # Si la venta ya había generado salidas de inventario, revertirlas
+    if estado_anterior in (EstadoVenta.CONFIRMADA, EstadoVenta.FACTURADA):
+        detalles_result = await db.execute(select(VentaDetalle).where(VentaDetalle.venta_id == venta.id))
+        for d in detalles_result.scalars().all():
+            await registrar_movimiento(
+                db,
+                producto_id=d.producto_id,
+                tipo=TipoMovimientoInventario.ENTRADA,
+                origen=OrigenMovimiento.REVERSO_VENTA,
+                cantidad=d.cantidad,
+                motivo=f"Reverso por anulación de venta {venta.numero}",
+                usuario_id=current.id,
+                venta_id=venta.id,
+                venta_detalle_id=d.id,
+            )
+
     await db.flush()
     return {"detail": f"Venta {venta.numero} anulada correctamente"}

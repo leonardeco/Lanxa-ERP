@@ -67,6 +67,7 @@ class CompraDetalle(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     compra_id = Column(Integer, ForeignKey("compras_documentos.id"), nullable=False)
+    producto_id = Column(Integer, ForeignKey("productos.id"), nullable=True)
     descripcion = Column(String(300), nullable=False)
     cantidad = Column(Numeric(12, 3), default=Decimal("1.000"))
     precio_unitario = Column(Numeric(18, 2), nullable=False)

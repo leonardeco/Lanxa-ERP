@@ -16,6 +16,7 @@ from app.modules.ventas.router import router as ventas_router
 from app.modules.usuarios.router import router as usuarios_router
 from app.modules.alegra.router import router as alegra_router
 from app.modules.compras.router import router as compras_router
+from app.modules.inventario.router import router as inventario_router
 from app.modules.contabilidad.schemas import HealthResponse
 
 # ── Structured Logging ───────────────────────────────────
@@ -128,3 +129,4 @@ app.include_router(contabilidad_router)
 app.include_router(ventas_router)
 app.include_router(alegra_router)
 app.include_router(compras_router)
+app.include_router(inventario_router)

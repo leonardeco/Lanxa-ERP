@@ -29,6 +29,7 @@ export interface Proveedor {
 export interface CompraDetalle {
   id: number;
   compra_id: number;
+  producto_id?: number;
   descripcion: string;
   cantidad: number;
   precio_unitario: number;
@@ -67,6 +68,7 @@ export interface Compra {
 
 export interface CompraDetalleInput {
   descripcion: string;
+  producto_id?: number;
   cantidad: number;
   precio_unitario: number;
   descuento_porcentaje: number;

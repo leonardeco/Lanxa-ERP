@@ -12,6 +12,7 @@ import VentasView from './views/VentasView'
 import UsuariosView from './views/UsuariosView'
 import CarteraView from './views/CarteraView'
 import ComprasView from './views/ComprasView'
+import InventarioView from './views/InventarioView'
 import LoginView from './views/LoginView'
 import { useAuth } from './contexts/AuthContext'
 
@@ -122,6 +123,7 @@ function App() {
       case 'usuarios':
         return <UsuariosView />
       case 'inventario':
+        return <InventarioView />
       case 'rrhh':
       case 'plataformas':
       case 'reportes':

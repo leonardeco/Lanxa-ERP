@@ -57,6 +57,7 @@ class ProveedorResponse(ProveedorBase):
 
 class CompraDetalleInput(BaseModel):
     descripcion: str
+    producto_id: Optional[int] = None
     cantidad: Decimal = Decimal("1")
     precio_unitario: Decimal
     descuento_porcentaje: Decimal = Decimal("0")
@@ -66,6 +67,7 @@ class CompraDetalleInput(BaseModel):
 class CompraDetalleResponse(BaseModel):
     id: int
     compra_id: int
+    producto_id: Optional[int] = None
     descripcion: str
     cantidad: Decimal
     precio_unitario: Decimal
