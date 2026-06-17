@@ -4,7 +4,7 @@
 **NIT:** 901841798-5
 **Ciudad:** Armenia, Quindío
 **Versión ERP:** 0.4.0
-**Última actualización:** 2026-06-16
+**Última actualización:** 2026-06-17
 
 ---
 
@@ -97,6 +97,10 @@ superozono-erp/
 │   │   │   │   ├── models.py        # Producto, Cliente, VentaDocumento, VentaDetalle
 │   │   │   │   ├── schemas.py       # Pydantic schemas
 │   │   │   │   └── router.py        # Endpoints ventas
+│   │   │   ├── compras/
+│   │   │   │   ├── models.py        # Proveedor, CompraDocumento, CompraDetalle
+│   │   │   │   ├── schemas.py       # Pydantic schemas
+│   │   │   │   └── router.py        # CRUD compras/proveedores, confirmar (→ genera CxP), anular
 │   │   │   ├── usuarios/
 │   │   │   │   ├── models.py        # Usuario
 │   │   │   │   ├── schemas.py       # Token, UsuarioCreate, UsuarioResponse
@@ -128,9 +132,14 @@ superozono-erp/
 │   │   ├── services/
 │   │   │   ├── api.ts               # Instancia Axios con token JWT y URL dinámica
 │   │   │   ├── ventasApi.ts
+│   │   │   ├── comprasApi.ts        # Proveedores, compras, dashboard compras
 │   │   │   ├── dashboardApi.ts
 │   │   │   ├── usuariosApi.ts
-│   │   │   └── carteraApi.ts
+│   │   │   ├── carteraApi.ts        # CxC, CxP (incluye compra_id)
+│   │   │   └── contabilidadApi.ts   # PUC, centros, periodos, tributarios, nómina
+│   │   ├── utils/
+│   │   │   ├── printFactura.ts      # Impresión PDF documentos de venta
+│   │   │   └── printCompra.ts       # Impresión PDF documentos de compra
 │   │   ├── views/
 │   │   │   ├── LoginView.tsx
 │   │   │   ├── DashboardView.tsx
@@ -140,7 +149,8 @@ superozono-erp/
 │   │   │   ├── TributariosView.tsx
 │   │   │   ├── NominaView.tsx
 │   │   │   ├── VentasView.tsx       # 4 pestañas: Dashboard, Productos, Clientes, Facturas
-│   │   │   ├── CarteraView.tsx      # CxC y CxP con abonos y anulaciones
+│   │   │   ├── ComprasView.tsx      # 4 pestañas: Dashboard, Proveedores, Compras, Nueva Compra
+│   │   │   ├── CarteraView.tsx      # CxC y CxP con abonos, anulaciones y origen (compra/manual)
 │   │   │   └── UsuariosView.tsx     # Gestión de usuarios (solo Admin)
 │   │   ├── App.tsx                  # Enrutador por vistas + control de roles
 │   │   └── main.tsx
@@ -289,8 +299,8 @@ No requieren instalación de ningún software.
 | Rol | Descripción |
 |---|---|
 | `Admin` | Acceso total. Único que puede crear/editar/desactivar usuarios |
-| `Administradora` | Módulos contables + ventas + cartera. Sin gestión de usuarios |
-| `Auxiliar` | Solo ventas y cartera. Sin acceso a configuración contable |
+| `Administradora` | Módulos contables + ventas + compras + cartera. Sin gestión de usuarios |
+| `Auxiliar` | Solo ventas, compras y cartera. Sin acceso a configuración contable |
 
 ### Acceso por módulo
 
@@ -298,6 +308,7 @@ No requieren instalación de ningún software.
 |---|---|---|---|
 | Dashboard | ✅ | ✅ | ✅ |
 | Ventas | ✅ | ✅ | ✅ |
+| Compras | ✅ | ✅ | ✅ |
 | Cartera (CxC/CxP) | ✅ | ✅ | ✅ |
 | PUC | ✅ | ✅ | ❌ |
 | Centros de Costo | ✅ | ✅ | ❌ |
@@ -327,6 +338,9 @@ No requieren instalación de ningún software.
 - **Ventas GET / crear venta / confirmar venta**: `CurrentUser` (todos los roles)
 - **Ventas crear/editar/desactivar productos y clientes**: `AdminOrAdministradoraDep`
 - **Ventas anular**: `AdminOrAdministradoraDep`
+- **Compras GET / crear compra / confirmar compra**: `CurrentUser` (todos los roles)
+- **Compras crear/editar/desactivar proveedores**: `AdminOrAdministradoraDep`
+- **Compras anular**: `AdminOrAdministradoraDep`
 - **Usuarios CRUD**: `AdminDep`
 - **Alegra** (sync y facturación): `AdminDep`
 
@@ -351,7 +365,7 @@ No requieren instalación de ningún software.
 | `movimientos_asiento` | Líneas de débito/crédito (partida doble) |
 | `saldos_iniciales` | Balance de apertura por cuenta |
 | `cuentas_por_cobrar` | CxC: facturas pendientes de cobro |
-| `cuentas_por_pagar` | CxP: documentos pendientes de pago |
+| `cuentas_por_pagar` | CxP: documentos pendientes de pago. Incluye `compra_id` (FK lógica opcional a `compras_documentos`) para CxP generadas automáticamente al confirmar una compra |
 | `parametros_tributarios` | IVA, retefuente, reteIVA, reteICA, ICA |
 | `parametros_nomina` | Salud, pensión, ARL, parafiscales |
 
@@ -363,6 +377,14 @@ No requieren instalación de ningún software.
 | `clientes` | Clientes B2B con NIT, régimen, contacto, cupo de crédito |
 | `ventas_documentos` | Cabecera de factura interna (SOG-V-XXXX) con totales y retenciones |
 | `ventas_detalles` | Líneas de producto con cálculo de descuento e IVA |
+
+### Módulo Compras (`compras/models.py`)
+
+| Tabla | Descripción |
+|---|---|
+| `proveedores` | Proveedores con NIT, régimen, contacto |
+| `compras_documentos` | Cabecera de documento de compra (SOG-CP-XXXX) con estado, estado_pago, totales y retenciones |
+| `compras_detalles` | Líneas de producto/concepto de la compra con cálculo de IVA |
 
 ### Módulo Usuarios (`usuarios/models.py`)
 
@@ -431,8 +453,8 @@ Base URL: `http://[host]:8000/api`
 | GET | `/v1/contabilidad/cartera/cxp` | Listar CxP |
 | POST | `/v1/contabilidad/cartera/cxp` | Crear CxP |
 | PUT | `/v1/contabilidad/cartera/cxp/{id}` | Editar CxP |
-| POST | `/v1/contabilidad/cartera/cxp/{id}/abonar` | Registrar abono a CxP |
-| PATCH | `/v1/contabilidad/cartera/cxp/{id}/anular` | Anular CxP |
+| POST | `/v1/contabilidad/cartera/cxp/{id}/abonar` | Registrar abono a CxP — si tiene `compra_id`, sincroniza `estado_pago` de la compra (Pagado/Parcial) |
+| PATCH | `/v1/contabilidad/cartera/cxp/{id}/anular` | Anular CxP — si tiene `compra_id`, marca la compra como `estado_pago = Anulado` |
 
 ### Ventas
 
@@ -454,6 +476,21 @@ Base URL: `http://[host]:8000/api`
 | POST | `/v1/ventas/` | Crear venta (calcula retenciones automáticamente) |
 | POST | `/v1/ventas/{id}/confirmar` | Confirmar venta (Borrador → Confirmada) |
 | POST | `/v1/ventas/{id}/anular` | Anular venta |
+
+### Compras & Proveedores
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/v1/compras/dashboard` | KPIs: total mes, variación %, CxP pendiente, top proveedores |
+| GET | `/v1/compras/proveedores` | Listar proveedores |
+| POST | `/v1/compras/proveedores` | Crear proveedor |
+| PUT | `/v1/compras/proveedores/{id}` | Editar proveedor |
+| DELETE | `/v1/compras/proveedores/{id}` | Desactivar proveedor (soft delete) |
+| GET | `/v1/compras/` | Listar documentos de compra |
+| GET | `/v1/compras/{id}` | Obtener compra con detalles |
+| POST | `/v1/compras/` | Crear compra (Borrador, calcula retenciones) |
+| POST | `/v1/compras/{id}/confirmar` | Confirmar compra (Borrador → Confirmada) — genera `CuentaPorPagar` automática vinculada (`compra_id`) |
+| POST | `/v1/compras/{id}/anular` | Anular compra |
 
 ### Alegra (Facturación Electrónica)
 
@@ -482,7 +519,8 @@ Base URL: `http://[host]:8000/api`
 | Parámetros Tributarios | `tributarios` | Completa (CRUD) | IVA, retenciones, ICA — editar tarifa/cuenta PUC, activar/desactivar |
 | Parámetros Nómina | `nomina` | Completa (CRUD) | Aportes y parafiscales — editar valor/tipo, activar/desactivar |
 | Ventas | `ventas` | Completa (CRUD) | 4 pestañas: Dashboard, Productos, Clientes, Facturas |
-| Cartera | `cartera` | Completa (CRUD) | CxC y CxP con abonos y anulaciones |
+| Compras | `compras` | Completa (CRUD) | 4 pestañas: Dashboard, Proveedores, Compras, Nueva Compra — confirmar/anular, impresión PDF |
+| Cartera | `cartera` | Completa (CRUD) | CxC y CxP con abonos, anulaciones y origen (compra automática / manual) |
 | Usuarios | `usuarios` | Completa (CRUD) | Solo visible para Admin |
 | Inventario | `inventario` | Fase 2 — 🚧 | Sin implementar |
 | RRHH | `rrhh` | Fase 2 — 🚧 | Sin implementar |
@@ -496,6 +534,7 @@ Base URL: `http://[host]:8000/api`
 | Archivo | Propósito |
 |---|---|
 | `utils/printFactura.ts` | Genera HTML autocontenido de la factura y abre la ventana de impresión/PDF del navegador |
+| `utils/printCompra.ts` | Genera HTML autocontenido del documento de compra y abre la ventana de impresión/PDF |
 
 **Servicios API:**
 
@@ -503,7 +542,8 @@ Base URL: `http://[host]:8000/api`
 |---|---|
 | `api.ts` | Instancia Axios base con JWT interceptor y `VITE_API_URL` |
 | `ventasApi.ts` | Productos, clientes, documentos de venta |
-| `carteraApi.ts` | CxC, CxP, abonos, stats de cartera |
+| `comprasApi.ts` | Proveedores, documentos de compra, dashboard de compras |
+| `carteraApi.ts` | CxC, CxP (incluye `compra_id`), abonos, stats de cartera |
 | `dashboardApi.ts` | Stats del dashboard principal |
 | `usuariosApi.ts` | CRUD usuarios, cambio de contraseña |
 | `contabilidadApi.ts` | PUC, Centros de Costo, Períodos, Parámetros Tributarios y Nómina |
@@ -563,7 +603,7 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | 5 | Archivo `.env` para producción con PostgreSQL | ✅ Completado 2026-06-16 |
 | 6 | CRUD de PUC, períodos, tributarios y centros de costo desde la UI | ✅ Completado 2026-06-16 |
 | 7 | Exportación/impresión de facturas en PDF | ✅ Completado 2026-06-16 |
-| 8 | Módulo de compras/proveedores independiente | ⏳ Pendiente |
+| 8 | Módulo de compras/proveedores independiente | ✅ Completado 2026-06-16 |
 | 9 | Inventario con movimientos reales (entradas/salidas) | ⏳ Pendiente |
 
 ### Fase 2 — Módulos futuros
