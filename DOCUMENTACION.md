@@ -3,7 +3,7 @@
 **Empresa:** TECNOLOGIA E INNOVACION SUPER OZONO S.A.S.
 **NIT:** 901841798-5
 **Ciudad:** Armenia, Quindío
-**Versión ERP:** 0.4.0
+**Versión ERP:** 0.5.0
 **Última actualización:** 2026-06-17
 
 ---
@@ -98,9 +98,14 @@ superozono-erp/
 │   │   │   │   ├── schemas.py       # Pydantic schemas
 │   │   │   │   └── router.py        # Endpoints ventas
 │   │   │   ├── compras/
-│   │   │   │   ├── models.py        # Proveedor, CompraDocumento, CompraDetalle
+│   │   │   │   ├── models.py        # Proveedor, CompraDocumento, CompraDetalle (con producto_id opcional)
 │   │   │   │   ├── schemas.py       # Pydantic schemas
-│   │   │   │   └── router.py        # CRUD compras/proveedores, confirmar (→ genera CxP), anular
+│   │   │   │   └── router.py        # CRUD compras/proveedores, confirmar (→ genera CxP + entrada inventario), anular
+│   │   │   ├── inventario/
+│   │   │   │   ├── models.py        # MovimientoInventario, TipoMovimientoInventario, OrigenMovimiento
+│   │   │   │   ├── schemas.py       # MovimientoResponse, AjusteInventarioInput, InventarioDashboard
+│   │   │   │   ├── service.py       # registrar_movimiento() — actualiza stock + crea el movimiento (kardex)
+│   │   │   │   └── router.py        # dashboard, movimientos (kardex), ajuste manual
 │   │   │   ├── usuarios/
 │   │   │   │   ├── models.py        # Usuario
 │   │   │   │   ├── schemas.py       # Token, UsuarioCreate, UsuarioResponse
@@ -132,14 +137,16 @@ superozono-erp/
 │   │   ├── services/
 │   │   │   ├── api.ts               # Instancia Axios con token JWT y URL dinámica
 │   │   │   ├── ventasApi.ts
-│   │   │   ├── comprasApi.ts        # Proveedores, compras, dashboard compras
+│   │   │   ├── comprasApi.ts        # Proveedores, compras (con producto_id), dashboard compras
+│   │   │   ├── inventarioApi.ts     # Dashboard, movimientos (kardex), ajustes manuales
 │   │   │   ├── dashboardApi.ts
 │   │   │   ├── usuariosApi.ts
-│   │   │   ├── carteraApi.ts        # CxC, CxP (incluye compra_id)
+│   │   │   ├── carteraApi.ts        # CxC, CxP (incluye compra_id), Pago (comprobantes)
 │   │   │   └── contabilidadApi.ts   # PUC, centros, periodos, tributarios, nómina
 │   │   ├── utils/
 │   │   │   ├── printFactura.ts      # Impresión PDF documentos de venta
-│   │   │   └── printCompra.ts       # Impresión PDF documentos de compra
+│   │   │   ├── printCompra.ts       # Impresión PDF documentos de compra
+│   │   │   └── printComprobante.ts  # Impresión Recibo de Caja (CxC) / Comprobante de Egreso (CxP)
 │   │   ├── views/
 │   │   │   ├── LoginView.tsx
 │   │   │   ├── DashboardView.tsx
@@ -150,7 +157,8 @@ superozono-erp/
 │   │   │   ├── NominaView.tsx
 │   │   │   ├── VentasView.tsx       # 4 pestañas: Dashboard, Productos, Clientes, Facturas
 │   │   │   ├── ComprasView.tsx      # 4 pestañas: Dashboard, Proveedores, Compras, Nueva Compra
-│   │   │   ├── CarteraView.tsx      # CxC y CxP con abonos, anulaciones y origen (compra/manual)
+│   │   │   ├── InventarioView.tsx   # Dashboard, Productos (stock), Movimientos (kardex), Ajuste manual
+│   │   │   ├── CarteraView.tsx      # CxC y CxP con abonos, comprobante automático e historial de pagos
 │   │   │   └── UsuariosView.tsx     # Gestión de usuarios (solo Admin)
 │   │   ├── App.tsx                  # Enrutador por vistas + control de roles
 │   │   └── main.tsx
@@ -316,9 +324,11 @@ No requieren instalación de ningún software.
 | Parámetros Tributarios | ✅ | ✅ | ❌ |
 | Parámetros Nómina | ✅ | ✅ | ❌ |
 | Gestión de Usuarios | ✅ | ❌ | ❌ |
-| Inventario (fase 2) | ✅ | ❌ | ❌ |
+| Inventario | ✅ | ❌¹ | ❌¹ |
 | RRHH (fase 2) | ✅ | ❌ | ❌ |
 | Reportes (fase 2) | ✅ | ❌ | ❌ |
+
+> ¹ El backend de Inventario acepta los 3 roles en sus endpoints GET (mismo patrón que Compras/Ventas) — hoy solo no se ve porque `ROLE_VIEWS` en `App.tsx` no incluye `'inventario'` para Administradora/Auxiliar. Si se decide abrir la vista a esos roles, no requiere cambios de backend.
 
 ### Implementación técnica
 
@@ -341,6 +351,8 @@ No requieren instalación de ningún software.
 - **Compras GET / crear compra / confirmar compra**: `CurrentUser` (todos los roles)
 - **Compras crear/editar/desactivar proveedores**: `AdminOrAdministradoraDep`
 - **Compras anular**: `AdminOrAdministradoraDep`
+- **Inventario GET (dashboard, movimientos)**: `CurrentUser` (todos los roles)
+- **Inventario ajuste manual**: `AdminOrAdministradoraDep`
 - **Usuarios CRUD**: `AdminDep`
 - **Alegra** (sync y facturación): `AdminDep`
 
@@ -366,6 +378,7 @@ No requieren instalación de ningún software.
 | `saldos_iniciales` | Balance de apertura por cuenta |
 | `cuentas_por_cobrar` | CxC: facturas pendientes de cobro |
 | `cuentas_por_pagar` | CxP: documentos pendientes de pago. Incluye `compra_id` (FK lógica opcional a `compras_documentos`) para CxP generadas automáticamente al confirmar una compra |
+| `pagos` | Comprobante de cada abono a CxC/CxP — numeración separada `RC-XXXX` (Recibo de Caja) / `CE-XXXX` (Comprobante de Egreso), con `saldo_anterior`/`saldo_nuevo` y `usuario_id` |
 | `parametros_tributarios` | IVA, retefuente, reteIVA, reteICA, ICA |
 | `parametros_nomina` | Salud, pensión, ARL, parafiscales |
 
@@ -384,7 +397,13 @@ No requieren instalación de ningún software.
 |---|---|
 | `proveedores` | Proveedores con NIT, régimen, contacto |
 | `compras_documentos` | Cabecera de documento de compra (SOG-CP-XXXX) con estado, estado_pago, totales y retenciones |
-| `compras_detalles` | Líneas de producto/concepto de la compra con cálculo de IVA |
+| `compras_detalles` | Líneas de producto/concepto de la compra con cálculo de IVA. Incluye `producto_id` opcional (FK a `productos`) para vincular la línea al catálogo y generar entrada de inventario al confirmar |
+
+### Módulo Inventario (`inventario/models.py`)
+
+| Tabla | Descripción |
+|---|---|
+| `movimientos_inventario` | Kardex: un registro por cada movimiento de stock (`tipo`: Entrada/Salida/Ajuste positivo/Ajuste negativo; `origen`: Compra/Venta/Ajuste manual/Reverso). Guarda `stock_antes`/`stock_despues` (snapshot), FK lógicas a `compra_id`/`venta_id` y `usuario_id` |
 
 ### Módulo Usuarios (`usuarios/models.py`)
 
@@ -448,13 +467,14 @@ Base URL: `http://[host]:8000/api`
 | GET | `/v1/contabilidad/cartera/cxc` | Listar CxC (filtro por estado) |
 | POST | `/v1/contabilidad/cartera/cxc` | Crear CxC |
 | PUT | `/v1/contabilidad/cartera/cxc/{id}` | Editar CxC |
-| POST | `/v1/contabilidad/cartera/cxc/{id}/abonar` | Registrar abono a CxC |
+| POST | `/v1/contabilidad/cartera/cxc/{id}/abonar` | Registrar abono a CxC — genera comprobante `RC-XXXX` (Recibo de Caja). Devuelve `{ documento, pago }` |
 | PATCH | `/v1/contabilidad/cartera/cxc/{id}/anular` | Anular CxC |
 | GET | `/v1/contabilidad/cartera/cxp` | Listar CxP |
 | POST | `/v1/contabilidad/cartera/cxp` | Crear CxP |
 | PUT | `/v1/contabilidad/cartera/cxp/{id}` | Editar CxP |
-| POST | `/v1/contabilidad/cartera/cxp/{id}/abonar` | Registrar abono a CxP — si tiene `compra_id`, sincroniza `estado_pago` de la compra (Pagado/Parcial) |
+| POST | `/v1/contabilidad/cartera/cxp/{id}/abonar` | Registrar abono a CxP — genera comprobante `CE-XXXX` (Comprobante de Egreso); si tiene `compra_id`, sincroniza `estado_pago` de la compra (Pagado/Parcial). Devuelve `{ documento, pago }` |
 | PATCH | `/v1/contabilidad/cartera/cxp/{id}/anular` | Anular CxP — si tiene `compra_id`, marca la compra como `estado_pago = Anulado` |
+| GET | `/v1/contabilidad/cartera/pagos` | Historial de comprobantes de pago (filtro `cxc_id` / `cxp_id`) — para reimpresión |
 
 ### Ventas
 
@@ -474,8 +494,8 @@ Base URL: `http://[host]:8000/api`
 | GET | `/v1/ventas/` | Listar documentos de venta |
 | GET | `/v1/ventas/{id}` | Obtener venta con detalles |
 | POST | `/v1/ventas/` | Crear venta (calcula retenciones automáticamente) |
-| POST | `/v1/ventas/{id}/confirmar` | Confirmar venta (Borrador → Confirmada) |
-| POST | `/v1/ventas/{id}/anular` | Anular venta |
+| POST | `/v1/ventas/{id}/confirmar` | Confirmar venta (Borrador → Confirmada) — genera `MovimientoInventario` tipo Salida por cada línea |
+| POST | `/v1/ventas/{id}/anular` | Anular venta — si estaba Confirmada/Facturada, revierte las salidas de inventario con un movimiento Entrada (Reverso de venta) |
 
 ### Compras & Proveedores
 
@@ -489,8 +509,17 @@ Base URL: `http://[host]:8000/api`
 | GET | `/v1/compras/` | Listar documentos de compra |
 | GET | `/v1/compras/{id}` | Obtener compra con detalles |
 | POST | `/v1/compras/` | Crear compra (Borrador, calcula retenciones) |
-| POST | `/v1/compras/{id}/confirmar` | Confirmar compra (Borrador → Confirmada) — genera `CuentaPorPagar` automática vinculada (`compra_id`) |
-| POST | `/v1/compras/{id}/anular` | Anular compra |
+| POST | `/v1/compras/{id}/confirmar` | Confirmar compra (Borrador → Confirmada) — genera `CuentaPorPagar` automática vinculada (`compra_id`) + `MovimientoInventario` tipo Entrada por cada línea con `producto_id` |
+| POST | `/v1/compras/{id}/anular` | Anular compra — si estaba Confirmada, revierte las entradas de inventario con un movimiento Salida (Reverso de compra) |
+
+### Inventario
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/v1/inventario/dashboard` | Valor total de inventario, productos con stock bajo, movimientos del mes, top 5 productos por valor |
+| GET | `/v1/inventario/movimientos` | Kardex completo, filtros opcionales `producto_id`/`tipo`/`origen`/`fecha_desde`/`fecha_hasta` |
+| GET | `/v1/inventario/movimientos/{producto_id}` | Kardex de un producto específico |
+| POST | `/v1/inventario/ajustes` | Ajuste manual de stock (Entrada/Salida) — Admin/Administradora |
 
 ### Alegra (Facturación Electrónica)
 
@@ -519,10 +548,10 @@ Base URL: `http://[host]:8000/api`
 | Parámetros Tributarios | `tributarios` | Completa (CRUD) | IVA, retenciones, ICA — editar tarifa/cuenta PUC, activar/desactivar |
 | Parámetros Nómina | `nomina` | Completa (CRUD) | Aportes y parafiscales — editar valor/tipo, activar/desactivar |
 | Ventas | `ventas` | Completa (CRUD) | 4 pestañas: Dashboard, Productos, Clientes, Facturas |
-| Compras | `compras` | Completa (CRUD) | 4 pestañas: Dashboard, Proveedores, Compras, Nueva Compra — confirmar/anular, impresión PDF |
-| Cartera | `cartera` | Completa (CRUD) | CxC y CxP con abonos, anulaciones y origen (compra automática / manual) |
+| Compras | `compras` | Completa (CRUD) | 4 pestañas: Dashboard, Proveedores, Compras, Nueva Compra — confirmar/anular, impresión PDF, selector opcional de producto por línea |
+| Inventario | `inventario` | Completa | 4 pestañas: Dashboard, Productos (stock, solo lectura), Movimientos (kardex filtrable), Ajuste manual (Admin/Administradora) |
+| Cartera | `cartera` | Completa (CRUD) | CxC y CxP con abonos, anulaciones, origen (compra automática / manual), comprobante de pago impreso automáticamente al abonar e historial de pagos reimprimible |
 | Usuarios | `usuarios` | Completa (CRUD) | Solo visible para Admin |
-| Inventario | `inventario` | Fase 2 — 🚧 | Sin implementar |
 | RRHH | `rrhh` | Fase 2 — 🚧 | Sin implementar |
 | Plataformas | `plataformas` | Fase 2 — 🚧 | Sin implementar |
 | Reportes | `reportes` | Fase 2 — 🚧 | Sin implementar |
@@ -604,7 +633,8 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | 6 | CRUD de PUC, períodos, tributarios y centros de costo desde la UI | ✅ Completado 2026-06-16 |
 | 7 | Exportación/impresión de facturas en PDF | ✅ Completado 2026-06-16 |
 | 8 | Módulo de compras/proveedores independiente | ✅ Completado 2026-06-16 |
-| 9 | Inventario con movimientos reales (entradas/salidas) | ⏳ Pendiente |
+| 9 | Inventario con movimientos reales (entradas/salidas) | ✅ Completado 2026-06-17 |
+| 10 | Comprobante de pago numerado al abonar CxC/CxP | ✅ Completado 2026-06-17 |
 
 ### Fase 2 — Módulos futuros
 

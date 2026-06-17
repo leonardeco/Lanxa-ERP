@@ -30,10 +30,10 @@ Sistema de gestión empresarial (ERP) desarrollado a medida para **TECNOLOGÍA E
 | **Contabilidad** | ✅ Producción | PUC (Decreto 2650), Centros de Costo, Períodos, Parámetros tributarios y de nómina |
 | **Ventas & Comercial** | ✅ Producción | Productos (catálogo multimarca), Clientes B2B, Documentos de venta con retenciones, impresión PDF |
 | **Compras & Proveedores** | ✅ Producción | CRUD proveedores, documentos de compra con retenciones, confirmación/anulación, impresión PDF |
-| **Cartera CxC & CxP** | ✅ Producción | CxC y CxP con abonos, aging automático, CxP generada automáticamente al confirmar compras |
+| **Cartera CxC & CxP** | ✅ Producción | CxC y CxP con abonos, aging automático, CxP generada automáticamente al confirmar compras, comprobante de pago numerado (Recibo de Caja / Comprobante de Egreso) |
+| **Inventario** | ✅ Producción | Kardex de movimientos (Entrada/Salida/Ajuste), entradas automáticas al confirmar compra, salidas automáticas al confirmar venta, reversa al anular, dashboard de valorización |
 | **Usuarios** | ✅ Producción | CRUD de usuarios, gestión de roles, cambio de contraseña |
 | **Alegra** | ✅ Construido | Integración con API de Alegra para facturación electrónica DIAN Colombia |
-| **Inventario** | 🔄 Fase 2 | Entradas/salidas automáticas desde compras, ajustes, valorización por marca |
 | **RRHH & Nómina** | 🔄 Fase 2 | Empleados, contratos, liquidación mensual |
 | **Reportes & BI** | 🔄 Fase 3 | P&L, Balance General, cartera aging, compras por período |
 | **Electron** | 🔄 Fase 4 | Empaquetado como aplicación de escritorio (.exe) |
@@ -120,18 +120,25 @@ backend/app/modules/
 ├── contabilidad/
 │   ├── models.py    # PlanCuentas, CentroCosto, PeriodoContable,
 │   │                # CuentaPorCobrar, CuentaPorPagar (con compra_id),
+│   │                # Pago (comprobante RC-/CE- por cada abono),
 │   │                # ParametroTributario, ParametroNomina
-│   ├── schemas.py   # Pydantic schemas + CarteraStats
+│   ├── schemas.py   # Pydantic schemas + CarteraStats + PagoResponse
 │   └── router.py    # /api/v1/contabilidad/* (PUC, centros, periodos,
-│                    # cartera CxC/CxP con sincronización a compras)
+│                    # cartera CxC/CxP con sincronización a compras y
+│                    # generación de comprobante de pago numerado)
 ├── ventas/
 │   ├── models.py    # Producto, Cliente, VentaDocumento, VentaDetalle
 │   ├── schemas.py   # CRUD schemas + VentaDashboard
 │   └── router.py    # /api/v1/ventas/*
 ├── compras/
-│   ├── models.py    # Proveedor, CompraDocumento, CompraDetalle
+│   ├── models.py    # Proveedor, CompraDocumento, CompraDetalle (con producto_id opcional)
 │   ├── schemas.py   # CRUD schemas + ComprasDashboard
-│   └── router.py    # /api/v1/compras/* (al confirmar → crea CxP automática)
+│   └── router.py    # /api/v1/compras/* (al confirmar → crea CxP + entrada de inventario)
+├── inventario/
+│   ├── models.py    # MovimientoInventario (kardex: Entrada/Salida/Ajuste)
+│   ├── schemas.py   # MovimientoResponse, AjusteInventarioInput, InventarioDashboard
+│   ├── service.py   # registrar_movimiento() — actualiza stock + crea el movimiento
+│   └── router.py    # /api/v1/inventario/* (dashboard, movimientos, ajustes manuales)
 ├── usuarios/
 │   ├── models.py    # Usuario (email, rol, bcrypt hash)
 │   ├── schemas.py   # Token, UsuarioCreate/Update/Response
@@ -146,13 +153,15 @@ frontend/src/
 │   ├── api.ts              # Axios base con interceptor JWT
 │   ├── dashboardApi.ts     # Stats dashboard
 │   ├── ventasApi.ts        # Productos, clientes, ventas
-│   ├── comprasApi.ts       # Proveedores, compras, dashboard compras
-│   ├── carteraApi.ts       # CxC, CxP (con compra_id), stats
+│   ├── comprasApi.ts       # Proveedores, compras (con producto_id), dashboard compras
+│   ├── inventarioApi.ts    # Dashboard, movimientos (kardex), ajustes manuales
+│   ├── carteraApi.ts       # CxC, CxP (con compra_id), Pago, stats
 │   ├── contabilidadApi.ts  # PUC, centros, periodos, tributarios, nomina
 │   └── usuariosApi.ts      # CRUD usuarios + cambio contraseña
 ├── utils/
 │   ├── printFactura.ts     # Impresión PDF documentos de venta
-│   └── printCompra.ts      # Impresión PDF documentos de compra
+│   ├── printCompra.ts      # Impresión PDF documentos de compra
+│   └── printComprobante.ts # Impresión Recibo de Caja (CxC) / Comprobante de Egreso (CxP)
 └── views/
     ├── DashboardView.tsx    # Stats dinámicas + ventas por marca
     ├── PucView.tsx          # Plan Único de Cuentas
@@ -162,7 +171,8 @@ frontend/src/
     ├── NominaView.tsx       # Parámetros SMMLV, aportes
     ├── VentasView.tsx       # Dashboard + Productos + Clientes + Facturas
     ├── ComprasView.tsx      # Dashboard + Proveedores + Compras + Nueva Compra
-    ├── CarteraView.tsx      # CxC & CxP con abonos, aging y origen (compra/manual)
+    ├── InventarioView.tsx   # Dashboard + Productos (stock) + Movimientos + Ajuste manual
+    ├── CarteraView.tsx      # CxC & CxP con abonos, comprobante automático e historial de pagos
     ├── UsuariosView.tsx     # CRUD usuarios (Admin)
     └── LoginView.tsx        # Autenticación
 ```
@@ -322,11 +332,18 @@ GET    /api/v1/contabilidad/parametros-nomina
 # Cartera
 GET    /api/v1/contabilidad/cartera/stats
 GET    /api/v1/contabilidad/cartera/cxc
-POST   /api/v1/contabilidad/cartera/cxc/{id}/abonar
+POST   /api/v1/contabilidad/cartera/cxc/{id}/abonar   # genera Recibo de Caja (RC-0001...)
 PATCH  /api/v1/contabilidad/cartera/cxc/{id}/anular
 GET    /api/v1/contabilidad/cartera/cxp
-POST   /api/v1/contabilidad/cartera/cxp/{id}/abonar   # sincroniza estado_pago en compra
+POST   /api/v1/contabilidad/cartera/cxp/{id}/abonar   # genera Comprobante de Egreso (CE-0001...), sincroniza estado_pago en compra
 PATCH  /api/v1/contabilidad/cartera/cxp/{id}/anular
+GET    /api/v1/contabilidad/cartera/pagos             # historial de comprobantes (filtro cxc_id / cxp_id)
+
+# Inventario
+GET    /api/v1/inventario/dashboard
+GET    /api/v1/inventario/movimientos                 # kardex completo (filtros producto/tipo/origen/fecha)
+GET    /api/v1/inventario/movimientos/{producto_id}
+POST   /api/v1/inventario/ajustes                     # ajuste manual de stock (Admin/Administradora)
 
 # Ventas
 GET    /api/v1/ventas/productos
@@ -344,7 +361,7 @@ PUT    /api/v1/compras/proveedores/{id}
 DELETE /api/v1/compras/proveedores/{id}
 GET    /api/v1/compras/
 POST   /api/v1/compras/                   # crea en borrador
-POST   /api/v1/compras/{id}/confirmar     # confirma + genera CxP automática
+POST   /api/v1/compras/{id}/confirmar     # confirma + genera CxP automática + entradas de inventario
 POST   /api/v1/compras/{id}/anular
 
 # Usuarios
@@ -389,8 +406,8 @@ El sistema tiene 3 roles, diseñados para una red LAN de 5 PCs:
 - [x] Integración Alegra (base construida)
 
 ### Fase 2
-- [ ] Inventario — entradas automáticas al confirmar compra
-- [ ] Comprobante de pago al registrar abono en CxP
+- [x] Inventario — entradas automáticas al confirmar compra, salidas al confirmar venta, reversa al anular (2026-06-17)
+- [x] Comprobante de pago numerado al registrar abono en CxC/CxP (2026-06-17)
 - [ ] Módulo RRHH (empleados, contratos)
 - [ ] Liquidación de nómina mensual
 - [ ] Activación Alegra con facturación electrónica DIAN
