@@ -287,6 +287,38 @@ class CxPResponse(BaseModel):
 
 
 # ══════════════════════════════════════════════════════════
+# Comprobantes de pago (Recibo de Caja / Comprobante de Egreso)
+# ══════════════════════════════════════════════════════════
+
+class PagoResponse(BaseModel):
+    id: int
+    numero_comprobante: str
+    tipo: str
+    cxc_id: Optional[int] = None
+    cxp_id: Optional[int] = None
+    valor: Decimal
+    saldo_anterior: Decimal
+    saldo_nuevo: Decimal
+    notas: Optional[str] = None
+    usuario_id: Optional[int] = None
+    fecha: datetime
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class AbonoCxCResultado(BaseModel):
+    documento: CxCResponse
+    pago: PagoResponse
+
+
+class AbonoCxPResultado(BaseModel):
+    documento: CxPResponse
+    pago: PagoResponse
+
+
+# ══════════════════════════════════════════════════════════
 # Health Check
 # ══════════════════════════════════════════════════════════
 

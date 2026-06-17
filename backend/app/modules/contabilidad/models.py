@@ -280,6 +280,29 @@ class CuentaPorPagar(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class TipoPago(str, enum.Enum):
+    CXC = "CxC"
+    CXP = "CxP"
+
+
+class Pago(Base):
+    """Comprobante de pago — Recibo de Caja (CxC) o Comprobante de Egreso (CxP)"""
+    __tablename__ = "pagos"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    numero_comprobante = Column(String(20), unique=True, nullable=False, index=True)
+    tipo = Column(SAEnum(TipoPago), nullable=False)
+    cxc_id = Column(Integer, nullable=True, index=True)  # FK lógica a cuentas_por_cobrar
+    cxp_id = Column(Integer, nullable=True, index=True)  # FK lógica a cuentas_por_pagar
+    valor = Column(Numeric(18, 2), nullable=False)
+    saldo_anterior = Column(Numeric(18, 2), nullable=False)
+    saldo_nuevo = Column(Numeric(18, 2), nullable=False)
+    notas = Column(Text, nullable=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    fecha = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class ParametroTributario(Base):
     """Parámetros tributarios — Tarifas IVA, retenciones, etc."""
     __tablename__ = "parametros_tributarios"

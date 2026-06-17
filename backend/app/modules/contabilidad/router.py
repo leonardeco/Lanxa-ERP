@@ -16,6 +16,7 @@ from app.modules.contabilidad.models import (
     PlanCuentas, CentroCosto, PeriodoContable, Tercero,
     ParametroTributario, ParametroNomina,
     CuentaPorCobrar, CuentaPorPagar, EstadoDocumento,
+    Pago, TipoPago,
 )
 from app.modules.compras.models import CompraDocumento
 from app.modules.contabilidad.schemas import (
@@ -28,6 +29,7 @@ from app.modules.contabilidad.schemas import (
     DashboardStats,
     CxCCreate, CxCUpdate, CxCResponse, AbonoCreate,
     CxPCreate, CxPUpdate, CxPResponse, CarteraStats,
+    PagoResponse, AbonoCxCResultado, AbonoCxPResultado,
 )
 
 router = APIRouter(prefix="/api/v1/contabilidad", tags=["Contabilidad"])
@@ -293,6 +295,15 @@ def _dias_vencido(fecha_vencimiento, estado: str) -> int:
     return max(delta, 0)
 
 
+async def _next_numero_comprobante(db: AsyncSession, prefijo: str) -> str:
+    """Numeración secuencial por prefijo: RC-0001 (Recibo de Caja, CxC), CE-0001 (Comprobante de Egreso, CxP)."""
+    nums = (await db.execute(
+        select(Pago.numero_comprobante).where(Pago.numero_comprobante.like(f"{prefijo}-%"))
+    )).scalars().all()
+    max_num = max((int(n.split("-")[-1]) for n in nums), default=0)
+    return f"{prefijo}-{max_num + 1:04d}"
+
+
 def _enrich_cxc(c: CuentaPorCobrar) -> dict:
     saldo = (c.valor_factura or Decimal("0")) - (c.abonos or Decimal("0"))
     return {**c.__dict__, "saldo_pendiente": saldo, "dias_vencido": _dias_vencido(c.fecha_vencimiento, c.estado)}
@@ -379,24 +390,39 @@ async def update_cxc(cxc_id: int, body: CxCUpdate, _: CurrentUser, db: AsyncSess
     return _enrich_cxc(cxc)
 
 
-@router.post("/cartera/cxc/{cxc_id}/abonar", response_model=CxCResponse)
-async def abonar_cxc(cxc_id: int, body: AbonoCreate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+@router.post("/cartera/cxc/{cxc_id}/abonar", response_model=AbonoCxCResultado)
+async def abonar_cxc(cxc_id: int, body: AbonoCreate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
     cxc = await db.get(CuentaPorCobrar, cxc_id)
     if not cxc:
         raise HTTPException(404, "CxC no encontrada")
     if cxc.estado in ("Pagado", "Anulado"):
         raise HTTPException(400, f"La CxC ya está en estado {cxc.estado}")
-    saldo = (cxc.valor_factura or Decimal("0")) - (cxc.abonos or Decimal("0"))
-    if body.valor > saldo:
-        raise HTTPException(400, f"El abono (${body.valor}) supera el saldo pendiente (${saldo})")
+    saldo_anterior = (cxc.valor_factura or Decimal("0")) - (cxc.abonos or Decimal("0"))
+    if body.valor > saldo_anterior:
+        raise HTTPException(400, f"El abono (${body.valor}) supera el saldo pendiente (${saldo_anterior})")
     cxc.abonos = (cxc.abonos or Decimal("0")) + body.valor
     nuevo_saldo = cxc.valor_factura - cxc.abonos
     cxc.estado = EstadoDocumento.PAGADO if nuevo_saldo <= 0 else EstadoDocumento.PARCIAL
     if body.notas:
         cxc.notas = (cxc.notas or "") + f"\n[Abono ${body.valor}] {body.notas}"
+
+    numero = await _next_numero_comprobante(db, "RC")
+    pago = Pago(
+        numero_comprobante=numero,
+        tipo=TipoPago.CXC,
+        cxc_id=cxc.id,
+        valor=body.valor,
+        saldo_anterior=saldo_anterior,
+        saldo_nuevo=nuevo_saldo,
+        notas=body.notas,
+        usuario_id=current.id,
+    )
+    db.add(pago)
+
     await db.commit()
     await db.refresh(cxc)
-    return _enrich_cxc(cxc)
+    await db.refresh(pago)
+    return AbonoCxCResultado(documento=_enrich_cxc(cxc), pago=pago)
 
 
 @router.patch("/cartera/cxc/{cxc_id}/anular", response_model=CxCResponse)
@@ -449,16 +475,16 @@ async def update_cxp(cxp_id: int, body: CxPUpdate, _: CurrentUser, db: AsyncSess
     return _enrich_cxp(cxp)
 
 
-@router.post("/cartera/cxp/{cxp_id}/abonar", response_model=CxPResponse)
-async def abonar_cxp(cxp_id: int, body: AbonoCreate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+@router.post("/cartera/cxp/{cxp_id}/abonar", response_model=AbonoCxPResultado)
+async def abonar_cxp(cxp_id: int, body: AbonoCreate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
     cxp = await db.get(CuentaPorPagar, cxp_id)
     if not cxp:
         raise HTTPException(404, "CxP no encontrada")
     if cxp.estado in ("Pagado", "Anulado"):
         raise HTTPException(400, f"La CxP ya está en estado {cxp.estado}")
-    saldo = (cxp.valor or Decimal("0")) - (cxp.abonos or Decimal("0"))
-    if body.valor > saldo:
-        raise HTTPException(400, f"El abono supera el saldo pendiente (${saldo})")
+    saldo_anterior = (cxp.valor or Decimal("0")) - (cxp.abonos or Decimal("0"))
+    if body.valor > saldo_anterior:
+        raise HTTPException(400, f"El abono supera el saldo pendiente (${saldo_anterior})")
     cxp.abonos = (cxp.abonos or Decimal("0")) + body.valor
     nuevo_saldo = cxp.valor - cxp.abonos
     cxp.estado = EstadoDocumento.PAGADO if nuevo_saldo <= 0 else EstadoDocumento.PARCIAL
@@ -469,9 +495,24 @@ async def abonar_cxp(cxp_id: int, body: AbonoCreate, _: AdminOrAdministradoraDep
         compra = await db.get(CompraDocumento, cxp.compra_id)
         if compra and compra.estado != "Anulada":
             compra.estado_pago = "Pagado" if nuevo_saldo <= 0 else "Parcial"
+
+    numero = await _next_numero_comprobante(db, "CE")
+    pago = Pago(
+        numero_comprobante=numero,
+        tipo=TipoPago.CXP,
+        cxp_id=cxp.id,
+        valor=body.valor,
+        saldo_anterior=saldo_anterior,
+        saldo_nuevo=nuevo_saldo,
+        notas=body.notas,
+        usuario_id=current.id,
+    )
+    db.add(pago)
+
     await db.commit()
     await db.refresh(cxp)
-    return _enrich_cxp(cxp)
+    await db.refresh(pago)
+    return AbonoCxPResultado(documento=_enrich_cxp(cxp), pago=pago)
 
 
 @router.patch("/cartera/cxp/{cxp_id}/anular", response_model=CxPResponse)
@@ -487,3 +528,21 @@ async def anular_cxp(cxp_id: int, _: AdminOrAdministradoraDep, db: AsyncSession 
     await db.commit()
     await db.refresh(cxp)
     return _enrich_cxp(cxp)
+
+
+# -- Pagos (historial / reimpresión de comprobantes) -----------
+
+@router.get("/cartera/pagos", response_model=List[PagoResponse])
+async def list_pagos(
+    _: CurrentUser,
+    cxc_id: Optional[int] = Query(None),
+    cxp_id: Optional[int] = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    q = select(Pago).order_by(Pago.fecha.desc())
+    if cxc_id:
+        q = q.where(Pago.cxc_id == cxc_id)
+    if cxp_id:
+        q = q.where(Pago.cxp_id == cxp_id)
+    rows = (await db.execute(q)).scalars().all()
+    return rows

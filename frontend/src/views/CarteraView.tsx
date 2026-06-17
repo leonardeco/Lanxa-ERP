@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { carteraApi, type CxC, type CxP, type CarteraStats } from '../services/carteraApi';
+import { carteraApi, type CxC, type CxP, type CarteraStats, type Pago } from '../services/carteraApi';
+import { printComprobante } from '../utils/printComprobante';
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -101,6 +102,60 @@ function AbonoModal({ saldo, onAbono, onClose }: {
   );
 }
 
+// ── Modal Historial de Pagos ──────────────────────────────
+
+function PagosHistorialModal({ tipo, documento, onClose }: {
+  tipo: Tab; documento: CxC | CxP; onClose: () => void;
+}) {
+  const [pagos, setPagos] = useState<Pago[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const params = tipo === 'cxc' ? { cxc_id: documento.id } : { cxp_id: documento.id };
+    carteraApi.getPagos(params).then(setPagos).catch(() => {}).finally(() => setLoading(false));
+  }, [tipo, documento.id]);
+
+  const numero = tipo === 'cxc' ? (documento as CxC).numero_factura : (documento as CxP).numero_documento;
+
+  return (
+    <Modal title={`Historial de pagos — ${numero}`} onClose={onClose}>
+      {loading ? (
+        <div className="loading-spinner" style={{ margin: '40px auto' }} />
+      ) : pagos.length === 0 ? (
+        <p style={{ color: 'var(--neutral-500)', textAlign: 'center', padding: 24 }}>Sin pagos registrados todavía</p>
+      ) : (
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Comprobante</th>
+              <th>Fecha</th>
+              <th>Valor</th>
+              <th>Saldo después</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {pagos.map(p => (
+              <tr key={p.id}>
+                <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{p.numero_comprobante}</td>
+                <td style={{ fontSize: '0.8rem' }}>{new Date(p.fecha).toLocaleString('es-CO')}</td>
+                <td>{formatCOP(p.valor)}</td>
+                <td>{formatCOP(p.saldo_nuevo)}</td>
+                <td>
+                  <button className="btn btn-ghost" style={{ fontSize: '0.75rem', padding: '3px 8px' }}
+                    onClick={() => printComprobante(tipo === 'cxc' ? 'CxC' : 'CxP', documento, p)}>
+                    🖨️
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </Modal>
+  );
+}
+
 // ── Modal Crear CxC ───────────────────────────────────────
 
 function CxCFormModal({ onSave, onClose }: { onSave: (d: any) => Promise<void>; onClose: () => void }) {
@@ -198,6 +253,7 @@ export default function CarteraView() {
   const [modalCxC, setModalCxC] = useState(false);
   const [modalCxP, setModalCxP] = useState(false);
   const [abonoTarget, setAbonoTarget] = useState<{ id: number; saldo: number; tipo: Tab } | null>(null);
+  const [historialTarget, setHistorialTarget] = useState<{ tipo: Tab; documento: CxC | CxP } | null>(null);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => setToast({ message, type });
 
@@ -225,9 +281,11 @@ export default function CarteraView() {
   };
   const handleAbono = async (valor: number, notas: string) => {
     if (!abonoTarget) return;
-    if (abonoTarget.tipo === 'cxc') await carteraApi.abonarCxC(abonoTarget.id, valor, notas);
-    else await carteraApi.abonarCxP(abonoTarget.id, valor, notas);
+    const result = abonoTarget.tipo === 'cxc'
+      ? await carteraApi.abonarCxC(abonoTarget.id, valor, notas)
+      : await carteraApi.abonarCxP(abonoTarget.id, valor, notas);
     showToast('Abono registrado'); setAbonoTarget(null); load();
+    printComprobante(abonoTarget.tipo === 'cxc' ? 'CxC' : 'CxP', result.documento, result.pago);
   };
   const handleAnular = async (id: number, tipo: Tab) => {
     if (!confirm('¿Anular este documento?')) return;
@@ -333,6 +391,10 @@ export default function CarteraView() {
                               💵 Abonar
                             </button>
                           )}
+                          <button className="btn btn-ghost" style={{ fontSize: '0.75rem', padding: '3px 8px' }}
+                            onClick={() => setHistorialTarget({ tipo: 'cxc', documento: c })} title="Historial de pagos">
+                            📜
+                          </button>
                           {!['Anulado'].includes(c.estado) && (
                             <button className="btn btn-ghost" style={{ fontSize: '0.75rem', padding: '3px 8px', color: 'var(--red-400)' }}
                               onClick={() => handleAnular(c.id, 'cxc')}>
@@ -402,6 +464,10 @@ export default function CarteraView() {
                               💵 Pagar
                             </button>
                           )}
+                          <button className="btn btn-ghost" style={{ fontSize: '0.75rem', padding: '3px 8px' }}
+                            onClick={() => setHistorialTarget({ tipo: 'cxp', documento: p })} title="Historial de pagos">
+                            📜
+                          </button>
                           {!['Anulado'].includes(p.estado) && (
                             <button className="btn btn-ghost" style={{ fontSize: '0.75rem', padding: '3px 8px', color: 'var(--red-400)' }}
                               onClick={() => handleAnular(p.id, 'cxp')}>
@@ -423,6 +489,9 @@ export default function CarteraView() {
       {modalCxP && <CxPFormModal onSave={handleCreateCxP} onClose={() => setModalCxP(false)} />}
       {abonoTarget && (
         <AbonoModal saldo={abonoTarget.saldo} onAbono={handleAbono} onClose={() => setAbonoTarget(null)} />
+      )}
+      {historialTarget && (
+        <PagosHistorialModal tipo={historialTarget.tipo} documento={historialTarget.documento} onClose={() => setHistorialTarget(null)} />
       )}
     </div>
   );
