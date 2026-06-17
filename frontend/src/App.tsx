@@ -13,6 +13,7 @@ import UsuariosView from './views/UsuariosView'
 import CarteraView from './views/CarteraView'
 import ComprasView from './views/ComprasView'
 import InventarioView from './views/InventarioView'
+import ReportesView from './views/ReportesView'
 import LoginView from './views/LoginView'
 import { useAuth } from './contexts/AuthContext'
 
@@ -124,9 +125,10 @@ function App() {
         return <UsuariosView />
       case 'inventario':
         return <InventarioView />
+      case 'reportes':
+        return <ReportesView />
       case 'rrhh':
       case 'plataformas':
-      case 'reportes':
         return (
           <div className="empty-state fade-in">
             <div className="empty-state-icon">🚧</div>

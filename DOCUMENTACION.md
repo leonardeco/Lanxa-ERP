@@ -3,7 +3,7 @@
 **Empresa:** TECNOLOGIA E INNOVACION SUPER OZONO S.A.S.
 **NIT:** 901841798-5
 **Ciudad:** Armenia, Quindío
-**Versión ERP:** 0.5.0
+**Versión ERP:** 0.6.0
 **Última actualización:** 2026-06-17
 
 ---
@@ -106,6 +106,9 @@ superozono-erp/
 │   │   │   │   ├── schemas.py       # MovimientoResponse, AjusteInventarioInput, InventarioDashboard
 │   │   │   │   ├── service.py       # registrar_movimiento() — actualiza stock + crea el movimiento (kardex)
 │   │   │   │   └── router.py        # dashboard, movimientos (kardex), ajuste manual
+│   │   │   ├── reportes/
+│   │   │   │   ├── schemas.py       # AgingCarteraResponse, ComprasPeriodoResponse, VentasPeriodoResponse, RetencionesPeriodoResponse
+│   │   │   │   └── router.py        # solo lectura, sin modelos propios — agrega sobre contabilidad/compras/ventas
 │   │   │   ├── usuarios/
 │   │   │   │   ├── models.py        # Usuario
 │   │   │   │   ├── schemas.py       # Token, UsuarioCreate, UsuarioResponse
@@ -139,6 +142,7 @@ superozono-erp/
 │   │   │   ├── ventasApi.ts
 │   │   │   ├── comprasApi.ts        # Proveedores, compras (con producto_id), dashboard compras
 │   │   │   ├── inventarioApi.ts     # Dashboard, movimientos (kardex), ajustes manuales
+│   │   │   ├── reportesApi.ts       # Aging, compras/ventas por periodo, retenciones
 │   │   │   ├── dashboardApi.ts
 │   │   │   ├── usuariosApi.ts
 │   │   │   ├── carteraApi.ts        # CxC, CxP (incluye compra_id), Pago (comprobantes)
@@ -158,6 +162,7 @@ superozono-erp/
 │   │   │   ├── VentasView.tsx       # 4 pestañas: Dashboard, Productos, Clientes, Facturas
 │   │   │   ├── ComprasView.tsx      # 4 pestañas: Dashboard, Proveedores, Compras, Nueva Compra
 │   │   │   ├── InventarioView.tsx   # Dashboard, Productos (stock), Movimientos (kardex), Ajuste manual
+│   │   │   ├── ReportesView.tsx     # Aging cartera, Compras/Ventas por periodo, Retenciones
 │   │   │   ├── CarteraView.tsx      # CxC y CxP con abonos, comprobante automático e historial de pagos
 │   │   │   └── UsuariosView.tsx     # Gestión de usuarios (solo Admin)
 │   │   ├── App.tsx                  # Enrutador por vistas + control de roles
@@ -326,7 +331,7 @@ No requieren instalación de ningún software.
 | Gestión de Usuarios | ✅ | ❌ | ❌ |
 | Inventario | ✅ | ❌¹ | ❌¹ |
 | RRHH (fase 2) | ✅ | ❌ | ❌ |
-| Reportes (fase 2) | ✅ | ❌ | ❌ |
+| Reportes | ✅ | ❌¹ | ❌¹ |
 
 > ¹ El backend de Inventario acepta los 3 roles en sus endpoints GET (mismo patrón que Compras/Ventas) — hoy solo no se ve porque `ROLE_VIEWS` en `App.tsx` no incluye `'inventario'` para Administradora/Auxiliar. Si se decide abrir la vista a esos roles, no requiere cambios de backend.
 
@@ -353,6 +358,7 @@ No requieren instalación de ningún software.
 - **Compras anular**: `AdminOrAdministradoraDep`
 - **Inventario GET (dashboard, movimientos)**: `CurrentUser` (todos los roles)
 - **Inventario ajuste manual**: `AdminOrAdministradoraDep`
+- **Reportes** (los 4 endpoints, todos GET): `CurrentUser` (todos los roles)
 - **Usuarios CRUD**: `AdminDep`
 - **Alegra** (sync y facturación): `AdminDep`
 
@@ -521,6 +527,17 @@ Base URL: `http://[host]:8000/api`
 | GET | `/v1/inventario/movimientos/{producto_id}` | Kardex de un producto específico |
 | POST | `/v1/inventario/ajustes` | Ajuste manual de stock (Entrada/Salida) — Admin/Administradora |
 
+### Reportes
+
+Solo lectura, sin tablas propias — agregan sobre `contabilidad` (CxC/CxP), `compras` y `ventas`.
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/v1/reportes/aging-cartera` | CxC y CxP agrupadas por antigüedad de vencimiento: Corriente, 1-30, 31-60, 61-90, +90 días. Excluye documentos Pagado/Anulado |
+| GET | `/v1/reportes/compras-periodo` | Total y cantidad de compras en un rango (`fecha_desde`/`fecha_hasta`, default mes actual), agrupado por proveedor |
+| GET | `/v1/reportes/ventas-periodo` | Total y cantidad de ventas en un rango, agrupado por cliente y por marca |
+| GET | `/v1/reportes/retenciones-periodo` | ReteFuente/ReteIVA/ReteICA acumulados de compras y ventas en un rango, con totales combinados |
+
 ### Alegra (Facturación Electrónica)
 
 | Método | Ruta | Descripción |
@@ -554,7 +571,7 @@ Base URL: `http://[host]:8000/api`
 | Usuarios | `usuarios` | Completa (CRUD) | Solo visible para Admin |
 | RRHH | `rrhh` | Fase 2 — 🚧 | Sin implementar |
 | Plataformas | `plataformas` | Fase 2 — 🚧 | Sin implementar |
-| Reportes | `reportes` | Fase 2 — 🚧 | Sin implementar |
+| Reportes | `reportes` | Completa | 3 pestañas: Aging de Cartera, Compras y Ventas por Período (selector de fechas), Retenciones Acumuladas |
 
 ### Servicios API del frontend
 
@@ -635,10 +652,11 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | 8 | Módulo de compras/proveedores independiente | ✅ Completado 2026-06-16 |
 | 9 | Inventario con movimientos reales (entradas/salidas) | ✅ Completado 2026-06-17 |
 | 10 | Comprobante de pago numerado al abonar CxC/CxP | ✅ Completado 2026-06-17 |
+| 11 | Reportes — aging cartera, compras/ventas por período, retenciones acumuladas | ✅ Completado 2026-06-17 |
 
 ### Fase 2 — Módulos futuros
 
 - RRHH / Talento Humano
 - Plataformas & Marketing
-- Reportes & BI
 - Nómina electrónica
+- P&L y Balance General — requieren motor de asientos contables automáticos (partida doble al confirmar venta/compra/abono), que hoy no existe. Proyecto separado, pendiente de planear

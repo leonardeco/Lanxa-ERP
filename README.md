@@ -35,7 +35,7 @@ Sistema de gestión empresarial (ERP) desarrollado a medida para **TECNOLOGÍA E
 | **Usuarios** | ✅ Producción | CRUD de usuarios, gestión de roles, cambio de contraseña |
 | **Alegra** | ✅ Construido | Integración con API de Alegra para facturación electrónica DIAN Colombia |
 | **RRHH & Nómina** | 🔄 Fase 2 | Empleados, contratos, liquidación mensual |
-| **Reportes & BI** | 🔄 Fase 3 | P&L, Balance General, cartera aging, compras por período |
+| **Reportes & BI** | ✅ Producción | Aging de cartera (CxC/CxP), compras y ventas por período (proveedor/cliente/marca), retenciones acumuladas. P&L y Balance General requieren motor de asientos contables, ver roadmap |
 | **Electron** | 🔄 Fase 4 | Empaquetado como aplicación de escritorio (.exe) |
 
 ---
@@ -139,6 +139,9 @@ backend/app/modules/
 │   ├── schemas.py   # MovimientoResponse, AjusteInventarioInput, InventarioDashboard
 │   ├── service.py   # registrar_movimiento() — actualiza stock + crea el movimiento
 │   └── router.py    # /api/v1/inventario/* (dashboard, movimientos, ajustes manuales)
+├── reportes/
+│   ├── schemas.py   # AgingCarteraResponse, ComprasPeriodoResponse, VentasPeriodoResponse, RetencionesPeriodoResponse
+│   └── router.py    # /api/v1/reportes/* (solo lectura, sin modelos propios)
 ├── usuarios/
 │   ├── models.py    # Usuario (email, rol, bcrypt hash)
 │   ├── schemas.py   # Token, UsuarioCreate/Update/Response
@@ -155,6 +158,7 @@ frontend/src/
 │   ├── ventasApi.ts        # Productos, clientes, ventas
 │   ├── comprasApi.ts       # Proveedores, compras (con producto_id), dashboard compras
 │   ├── inventarioApi.ts    # Dashboard, movimientos (kardex), ajustes manuales
+│   ├── reportesApi.ts      # Aging, compras/ventas por periodo, retenciones
 │   ├── carteraApi.ts       # CxC, CxP (con compra_id), Pago, stats
 │   ├── contabilidadApi.ts  # PUC, centros, periodos, tributarios, nomina
 │   └── usuariosApi.ts      # CRUD usuarios + cambio contraseña
@@ -172,6 +176,7 @@ frontend/src/
     ├── VentasView.tsx       # Dashboard + Productos + Clientes + Facturas
     ├── ComprasView.tsx      # Dashboard + Proveedores + Compras + Nueva Compra
     ├── InventarioView.tsx   # Dashboard + Productos (stock) + Movimientos + Ajuste manual
+    ├── ReportesView.tsx     # Aging cartera + Compras/Ventas por periodo + Retenciones
     ├── CarteraView.tsx      # CxC & CxP con abonos, comprobante automático e historial de pagos
     ├── UsuariosView.tsx     # CRUD usuarios (Admin)
     └── LoginView.tsx        # Autenticación
@@ -345,6 +350,12 @@ GET    /api/v1/inventario/movimientos                 # kardex completo (filtros
 GET    /api/v1/inventario/movimientos/{producto_id}
 POST   /api/v1/inventario/ajustes                     # ajuste manual de stock (Admin/Administradora)
 
+# Reportes
+GET    /api/v1/reportes/aging-cartera                 # CxC y CxP por buckets de vencimiento
+GET    /api/v1/reportes/compras-periodo               # ?fecha_desde=&fecha_hasta= (default: mes actual)
+GET    /api/v1/reportes/ventas-periodo                # idem, agrupado por cliente y por marca
+GET    /api/v1/reportes/retenciones-periodo           # retefuente/reteIVA/reteICA de compras + ventas
+
 # Ventas
 GET    /api/v1/ventas/productos
 POST   /api/v1/ventas/productos
@@ -413,7 +424,8 @@ El sistema tiene 3 roles, diseñados para una red LAN de 5 PCs:
 - [ ] Activación Alegra con facturación electrónica DIAN
 
 ### Fase 3
-- [ ] Reportes & BI (P&L, Balance General, aging cartera, compras por período)
+- [x] Reportes & BI — aging cartera, compras/ventas por período, retenciones acumuladas (2026-06-17)
+- [ ] P&L y Balance General — requieren motor de asientos contables automáticos (partida doble al confirmar venta/compra/abono), que hoy no existe. Proyecto separado, pendiente de planear
 - [ ] Devoluciones en ventas y compras
 - [ ] Notificaciones y alertas de vencimiento CxP
 
