@@ -18,7 +18,8 @@ frontend/.env.*.local
 .env.local
 .env.*.local
 backend/.env
-backend/.env.*
+backend/.env.local
+backend/.env.*.local
 
 # IDE
 .vscode/
