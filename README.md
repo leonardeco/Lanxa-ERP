@@ -90,6 +90,8 @@ modules/<nombre>/
 | aiosqlite | 0.20 | Driver SQLite async (desarrollo local) |
 | asyncpg | 0.30 | Driver PostgreSQL async (producción) |
 | uvicorn | 0.34 | Servidor ASGI |
+| pytest + httpx | 9.1 | Entorno de testing unitario y asíncrono |
+| flake8 + mypy | 7.3 / 2.1 | Análisis estático y verificación de tipos (QA) |
 
 ### Frontend
 
@@ -180,6 +182,32 @@ frontend/src/
     ├── CarteraView.tsx      # CxC & CxP con abonos, comprobante automático e historial de pagos
     ├── UsuariosView.tsx     # CRUD usuarios (Admin)
     └── LoginView.tsx        # Autenticación
+```
+
+---
+
+## Testing & Quality Assurance
+
+El proyecto cuenta con una infraestructura automatizada para asegurar su integridad y reducir bugs:
+
+- **Pruebas Unitarias y de Integración (Backend)**: Usando `pytest`, `pytest-asyncio` y `httpx`. Las pruebas levantan automáticamente una base de datos `SQLite` en memoria que se crea y destruye limpiamente con cada ejecución, validando el correcto funcionamiento de la API, la inyección de JWT, y los dashboards de módulos como Inventario.
+- **Análisis Estático Continuo (Linter & Type Checking)**: `flake8` y `mypy` se encargan de detectar errores de código, dependencias sin uso, o violaciones lógicas de Python (como `E712`). En el frontend, `ESLint` protege las reglas de hooks de React y la sintaxis de TypeScript.
+
+**Para correr las pruebas:**
+
+```bash
+# Ejecutar Tests del Backend (Unitarios)
+cd backend
+pytest -v
+
+# Analizadores Estáticos (Backend)
+cd backend
+flake8 app/
+mypy app/
+
+# Analizadores Estáticos (Frontend)
+cd frontend
+npm run lint
 ```
 
 ---
