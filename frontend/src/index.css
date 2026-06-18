@@ -1726,14 +1726,48 @@ body {
    ══════════════════════════════════════════════════════════ */
 
 .login-container {
+  width: 100%;
   min-height: 100vh;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
   background: linear-gradient(135deg, #050810 0%, #0a1628 40%, #071210 100%);
   font-family: 'Inter', system-ui, sans-serif;
   position: relative;
   overflow: hidden;
+}
+
+.login-form-side {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.login-brand-side {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000000;
+  position: relative;
+  z-index: 1;
+}
+
+.login-brand-logo {
+  max-width: 280px;
+  width: 60%;
+  height: auto;
+  filter: drop-shadow(0 10px 40px rgba(0, 166, 124, 0.25));
+}
+
+@media (max-width: 880px) {
+  .login-brand-side {
+    display: none;
+  }
 }
 
 /* Subtle animated gradient orbs */
