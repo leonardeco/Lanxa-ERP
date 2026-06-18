@@ -292,6 +292,8 @@ Servicios disponibles:
 
 4. Ejecutar `start.bat` en el servidor.
 
+5. (Opcional) Ejecutar `crear-acceso-escritorio.bat` para crear un ícono "Super Ozono ERP" en el escritorio con el logo de la empresa, que ejecuta `start.bat`. El script usa `$PSScriptRoot` (la carpeta donde vive el propio script), así que funciona igual sin importar en qué PC o ruta esté copiado el proyecto — solo hay que ejecutarlo una vez en cada PC servidor nuevo, no se puede copiar el acceso directo ya creado de un PC a otro porque apunta a una ruta absoluta.
+
 ### En los otros 4 PCs (solo navegador)
 
 Abrir Chrome/Edge y navegar a:

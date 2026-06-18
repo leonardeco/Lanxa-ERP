@@ -335,6 +335,10 @@ node node_modules/vite/bin/vite.js --host 0.0.0.0 --port 5173
 
 El primer arranque ejecuta automáticamente los seeders con datos base (PUC completo según Decreto 2650, centros de costo por marca, períodos contables, parámetros tributarios y de nómina).
 
+**Acceso directo de escritorio (opcional, una sola vez):**
+
+Ejecuta `crear-acceso-escritorio.bat` (doble clic) para crear un ícono **"Super Ozono ERP"** en el escritorio con el logo de la empresa, que al abrirlo ejecuta `start.bat`. Usa la carpeta donde está el proyecto en *ese* PC — funciona igual si copias el proyecto a otra máquina, solo hay que volver a ejecutarlo ahí (no se puede copiar el `.lnk` directamente porque apunta a una ruta absoluta).
+
 ### 6. Acceder
 
 | Servicio | URL |
