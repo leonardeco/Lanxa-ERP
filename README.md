@@ -12,10 +12,12 @@ Sistema de gestión empresarial (ERP) desarrollado a medida para **TECNOLOGÍA E
 - [Arquitectura](#arquitectura)
 - [Stack tecnológico](#stack-tecnológico)
 - [Estructura del proyecto](#estructura-del-proyecto)
+- [Modelo de datos](#modelo-de-datos)
 - [Inicio rápido — Windows](#inicio-rápido--windows)
 - [Inicio rápido — Docker](#inicio-rápido--docker)
 - [Variables de entorno](#variables-de-entorno)
 - [API Reference](#api-reference)
+- [Seguridad](#seguridad)
 - [Roles y permisos](#roles-y-permisos)
 - [Roadmap](#roadmap)
 
@@ -61,6 +63,38 @@ superozono-erp/
 ├── frontend/Dockerfile   # Nginx + Vite build para producción
 ├── start.bat             # Inicio local Windows (doble clic)
 └── stop.bat              # Parada limpia Windows
+```
+
+**Flujo de arquitectura (Docker):**
+
+```
++----------------------------------------------------+
+|                      CLIENTE                        |
+|       Navegador -- React 19 SPA (build estatico)    |
++------------------------+-----------------------------+
+                         |  HTTP (LAN) -- sin TLS en esta version
+                         v
++----------------------------------------------------+
+|          CONTENEDOR frontend -- nginx:alpine        |
+|  - Sirve el build de React (dist/)                  |
+|  - Proxy interno: /api, /docs, /redoc -> backend:8000 |
++------------------------+-----------------------------+
+                         v
++----------------------------------------------------+
+|        CONTENEDOR backend -- FastAPI (Python 3.13)  |
+|  +-------------------+   +------------------------+ |
+|  | Auth (JWT+bcrypt) |   |  Modulos de negocio    | |
+|  | deps.py -> 401/403|   |  Contabilidad/Ventas/..| |
+|  +-------------------+   +------------------------+ |
++------------+-------------------------+--------------+
+             v                         v
+   +-------------------+     +-------------------+
+   |   PostgreSQL 16    |     |      Redis 7      |
+   |   (datos del ERP)  |     |  (cache, opcional) |
+   +-------------------+     +-------------------+
+
+CONTENEDOR pgadmin (puerto 5050) -- administracion de BD, uso interno
+Orquestacion: Docker Compose (docker-compose.yml)
 ```
 
 **Patrón de módulos backend:**
@@ -186,6 +220,25 @@ frontend/src/
 
 ---
 
+## Modelo de datos
+
+Tabla de entidades principales con campos sensibles, tipos y restricciones de seguridad. El detalle completo de todas las tablas está en [`DOCUMENTACION.md`](./DOCUMENTACION.md#8-base-de-datos--modelos).
+
+| Entidad | Campo | Tipo | Restricción de seguridad |
+|---|---|---|---|
+| `usuarios` | `id` | `Integer` autoincrement | **No es UUID** — ID secuencial. Ver nota abajo |
+| `usuarios` | `email` | `String(255)` | `UNIQUE`, `NOT NULL` |
+| `usuarios` | `hashed_password` | `String(255)` | Hash **bcrypt** (passlib, cost factor 12 por defecto). Nunca se almacena ni se loguea texto plano |
+| `usuarios` | `rol` | `String(50)` | Valores válidos: `Admin`, `Administradora`, `Auxiliar`. **No es un ENUM de BD** — es un string libre sin `CHECK` constraint (ver nota abajo) |
+| `usuarios` | `is_active` | `Boolean` | Controla acceso; verificado en cada request autenticado (`get_current_user`) |
+| `*` (todas las tablas) | `id` | `Integer` autoincrement | Mismo patrón en todos los módulos (Contabilidad, Ventas, Compras, Inventario) |
+
+> **Nota — IDs secuenciales:** todos los modelos del proyecto usan `Integer, primary_key=True, autoincrement=True` (no UUID). Esto es simple y suficiente para una red LAN cerrada de 5 PCs, pero implica que los IDs son adivinables/enumerables. Si en el futuro se expone la API fuera de la LAN, se recomienda migrar a UUID o agregar control de autorización por objeto (verificar que el recurso pertenece/es visible para el rol del usuario, no solo el rol global).
+
+> **Nota — `rol` sin ENUM real:** el campo se valida solo en la capa de aplicación (Pydantic/lógica de negocio), no en la base de datos. Se recomienda agregar un `CHECK` constraint o usar `Enum` de SQLAlchemy para que un valor de rol inválido no pueda insertarse directamente en la BD.
+
+---
+
 ## Testing & Quality Assurance
 
 El proyecto cuenta con una infraestructura automatizada para asegurar su integridad y reducir bugs:
@@ -218,6 +271,7 @@ npm run lint
 
 - Python 3.11+
 - Node.js 18+
+- Git
 
 ### 1. Clonar el repositorio
 
@@ -228,10 +282,11 @@ cd superozono-erp
 
 ### 2. Configurar variables de entorno
 
-El archivo `.env` ya está configurado para desarrollo local con SQLite. Si necesitas personalizarlo:
+El archivo `.env` ya está configurado para desarrollo local con SQLite. Si necesitas personalizarlo, usa `.env.example` como referencia de todas las variables disponibles:
 
 ```bash
-# El backend busca backend/.env — ya existe con SQLite por defecto
+cp .env.example .env
+# Edita .env con tus valores — el backend busca backend/.env
 ```
 
 Para producción con PostgreSQL usa `.env.produccion` como plantilla:
@@ -240,6 +295,8 @@ Para producción con PostgreSQL usa `.env.produccion` como plantilla:
 cp .env.produccion .env
 # Edita .env con las credenciales reales
 ```
+
+> **Nota — migraciones de base de datos:** el proyecto no usa Alembic en este momento (aunque está listado en `requirements.txt`). El esquema se crea automáticamente al arrancar el backend vía `Base.metadata.create_all()` (ver `app/main.py`, lifespan). No hay un comando de migración que ejecutar manualmente; para cambios de esquema en producción se recomienda planear la adopción de Alembic.
 
 ### 3. Instalar dependencias backend
 
@@ -328,15 +385,18 @@ docker-compose up -d
 | Variable | Requerida | Descripción |
 |----------|-----------|-------------|
 | `DATABASE_URL` | ✅ | `postgresql+asyncpg://...` (prod) o `sqlite+aiosqlite:///./superozono.db` (dev) |
-| `SECRET_KEY` | ✅ | Clave JWT — genera con `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `SECRET_KEY` | ✅ | Clave JWT, **mínimo 32 caracteres** (recomendado 64) — genera con `python -c "import secrets; print(secrets.token_hex(32))"` |
 | `POSTGRES_USER` | Docker | Usuario PostgreSQL |
 | `POSTGRES_PASSWORD` | Docker | Contraseña PostgreSQL |
 | `POSTGRES_DB` | Docker | Nombre de la base de datos |
 | `REDIS_URL` | No | `redis://redis:6379/0` |
 | `ACCESS_TOKEN_EXPIRE_HOURS` | No | Expiración JWT en horas (default: 8) |
+| `CORS_ORIGINS` | No | Orígenes permitidos separados por coma (default: `http://localhost:5173,http://127.0.0.1:5173`). **En producción nunca usar `*`** — listar explícitamente los orígenes reales |
 | `DEBUG` | No | `true` en desarrollo, `false` en producción |
 | `ALEGRA_EMAIL` | Alegra | Email de la cuenta Alegra |
 | `ALEGRA_TOKEN` | Alegra | Token API de Alegra (`Configuración → API`) |
+
+> **Nota:** el backend no expone una variable `PORT`/`NODE_ENV` (no aplica al stack FastAPI/Vite). El puerto del backend (8000) y del frontend (5173 en dev, 80 en Docker) se fija directamente en los comandos de arranque y en `docker-compose.yml`.
 
 ---
 
@@ -417,6 +477,47 @@ POST   /api/v1/alegra/sync/cliente/{id}
 POST   /api/v1/alegra/sync/producto/{id}
 POST   /api/v1/alegra/facturas/{venta_id}
 ```
+
+> **Sin registro público:** este ERP es un sistema interno (no SaaS), por lo que **no existe** un endpoint de auto-registro (`POST /auth/register`). Los usuarios se crean exclusivamente por un Admin vía `POST /api/v1/usuarios`. Esto es intencional, no un gap.
+
+### Niveles de acceso
+
+| Método | Endpoint (ejemplo) | Nivel de acceso | Mecanismo de seguridad |
+|--------|---------------------|------------------|--------------------------|
+| `POST` | `/api/login/access-token` | Público | Validación de credenciales (bcrypt) → emisión de JWT |
+| `GET` | `/api/users/me` | Autenticado | Bearer JWT → `get_current_user` → 401 si inválido/expirado |
+| `GET`/`POST` | `/api/v1/ventas/*`, `/api/v1/compras/*`, `/api/v1/inventario/*` | Autenticado | Bearer JWT (cualquier rol activo) → 401 si falla |
+| `POST` | `/api/v1/inventario/ajustes` | Admin / Administradora | JWT + `get_admin_or_administradora` → 403 si el rol no aplica |
+| `POST`/`PUT`/`PATCH` | `/api/v1/usuarios/*` | Admin | JWT + `get_current_active_superuser` → 403 si no es Admin |
+
+---
+
+## Seguridad
+
+Estado real de las prácticas de seguridad del proyecto — qué está implementado y qué queda pendiente antes de exponerlo fuera de la LAN interna.
+
+### Implementado
+
+| Práctica | Detalle |
+|---|---|
+| **CORS restrictivo** | Orígenes configurables vía `CORS_ORIGINS`, sin wildcard `*` (`app/main.py`) |
+| **Hash de contraseñas** | bcrypt vía `passlib` (`app/core/security.py`), cost factor 12 (default) |
+| **Middleware de autenticación** | Todo endpoint protegido valida el JWT vía `get_current_user`; responde `401` si falta o es inválido (`app/api/deps.py`) |
+| **RBAC con Guards** | Backend valida rol con `get_admin_or_administradora` / `get_current_active_superuser` → `403` si no aplica. Frontend oculta opciones de menú/acciones según `rol` del usuario en `AuthContext` |
+| **Protección contra SQL Injection** | 100% de las consultas usan el ORM de SQLAlchemy (`select()`/queries parametrizadas) — no hay SQL crudo concatenado en el proyecto |
+| **Secretos fuera de código** | Credenciales y `SECRET_KEY` viven en archivos `.env` excluidos de git (`.gitignore`); solo se versionan plantillas (`.env.example`, `.env.produccion`) sin valores reales |
+
+### Pendiente / riesgos conocidos
+
+| Ítem | Riesgo | Recomendación |
+|---|---|---|
+| **TTL de JWT** | `ACCESS_TOKEN_EXPIRE_HOURS=8` — más largo de lo recomendado (15min–1h) y sin forma de revocar el token antes de que expire | Reducir el TTL del access token y compensar con refresh tokens |
+| **Sin Refresh Tokens** | El login solo emite un access token; no hay endpoint de refresh. El frontend guarda el JWT en `localStorage` (no `HTTPOnly` cookie), expuesto a robo vía XSS | Implementar refresh token en cookie `HTTPOnly` + `SameSite=Strict`, con access token de vida corta |
+| **Sin Rate Limiting** | `POST /api/login/access-token` no tiene límite de intentos — vulnerable a fuerza bruta | Agregar `slowapi` (o equivalente) al login y a endpoints sensibles |
+| **Sin SSL/TLS** | `nginx.conf` solo escucha el puerto 80, sin redirect a 443. Aceptable temporalmente por tratarse de una LAN cerrada de 5 PCs, pero debe revisarse antes de cualquier acceso remoto | Agregar certificado (Let's Encrypt o interno) y forzar HTTPS si el sistema sale de la LAN |
+| **Sin Backups automatizados** | No hay ningún script/cron de respaldo de la base de datos PostgreSQL en el repositorio | Configurar `pg_dump` diario cifrado, retención mínima de 30 días, almacenado fuera del PC servidor |
+| **`rol` sin constraint en BD** | El campo es `String(50)` libre — un valor de rol inválido podría insertarse directamente en la base de datos sin pasar por la API | Migrar a `Enum` de SQLAlchemy o agregar `CHECK constraint` |
+| **IDs secuenciales** | Todas las tablas usan `Integer autoincrement` — los IDs son adivinables/enumerables | Aceptable en LAN cerrada; si se expone la API públicamente, migrar a UUID o reforzar autorización por objeto |
 
 ---
 
