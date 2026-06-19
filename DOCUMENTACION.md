@@ -52,7 +52,7 @@ ERP interno para la gestión contable y comercial de Super Ozono Global. Diseña
 | Base de datos (prod) | PostgreSQL 16 | — |
 | Migraciones | Alembic | 1.15.2 |
 | Validación | Pydantic v2 | 2.11.3 |
-| Autenticación | JWT (python-jose) | 3.5.0 |
+| Autenticación | JWT access token (python-jose) + refresh token opaco (cookie HttpOnly) | 3.5.0 |
 | Hashing contraseñas | passlib + bcrypt | 1.7.4 |
 | Rate limiting | slowapi | 0.1.9 |
 | Logging | structlog | 25.4.0 |
@@ -430,7 +430,9 @@ Base URL: `http://[host]:8000/api`
 
 | Método | Ruta | Acceso | Descripción |
 |---|---|---|---|
-| POST | `/login/access-token` | Público | Login. Retorna JWT Bearer token. Rate limited: 5 intentos/min por IP (`slowapi`, en memoria) |
+| POST | `/login/access-token` | Público | Login. Retorna JWT Bearer token (1h) + cookie `HTTPOnly` con refresh token (30 días). Rate limited: 5 intentos/min por IP (`slowapi`, en memoria) |
+| POST | `/login/refresh-token` | Cookie de refresh token | Renueva el access token; rota el refresh token (el usado queda invalido) |
+| POST | `/login/logout` | Cookie de refresh token (opcional) | Revoca el refresh token en BD y limpia la cookie |
 | GET | `/users/me` | Autenticado | Datos del usuario en sesión |
 
 ### Usuarios
@@ -657,6 +659,7 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | 10 | Comprobante de pago numerado al abonar CxC/CxP | ✅ Completado 2026-06-17 |
 | 11 | Reportes — aging cartera, compras/ventas por período, retenciones acumuladas | ✅ Completado 2026-06-17 |
 | 12 | Rate limiting en login (mitigar fuerza bruta) | ✅ Completado 2026-06-19 |
+| 13 | Refresh tokens con rotación + TTL de access token bajado a 1h | ✅ Completado 2026-06-19 |
 
 ### Fase 2 — Módulos futuros
 
