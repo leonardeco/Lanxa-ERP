@@ -512,6 +512,7 @@ Estado real de las prácticas de seguridad del proyecto — qué está implement
 | **Secretos fuera de código** | Credenciales y `SECRET_KEY` viven en archivos `.env` excluidos de git (`.gitignore`); solo se versionan plantillas (`.env.example`, `.env.produccion`) sin valores reales |
 | **Rate limiting en login** | `slowapi`, 5 intentos/min por IP, storage en memoria (`app/core/limiter.py`) — mitiga fuerza bruta en `POST /api/login/access-token`; responde `429` al superarse |
 | **Refresh tokens con rotación** | Access token bajado a `ACCESS_TOKEN_EXPIRE_HOURS=1`. Refresh token opaco (no JWT) en cookie `HTTPOnly` + `SameSite=Strict`, hash en BD (tabla `refresh_tokens`), rotado en cada uso (`POST /api/login/refresh-token`) y revocable de verdad (`POST /api/login/logout`) — ya no depende solo de borrar el token del navegador |
+| **Backups automatizados (SQLite)** | `backend/scripts/backup_db.py`, tarea diaria en el Programador de tareas de Windows (`SuperOzonoERP-BackupDB`, 2:00am). Copia consistente vía la API de backup de `sqlite3`, cifrada con Fernet (`cryptography`), retención 30 días. Restauración con `backend/scripts/restore_db.py` (guarda una copia `.bak` antes de sobreescribir) |
 
 ### Pendiente / riesgos conocidos
 
@@ -519,7 +520,7 @@ Estado real de las prácticas de seguridad del proyecto — qué está implement
 |---|---|---|
 | **Cookie del refresh token sin `Secure`** | Sin TLS todavía (ver fila siguiente), la cookie `HTTPOnly` del refresh token viaja sin cifrar por la LAN, igual que el resto del tráfico HTTP actual | Marcar la cookie `Secure=True` en `_set_refresh_cookie` (`usuarios/router.py`) cuando se agregue TLS |
 | **Sin SSL/TLS** | `nginx.conf` solo escucha el puerto 80, sin redirect a 443. Aceptable temporalmente por tratarse de una LAN cerrada de 5 PCs, pero debe revisarse antes de cualquier acceso remoto | Agregar certificado (Let's Encrypt o interno) y forzar HTTPS si el sistema sale de la LAN |
-| **Sin Backups automatizados** | No hay ningún script/cron de respaldo de la base de datos PostgreSQL en el repositorio | Configurar `pg_dump` diario cifrado, retención mínima de 30 días, almacenado fuera del PC servidor |
+| **Backups guardados en el mismo PC** | `C:/SuperOzono-Backups` está en el mismo disco que la BD real — si el PC servidor falla por completo (disco, robo, incendio), se pierden la BD, los backups y la clave de cifrado (`BACKUP_ENCRYPTION_KEY` en `backend/.env`) al mismo tiempo | Copiar periódicamente la carpeta de backups (y la clave, en un gestor de contraseñas) a un destino fuera de este PC: red local, NAS o nube |
 | **`rol` sin constraint en BD** | El campo es `String(50)` libre — un valor de rol inválido podría insertarse directamente en la base de datos sin pasar por la API | Migrar a `Enum` de SQLAlchemy o agregar `CHECK constraint` |
 | **IDs secuenciales** | Todas las tablas usan `Integer autoincrement` — los IDs son adivinables/enumerables | Aceptable en LAN cerrada; si se expone la API públicamente, migrar a UUID o reforzar autorización por objeto |
 

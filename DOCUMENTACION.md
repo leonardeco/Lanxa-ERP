@@ -121,6 +121,9 @@ superozono-erp/
 │   │   └── main.py                  # App FastAPI, CORS, routers, lifespan
 │   ├── seeds/
 │   │   └── seed.py                  # Datos iniciales: PUC, centros, períodos, productos, clientes
+│   ├── scripts/
+│   │   ├── backup_db.py             # Backup diario cifrado de la BD SQLite (tarea programada Windows)
+│   │   └── restore_db.py            # Descifra y restaura un backup (con copia .bak previa)
 │   ├── .env                         # Variables de entorno (desarrollo local)
 │   ├── .env.servidor                # Plantilla para el PC servidor (copiar a .env)
 │   ├── requirements.txt
@@ -190,7 +193,7 @@ REDIS_URL=redis://localhost:6379/0
 
 # Seguridad
 SECRET_KEY=<clave-secreta-larga>
-ACCESS_TOKEN_EXPIRE_HOURS=8
+ACCESS_TOKEN_EXPIRE_HOURS=1
 REFRESH_TOKEN_EXPIRE_DAYS=30
 DEBUG=true
 
@@ -205,6 +208,11 @@ EMPRESA_CIUDAD=Armenia, Quindio
 # Alegra (opcional — facturación electrónica)
 ALEGRA_EMAIL=
 ALEGRA_TOKEN=
+
+# Backups (solo SQLite — scripts/backup_db.py)
+BACKUP_DIR=C:/SuperOzono-Backups
+BACKUP_ENCRYPTION_KEY=<clave-fernet-generada>
+BACKUP_RETENTION_DAYS=30
 ```
 
 **En el PC servidor (reemplazar IP):**
@@ -660,6 +668,7 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | 11 | Reportes — aging cartera, compras/ventas por período, retenciones acumuladas | ✅ Completado 2026-06-17 |
 | 12 | Rate limiting en login (mitigar fuerza bruta) | ✅ Completado 2026-06-19 |
 | 13 | Refresh tokens con rotación + TTL de access token bajado a 1h | ✅ Completado 2026-06-19 |
+| 14 | Backups automatizados de la BD (SQLite, cifrados, tarea diaria) | ✅ Completado 2026-06-19 |
 
 ### Fase 2 — Módulos futuros
 
