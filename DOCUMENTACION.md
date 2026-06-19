@@ -467,7 +467,8 @@ Base URL: `http://[host]:8000/api`
 | POST | `/v1/usuarios` | Admin | Crear usuario |
 | PUT | `/v1/usuarios/{id}` | Admin | Editar nombre y rol |
 | PATCH | `/v1/usuarios/{id}/toggle` | Admin | Activar/desactivar usuario |
-| PUT | `/v1/usuarios/me/password` | Autenticado | Cambiar contraseña propia |
+| PUT | `/v1/usuarios/me/password` | Autenticado | Cambiar contraseña propia (requiere la actual) |
+| PUT | `/v1/usuarios/{id}/reset-password` | Admin | Resetear la contraseña de otro usuario sin acceso (sin requerir la actual) |
 
 ### Contabilidad
 
@@ -686,6 +687,7 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | 13 | Refresh tokens con rotación + TTL de access token bajado a 1h | ✅ Completado 2026-06-19 |
 | 14 | Backups automatizados de la BD (SQLite, cifrados, tarea diaria) | ✅ Completado 2026-06-19 |
 | 15 | HTTPS con CA local autofirmada (uvicorn + Vite), pendiente instalar en los 4 PCs cliente | ✅ Completado 2026-06-19 |
+| 16 | Reset de contraseña por Admin para usuarios sin acceso | ✅ Completado 2026-06-19 |
 
 ### Fase 2 — Módulos futuros
 
