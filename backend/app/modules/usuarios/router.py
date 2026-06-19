@@ -32,7 +32,7 @@ def _set_refresh_cookie(response: Response, raw_token: str) -> None:
         key=REFRESH_COOKIE_NAME,
         value=raw_token,
         httponly=True,
-        secure=False,  # sin TLS en el PC servidor todavia (pendiente "Sin SSL/TLS" del README)
+        secure=True,  # requiere HTTPS (certs/ generado por scripts/generate_tls_cert.py)
         samesite="strict",
         path=REFRESH_COOKIE_PATH,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600,

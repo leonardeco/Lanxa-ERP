@@ -6,6 +6,9 @@ backend/venv/
 *.db
 *.sqlite3
 
+# Certificados HTTPS (CA local + claves privadas, generados por cada PC servidor)
+certs/
+
 # Node / Frontend
 frontend/node_modules/
 frontend/dist/

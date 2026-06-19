@@ -49,7 +49,10 @@ async def setup_db():
 
 @pytest_asyncio.fixture(scope="function")
 async def client():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as c:
+    # https en el base_url: el cookie jar de httpx no reenvia cookies "Secure"
+    # sobre un esquema http, y el refresh token ahora va con Secure=True.
+    # ASGITransport no abre sockets reales, asi que no hace falta TLS de verdad.
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://testserver") as c:
         yield c
 
 @pytest_asyncio.fixture(scope="function")
