@@ -136,7 +136,7 @@ b07a616  fix(login): mejorar nitidez del logo en el panel de marca
 ### Pendientes / riesgos conocidos
 
 1. ~~Sin rate limiting en login (fuerza bruta).~~ → resuelto el 19 de junio, ver abajo.
-2. Sin refresh tokens — JWT de 8h en `localStorage`, sin revocación.
+2. ~~Sin refresh tokens — JWT de 8h en `localStorage`, sin revocación.~~ → resuelto el 19 de junio, ver abajo (de paso también se bajó el TTL del access token a 1h).
 3. Sin backups automatizados de PostgreSQL.
 4. Sin TLS — aceptable temporalmente por ser LAN cerrada.
 5. `rol` sin constraint en BD e IDs secuenciales (no UUID) — deuda técnica, no urgente en este contexto.
@@ -158,7 +158,7 @@ Se implementó rate limiting en el login para mitigar fuerza bruta — resuelve 
 - Librería `slowapi` (wrapper de `limits` para FastAPI/Starlette), agregada a `requirements.txt`.
 - `backend/app/core/limiter.py` (nuevo): instancia compartida `Limiter(key_func=get_remote_address)` con storage **en memoria**. Decisión deliberada en vez de Redis: el PC servidor corre un solo proceso `uvicorn` vía `start.bat`, sin Docker, así que no hay beneficio real de un storage distribuido y sí se sumaría una dependencia operativa nueva.
 - Límite: **5 intentos por minuto por IP**. Al superarlo, responde `429` con `{"error": "Rate limit exceeded: 5 per 1 minute"}`.
-- Conectado en `main.py` (`app.state.limiter`, exception handler de `RateLimitExceeded`, `SlowAPIMiddleware`) y aplicado con `@limiter.limit("5/minute")` sobre el endpoint de login.
+- Conectado en `main.py` (`app.state.limiter`, exception handler de `RateLimitExceeded`, `SlowAPIMiddleware`) y aplicado con `@limiter.limit("5/minute")` sobre el endpoint de login. *(`SlowAPIMiddleware` se quitó más tarde el mismo día — ver sesión de refresh tokens abajo.)*
 - `tests/conftest.py`: limiter desactivado (`limiter.enabled = False`) durante los tests para que no afecte la suite.
 - Fix incidental encontrado en el camino: `slowapi` autodetecta y lee un `.env` del directorio actual al instanciar `Limiter`; en Windows lo abre con el codec `cp1252` (no UTF-8) y crasheaba contra el `.env` real del proyecto (tiene tildes y guiones largos). Se neutralizó pasando `config_filename="slowapi_unused.env"` (nombre de archivo que no existe a propósito).
 - Verificado: `pytest` 4/4 en verde, y prueba manual con 6 intentos seguidos de login con credenciales erróneas (5× `400`, 6to `429`).
@@ -170,3 +170,56 @@ El resto de los pendientes de la sesión del 18 de junio sigue igual (ver lista 
 ```
 4a4b4a0  feat(seguridad): rate limiting en login (5 intentos/min por IP)
 ```
+
+---
+
+## Sesión — 19 de junio 2026 (continuación) — Refresh tokens
+
+### Resumen
+
+Se implementaron refresh tokens con rotación para el login — resuelve el pendiente #2 anotado al cierre de la sesión del 18 de junio. De paso se bajó el TTL del access token de 8h a 1h (otro pendiente de esa misma lista), viable porque ahora se renueva solo. En el camino se encontraron y corrigieron dos bugs reales (uno en el backend, otro en `start.bat`).
+
+### Lo que se hizo
+
+**1. Refresh tokens con rotación**
+
+- Estrategia elegida (conversada con el usuario): **stateful con rotación**, no JWT stateless — se necesitaba poder revocar sesiones de verdad (logout real, no solo borrar el token del navegador), algo que un refresh token stateless no permite.
+- `backend/app/modules/usuarios/models.py`: tabla nueva `refresh_tokens` (hash del token vía SHA-256, nunca el valor crudo — igual que las contraseñas).
+- `backend/app/core/security.py`: `generate_refresh_token()` (token opaco aleatorio, no JWT), `hash_refresh_token()`, `refresh_token_expiry()`.
+- `backend/app/modules/usuarios/router.py`: login ahora también deja una cookie `HttpOnly` (`refresh_token`, `Path=/api/login`, `SameSite=Strict`, `Secure=False` por no haber TLS todavía, 30 días). Nuevos endpoints `POST /login/refresh-token` (valida la cookie, **rota**: borra el token usado y emite uno nuevo — reusar uno ya rotado da `401`, eso es la detección de robo) y `POST /login/logout` (revoca en BD + limpia la cookie).
+- `backend/app/core/config.py` + los 5 archivos `.env*`: `ACCESS_TOKEN_EXPIRE_HOURS` de `8` a `1`.
+- `frontend/src/services/api.ts`: `withCredentials: true`; interceptor que, ante un `401`, llama a `/login/refresh-token` una vez y reintenta la request original con el access token nuevo.
+- `frontend/src/contexts/AuthContext.tsx`: al cargar la app, si no hay access token vigente intenta renovarlo en silencio (cookie) antes de mandar al login; `logout()` ahora también revoca en el backend.
+- 2 tests nuevos (`test_refresh_token_rotation`, `test_logout_revoca_refresh_token`) cubriendo la rotación y la revocación.
+
+**2. Bug real encontrado: `SlowAPIMiddleware` rompía escrituras async a la BD**
+
+Al escribir el primer test que hace un `INSERT` real via la API (el login ahora también crea una fila en `refresh_tokens`), saltó `sqlalchemy.exc.MissingGreenlet`. Causa: `BaseHTTPMiddleware` (la clase base de `SlowAPIMiddleware`, agregado en la sesión de rate limiting) no es compatible con el bridge de greenlet que usa SQLAlchemy async + `aiosqlite`. Como solo se usa el decorador `@limiter.limit()` por endpoint (sin `default_limits` globales), el middleware no hacía falta — se quitó de `main.py`. Ningún test anterior lo había detectado porque ninguno hacía un `INSERT` via HTTP todavía.
+
+Segunda causa relacionada, en el código nuevo: se accedía a `user.id` *después* de `await session.commit()`; la sesión de tests expira los atributos al commitear (a diferencia de la sesión de producción, que tiene `expire_on_commit=False`). Se corrigió capturando `user_id = user.id` antes del commit, en ambos endpoints.
+
+**3. Bug real encontrado: cookie del refresh token bloqueada por `SameSite` al abrir por `localhost`**
+
+Verificado con Playwright en un navegador real (Chromium, instalado temporalmente, no quedó en el proyecto): si la app se abre en `http://localhost:5173` mientras `VITE_API_URL` apunta a la IP LAN (`192.168.1.81:8000`), el navegador trata ambos como **sitios distintos** (el host literal difiere, el puerto no es lo que importa) y bloquea la cookie `SameSite=Strict` — el refresh token quedaba inservible exactamente para quien abre la app desde el acceso directo de escritorio del PC servidor. Confirmado el diagnóstico abriendo por la IP LAN en vez de `localhost`: ahí sí funciona todo el ciclo (cookie seteada, renovación silenciosa, logout).
+
+Corregido en `start.bat`: ahora lee el host de `VITE_API_URL` (`frontend\.env`) y abre el navegador con ese mismo host en vez de `localhost` a secas (con fallback a `localhost` si no encuentra el archivo).
+
+**4. Verificación end-to-end**
+
+- `pytest`: 6/6 en verde.
+- Backend real (puerto 8000, bind `0.0.0.0`) + frontend real (puerto 5173, bind `0.0.0.0`) levantados a mano; flujo completo probado con `curl` (login → refresh con rotación → reuso del token viejo da `401` → logout → refresh después de logout da `401`) y con Playwright en Chromium real (login → cookie `HttpOnly` confirmada → access token inválido + reload → renovación silenciosa sin perder la sesión → logout → vuelve al login). Ambos servidores de prueba y Playwright se detuvieron/desinstalaron al terminar.
+
+### Commits de esta sesión
+
+```
+9aa4193  feat(seguridad): refresh tokens con rotacion + bajar TTL de access token a 1h
+6fbbd2c  fix(start): abrir el navegador con el mismo host que VITE_API_URL
+```
+
+### Pendientes / riesgos conocidos restantes (del listado del 18 de junio)
+
+3. Sin backups automatizados de PostgreSQL.
+4. Sin TLS — aceptable temporalmente por ser LAN cerrada. *(Nota: mientras no haya TLS, la cookie del refresh token va sin `Secure`, viajando en claro por la LAN igual que el resto del tráfico HTTP actual.)*
+5. `rol` sin constraint en BD e IDs secuenciales (no UUID).
+6. Reset de contraseña por Admin — sugerido, no implementado.
+7. Logo en mejor resolución si aparece el archivo original.
