@@ -138,7 +138,7 @@ b07a616  fix(login): mejorar nitidez del logo en el panel de marca
 1. ~~Sin rate limiting en login (fuerza bruta).~~ → resuelto el 19 de junio, ver abajo.
 2. ~~Sin refresh tokens — JWT de 8h en `localStorage`, sin revocación.~~ → resuelto el 19 de junio, ver abajo (de paso también se bajó el TTL del access token a 1h).
 3. ~~Sin backups automatizados de PostgreSQL.~~ → resuelto el 19 de junio para SQLite (que es lo que corre en producción), ver abajo. Queda como riesgo menor que el backup esté en el mismo PC.
-4. Sin TLS — aceptable temporalmente por ser LAN cerrada.
+4. ~~Sin TLS — aceptable temporalmente por ser LAN cerrada.~~ → resuelto el 19 de junio con HTTPS + CA local, ver sesión más abajo. Queda pendiente instalar la CA en los 4 PCs cliente.
 5. `rol` sin constraint en BD e IDs secuenciales (no UUID) — deuda técnica, no urgente en este contexto.
 6. Reset de contraseña por Admin (usuario sin acceso) — sugerido, no implementado, pendiente de aprobación.
 7. Logo en mejor resolución si aparece el archivo original (no una captura de pantalla).
@@ -219,7 +219,7 @@ Corregido en `start.bat`: ahora lee el host de `VITE_API_URL` (`frontend\.env`) 
 ### Pendientes / riesgos conocidos restantes (del listado del 18 de junio)
 
 3. ~~Sin backups automatizados de PostgreSQL.~~ → resuelto el 19 de junio para SQLite, ver sesión de backups más abajo.
-4. Sin TLS — aceptable temporalmente por ser LAN cerrada. *(Nota: mientras no haya TLS, la cookie del refresh token va sin `Secure`, viajando en claro por la LAN igual que el resto del tráfico HTTP actual.)*
+4. ~~Sin TLS — aceptable temporalmente por ser LAN cerrada.~~ → resuelto el 19 de junio con HTTPS + CA local, ver sesión más abajo (de paso la cookie del refresh token ya quedó con `Secure=True`). Queda pendiente instalar la CA en los 4 PCs cliente.
 5. `rol` sin constraint en BD e IDs secuenciales (no UUID).
 6. Reset de contraseña por Admin — sugerido, no implementado.
 7. Logo en mejor resolución si aparece el archivo original.
@@ -258,7 +258,7 @@ Se implementó el respaldo automatizado de la base de datos — resuelve el pend
 
 ### Pendientes / riesgos conocidos restantes (del listado del 18 de junio)
 
-4. Sin TLS — aceptable temporalmente por ser LAN cerrada.
+4. ~~Sin TLS — aceptable temporalmente por ser LAN cerrada.~~ → resuelto el 19 de junio con HTTPS + CA local, ver sesión más abajo. Queda pendiente instalar la CA en los 4 PCs cliente.
 5. `rol` sin constraint en BD e IDs secuenciales (no UUID).
 6. Reset de contraseña por Admin — sugerido, no implementado.
 7. Logo en mejor resolución si aparece el archivo original.
@@ -266,3 +266,54 @@ Se implementó el respaldo automatizado de la base de datos — resuelve el pend
 ### Riesgo nuevo anotado
 
 8. Backups guardados en el mismo PC que la BD real (`C:\SuperOzono-Backups`) — no protege ante una falla total del PC (disco, robo, incendio). Tampoco la clave de cifrado (`BACKUP_ENCRYPTION_KEY`), que hoy vive solo en `backend/.env` de esta máquina. Pendiente: copiar periódicamente backups + clave a un destino fuera de este PC (red local, NAS o nube) cuando el usuario decida cuál.
+
+---
+
+## Sesión — 19 de junio 2026 (continuación) — HTTPS
+
+### Resumen
+
+Se implementó HTTPS para el ERP — resuelve el pendiente #4 anotado al cierre de la sesión del 18 de junio. Antes de implementar se aclaró otra discrepancia real (la tercera del día, después de Redis y Postgres): el pendiente del README apuntaba a `nginx.conf` y sugería Let's Encrypt, pero **el nginx es del stack Docker que no se usa**, y Let's Encrypt no es viable sin un dominio público — acá solo hay una IP LAN. Se acordó con el usuario avanzar igual con un certificado autofirmado, asumiendo el trabajo manual de instalarlo en los 4 PCs cliente.
+
+### Lo que se hizo
+
+**1. CA local + certificado de servidor**
+
+`backend/scripts/generate_tls_cert.py` (librería `cryptography`, ya estaba instalada): genera una CA local autofirmada (`certs/superozono-ca.crt` + `.key`, válida 10 años) y, firmado por ella, un certificado de servidor (`certs/server.crt` + `.key`, válido ~2 años) con SAN de tipo IP para la IP LAN (detectada automáticamente leyendo `frontend/.env`) más `localhost`/`127.0.0.1`. La ventaja de separar CA y certificado de servidor: el certificado se puede regenerar (otra IP, vencimiento) sin tener que reinstalar nada en los 4 PCs cliente, mientras la CA no cambie. Todo `certs/` quedó en `.gitignore` — la clave privada de la CA nunca debe llegar a git.
+
+**2. `start.bat` y Vite con TLS real**
+
+- `start.bat`: si no existe `certs\server.crt` lo genera la primera vez; arranca `uvicorn` con `--ssl-keyfile`/`--ssl-certfile`; abre el navegador y muestra los mensajes finales con `https://`.
+- `frontend/vite.config.ts`: si `certs/server.key` y `.crt` existen, configura `server.https` automáticamente — no hace falta pasarle flags a Vite.
+- `CORS_ORIGINS` y `VITE_API_URL` pasados a `https://` en los `.env` reales y en las plantillas `.env.servidor`.
+- Cookie del refresh token: `secure=True` en `_set_refresh_cookie` (`usuarios/router.py`) — ya no queda viajando en claro.
+
+**3. Bug encontrado en los tests por el cambio anterior**
+
+Al poner `secure=True`, `test_refresh_token_rotation` y `test_logout_revoca_refresh_token` empezaron a fallar: el cookie jar de `httpx` no reenvía cookies `Secure` sobre un `base_url` con esquema `http`. Se cambió el `base_url` del cliente de test a `https://testserver` en `conftest.py` — `ASGITransport` no abre sockets reales, así que no hace falta TLS de verdad para que el cookie jar se comporte bien.
+
+**4. Verificación end-to-end (la más completa de las sesiones de hoy)**
+
+- CA instalada como confiable en el almacén del usuario actual de este PC (`certutil -user -addstore -f "ROOT" certs\superozono-ca.crt`, sin necesitar permisos de administrador).
+- `start.bat` corrido de verdad (no solo los comandos sueltos por separado) vía `Start-Process`: confirmado que ambos puertos quedan escuchando con TLS real, que el `--ssl-keyfile`/`--ssl-certfile` con rutas que tienen espacios (`...\MI PC\...`) se parsea bien a pesar del anidado de comillas, y que el navegador se abre solo en la URL `https://` correcta.
+- `curl` con `--ssl-no-revoke` (en Windows, `curl` usa `schannel`, que por defecto exige info de revocación que una CA interna offline no tiene — falla con `CRYPT_E_NO_REVOCATION_CHECK` sin ese flag; no es un problema real, los navegadores no son tan estrictos).
+- Playwright en Chromium real: la página principal carga con `200` (la CA fue aceptada sin errores de certificado), login funciona sobre HTTPS, y la cookie del refresh token sale con `{httpOnly: true, secure: true, sameSite: 'Strict'}`.
+- `pytest`: 6/6 en verde. `flake8`/`eslint` limpios en los archivos nuevos.
+- Procesos y ventanas de la prueba real de `start.bat` (incluyendo el Chrome que se abrió solo) detenidos al terminar.
+
+### Commits de esta sesión
+
+```
+9df94b1  feat(seguridad): HTTPS con CA local autofirmada (uvicorn + Vite)
+```
+
+### Pendiente real para el usuario (no lo puede hacer el asistente)
+
+Instalar `certs\superozono-ca.crt` como certificado raíz de confianza en los otros 4 PCs (instrucciones paso a paso en `DOCUMENTACION.md`, sección 6). Sin ese paso, esos 4 PCs van a ver "conexión no segura" al entrar al ERP — sigue funcionando, pero con la advertencia del navegador.
+
+### Pendientes / riesgos conocidos restantes (del listado del 18 de junio)
+
+5. `rol` sin constraint en BD e IDs secuenciales (no UUID).
+6. Reset de contraseña por Admin — sugerido, no implementado.
+7. Logo en mejor resolución si aparece el archivo original.
+8. Backups guardados en el mismo PC que la BD real (ver sesión de backups arriba).
