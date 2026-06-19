@@ -16,7 +16,7 @@ from app.modules.contabilidad.models import (
     PlanCuentas, CentroCosto, PeriodoContable, Tercero,
     ParametroTributario, ParametroNomina,
     CuentaPorCobrar, CuentaPorPagar, EstadoDocumento,
-    Pago, TipoPago,
+    Pago, TipoPago, EstadoPeriodo,
 )
 from app.modules.compras.models import CompraDocumento
 from app.modules.contabilidad.schemas import (
