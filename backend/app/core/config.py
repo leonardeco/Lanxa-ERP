@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     ALEGRA_EMAIL: str = ""
     ALEGRA_TOKEN: str = ""
 
+    # Backups (solo SQLite)
+    BACKUP_DIR: str = "C:/SuperOzono-Backups"
+    BACKUP_ENCRYPTION_KEY: str = ""
+    BACKUP_RETENTION_DAYS: int = 30
+
     class Config:
         env_file = ".env"
         extra = "ignore"
