@@ -8,9 +8,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import structlog
 from sqlalchemy import text
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.middleware import SlowAPIMiddleware
 
 from app.core.config import get_settings
 from app.core.database import engine, async_session, Base
+from app.core.limiter import limiter
 from app.modules.contabilidad.router import router as contabilidad_router
 from app.modules.ventas.router import router as ventas_router
 from app.modules.usuarios.router import router as usuarios_router
@@ -80,6 +84,11 @@ app = FastAPI(
     redoc_url="/redoc",
     lifespan=lifespan,
 )
+
+# ── Rate limiting ────────────────────────────────────────
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 # ── CORS ─────────────────────────────────────────────────
 app.add_middleware(

@@ -5,8 +5,11 @@ from httpx import AsyncClient, ASGITransport
 
 from app.main import app
 from app.core.database import Base, get_db
+from app.core.limiter import limiter
 from app.modules.usuarios.models import Usuario
 from app.core.security import get_password_hash
+
+limiter.enabled = False
 
 # Usar SQLite en memoria para pruebas rápidas
 SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///:memory:"

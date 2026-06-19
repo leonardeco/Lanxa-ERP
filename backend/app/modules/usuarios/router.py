@@ -1,10 +1,11 @@
 from typing import Annotated, List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy import select
 
 from app.api.deps import SessionDep, CurrentUser, AdminDep
+from app.core.limiter import limiter
 from app.core.security import verify_password, create_access_token, get_password_hash
 from app.modules.usuarios.models import Usuario
 from app.modules.usuarios.schemas import (
@@ -21,8 +22,9 @@ ROLES_VALIDOS = {"Admin", "Administradora", "Auxiliar"}
 # ── Auth ─────────────────────────────────────────────────
 
 @router.post("/login/access-token", response_model=Token)
+@limiter.limit("5/minute")
 async def login_access_token(
-    session: SessionDep, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
+    request: Request, session: SessionDep, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
 ) -> Token:
     user = await session.scalar(select(Usuario).where(Usuario.email == form_data.username))
     if not user or not verify_password(form_data.password, user.hashed_password):
