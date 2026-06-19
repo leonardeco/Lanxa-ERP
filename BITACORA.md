@@ -404,7 +404,36 @@ Inserta un usuario con `rol="Hacker"` directo por el ORM (bypaseando toda valida
 
 ### Pendientes / riesgos conocidos restantes (del listado del 18 de junio)
 
-7. Logo en mejor resolución si aparece el archivo original.
-8. Backups guardados en el mismo PC que la BD real.
+7. Logo en mejor resolución si aparece el archivo original. *(Revisado el 19 de junio — el archivo que apareció era la misma captura de baja resolución de siempre, no uno nuevo. Sigue pendiente.)*
+8. Backups guardados en el mismo PC que la BD real. *(Revisado el 19 de junio — se evaluó OneDrive, ya instalado pero sin cuenta conectada, y una carpeta compartida en otro PC/NAS de la red. Se dejó pendiente sin elegir destino todavía.)*
 9. Instalar la CA local (`certs\superozono-ca.crt`) en los 4 PCs cliente.
 10. IDs secuenciales (no UUID) — deuda técnica, no urgente en este contexto.
+
+---
+
+## Sesión — 19 de junio 2026 (continuación) — Verificación general + fix de bug real
+
+### Resumen
+
+A pedido del usuario, verificación integral de todo lo trabajado en el día: bugs, limpieza de código, estado de git, y qué quedó guardado local vs. en el repo. Encontrado y corregido un bug real preexistente (no relacionado a ninguna de las sesiones de hoy) en el módulo de Contabilidad.
+
+### Lo que se hizo
+
+**1. Verificación**
+
+- `pytest` 9/9, `flake8`/`eslint`/`tsc` sin hallazgos nuevos en lo de hoy.
+- `git fetch` + comparación: rama local idéntica a `origin/main`, sin commits pendientes de subir.
+- Confirmado que lo que debe quedar solo local está (`backend/.env`, `certs/`, `backend/superozono.db`, `C:\SuperOzono-Backups`, la tarea programada) y que las plantillas correspondientes están versionadas en git sin secretos reales.
+- Sin archivos de prueba o debug sueltos en el repo.
+
+**2. Bug real encontrado: `EstadoPeriodo` no importado en `contabilidad/router.py`**
+
+`create_periodo()` y `toggle_periodo()` usaban `EstadoPeriodo` (de `contabilidad/models.py`) sin importarlo — `NameError` en cada llamada, devolviendo `500` siempre. Afecta a `POST /api/v1/contabilidad/periodos` y `PATCH /api/v1/contabilidad/periodos/{id}/toggle`, ambos usados por `PeriodosView.tsx` en el frontend (crear período nuevo y abrir/cerrar uno existente estaban rotos en producción). Confirmado en vivo antes y después del fix (`500` → `201`/`200`).
+
+Fix: agregar `EstadoPeriodo` al import existente. Una línea.
+
+### Commit de esta sesión
+
+```
+cd7f708  fix(contabilidad): NameError al crear o togglear un periodo contable
+```
