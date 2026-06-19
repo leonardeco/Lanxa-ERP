@@ -55,6 +55,7 @@ ERP interno para la gestión contable y comercial de Super Ozono Global. Diseña
 | Autenticación | JWT access token (python-jose) + refresh token opaco (cookie HttpOnly) | 3.5.0 |
 | Hashing contraseñas | passlib + bcrypt | 1.7.4 |
 | Rate limiting | slowapi | 0.1.9 |
+| HTTPS (LAN, sin Docker) | uvicorn `--ssl-keyfile/--ssl-certfile` + CA local autofirmada (`cryptography`) | — |
 | Logging | structlog | 25.4.0 |
 | HTTP cliente | httpx | 0.28.1 |
 
@@ -123,7 +124,8 @@ superozono-erp/
 │   │   └── seed.py                  # Datos iniciales: PUC, centros, períodos, productos, clientes
 │   ├── scripts/
 │   │   ├── backup_db.py             # Backup diario cifrado de la BD SQLite (tarea programada Windows)
-│   │   └── restore_db.py            # Descifra y restaura un backup (con copia .bak previa)
+│   │   ├── restore_db.py            # Descifra y restaura un backup (con copia .bak previa)
+│   │   └── generate_tls_cert.py     # Genera la CA local + certificado de servidor para HTTPS
 │   ├── .env                         # Variables de entorno (desarrollo local)
 │   ├── .env.servidor                # Plantilla para el PC servidor (copiar a .env)
 │   ├── requirements.txt
@@ -175,7 +177,8 @@ superozono-erp/
 │   └── .env.servidor                # Plantilla con IP del servidor para producción
 ├── docker-compose.yml               # Backend + Frontend nginx + PostgreSQL + Redis + pgAdmin
 ├── .env.produccion                  # Template de variables para Docker (copiar a .env)
-├── start.bat                        # Inicia backend y frontend en Windows (dev/LAN sin Docker)
+├── certs/                           # CA local + certificado de servidor (gitignored, generado por PC)
+├── start.bat                        # Inicia backend y frontend en Windows (dev/LAN sin Docker), HTTPS
 ├── stop.bat                         # Detiene los procesos
 └── DOCUMENTACION.md                 # Este archivo
 ```
@@ -243,9 +246,9 @@ VITE_API_URL=http://192.168.X.X:8000/api
 start.bat
 ```
 
-Esto abre dos ventanas de cmd:
-- `Backend — FastAPI :8000` → `http://localhost:8000/docs`
-- `Frontend — Vite :5173` → `http://localhost:5173`
+Esto abre dos ventanas de cmd (HTTPS, con certificado local — ver sección 6):
+- `Backend — FastAPI :8000` → `https://localhost:8000/docs`
+- `Frontend — Vite :5173` → `https://localhost:5173`
 
 **Credenciales iniciales:**
 ```
@@ -291,26 +294,39 @@ Servicios disponibles:
 
 2. Editar `backend/.env`:
    ```env
-   CORS_ORIGINS=http://192.168.1.10:5173
+   CORS_ORIGINS=https://192.168.1.10:5173,https://localhost:5173
    ```
 
 3. Editar `frontend/.env`:
    ```env
-   VITE_API_URL=http://192.168.1.10:8000/api
+   VITE_API_URL=https://192.168.1.10:8000/api
    ```
 
-4. Ejecutar `start.bat` en el servidor.
+4. Ejecutar `start.bat` en el servidor. La primera vez genera automáticamente un certificado HTTPS local (`certs/`, ver sección siguiente) — las veces siguientes lo reutiliza.
 
 5. (Opcional) Ejecutar `crear-acceso-escritorio.bat` para crear un ícono "Super Ozono ERP" en el escritorio con el logo de la empresa, que ejecuta `start.bat`. El script usa `$PSScriptRoot` (la carpeta donde vive el propio script), así que funciona igual sin importar en qué PC o ruta esté copiado el proyecto — solo hay que ejecutarlo una vez en cada PC servidor nuevo, no se puede copiar el acceso directo ya creado de un PC a otro porque apunta a una ruta absoluta.
 
-### En los otros 4 PCs (solo navegador)
+### HTTPS — instalar el certificado como confiable (una vez por PC)
 
-Abrir Chrome/Edge y navegar a:
-```
-http://192.168.1.10:5173
+El sistema usa HTTPS con una **CA local autofirmada** (no hay dominio público, así que Let's Encrypt no aplica). El navegador no va a confiar en ella automáticamente — hay que instalar `certs\superozono-ca.crt` como certificado raíz de confianza, **una vez en cada PC** (servidor y los 4 clientes). El archivo de certificado de servidor se puede regenerar más adelante (otra IP, etc.) sin tener que repetir este paso, mientras la CA no cambie.
+
+**En el PC servidor**, después de correr `start.bat` por primera vez (ya generó `certs\superozono-ca.crt`):
+```powershell
+# Sin permisos de administrador (alcanza para el navegador del usuario actual):
+certutil -user -addstore -f "ROOT" "C:\ruta\al\proyecto\certs\superozono-ca.crt"
+
+# Con permisos de administrador (confía para todos los usuarios del PC):
+certutil -addstore -f "ROOT" "C:\ruta\al\proyecto\certs\superozono-ca.crt"
 ```
 
-No requieren instalación de ningún software.
+**En los otros 4 PCs (solo navegador, sin clonar el repo):**
+
+1. Copiar el archivo `certs\superozono-ca.crt` del servidor a cada PC cliente (USB, carpeta compartida, correo, etc.) — es solo el certificado público, no la clave privada.
+2. Doble clic sobre el archivo → **Instalar certificado** → **Equipo local** (pide admin) o **Usuario actual** → **Colocar todos los certificados en el siguiente almacén** → **Entidades de certificación raíz de confianza**.
+3. Reiniciar el navegador.
+4. Navegar a `https://192.168.1.10:5173` (la IP del servidor).
+
+> Si el navegador sigue mostrando "conexión no segura" después de instalar el certificado, revisar que la IP del servidor esté en el campo SAN del certificado (`certs\server.crt`) — si la IP del servidor cambió, hay que volver a correr `backend\venv\Scripts\python.exe backend\scripts\generate_tls_cert.py` (no hace falta reinstalar la CA en los clientes, solo el certificado de servidor cambia).
 
 > **Nota:** `start.bat` ya está configurado con `--host 0.0.0.0` tanto para uvicorn como para Vite, por lo que el servidor es visible en toda la red local.
 
@@ -669,6 +685,7 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | 12 | Rate limiting en login (mitigar fuerza bruta) | ✅ Completado 2026-06-19 |
 | 13 | Refresh tokens con rotación + TTL de access token bajado a 1h | ✅ Completado 2026-06-19 |
 | 14 | Backups automatizados de la BD (SQLite, cifrados, tarea diaria) | ✅ Completado 2026-06-19 |
+| 15 | HTTPS con CA local autofirmada (uvicorn + Vite), pendiente instalar en los 4 PCs cliente | ✅ Completado 2026-06-19 |
 
 ### Fase 2 — Módulos futuros
 
