@@ -135,10 +135,38 @@ b07a616  fix(login): mejorar nitidez del logo en el panel de marca
 
 ### Pendientes / riesgos conocidos
 
-1. Sin rate limiting en login (fuerza bruta).
+1. ~~Sin rate limiting en login (fuerza bruta).~~ → resuelto el 19 de junio, ver abajo.
 2. Sin refresh tokens — JWT de 8h en `localStorage`, sin revocación.
 3. Sin backups automatizados de PostgreSQL.
 4. Sin TLS — aceptable temporalmente por ser LAN cerrada.
 5. `rol` sin constraint en BD e IDs secuenciales (no UUID) — deuda técnica, no urgente en este contexto.
 6. Reset de contraseña por Admin (usuario sin acceso) — sugerido, no implementado, pendiente de aprobación.
 7. Logo en mejor resolución si aparece el archivo original (no una captura de pantalla).
+
+---
+
+## Sesión — 19 de junio 2026
+
+### Resumen
+
+Se implementó rate limiting en el login para mitigar fuerza bruta — resuelve el pendiente #1 anotado al cierre de la sesión del 18 de junio.
+
+### Lo que se hizo
+
+**Rate limiting en `POST /api/login/access-token`**
+
+- Librería `slowapi` (wrapper de `limits` para FastAPI/Starlette), agregada a `requirements.txt`.
+- `backend/app/core/limiter.py` (nuevo): instancia compartida `Limiter(key_func=get_remote_address)` con storage **en memoria**. Decisión deliberada en vez de Redis: el PC servidor corre un solo proceso `uvicorn` vía `start.bat`, sin Docker, así que no hay beneficio real de un storage distribuido y sí se sumaría una dependencia operativa nueva.
+- Límite: **5 intentos por minuto por IP**. Al superarlo, responde `429` con `{"error": "Rate limit exceeded: 5 per 1 minute"}`.
+- Conectado en `main.py` (`app.state.limiter`, exception handler de `RateLimitExceeded`, `SlowAPIMiddleware`) y aplicado con `@limiter.limit("5/minute")` sobre el endpoint de login.
+- `tests/conftest.py`: limiter desactivado (`limiter.enabled = False`) durante los tests para que no afecte la suite.
+- Fix incidental encontrado en el camino: `slowapi` autodetecta y lee un `.env` del directorio actual al instanciar `Limiter`; en Windows lo abre con el codec `cp1252` (no UTF-8) y crasheaba contra el `.env` real del proyecto (tiene tildes y guiones largos). Se neutralizó pasando `config_filename="slowapi_unused.env"` (nombre de archivo que no existe a propósito).
+- Verificado: `pytest` 4/4 en verde, y prueba manual con 6 intentos seguidos de login con credenciales erróneas (5× `400`, 6to `429`).
+
+El resto de los pendientes de la sesión del 18 de junio sigue igual (ver lista arriba).
+
+### Commit de esta sesión
+
+```
+4a4b4a0  feat(seguridad): rate limiting en login (5 intentos/min por IP)
+```
