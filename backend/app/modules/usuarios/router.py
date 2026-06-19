@@ -13,7 +13,7 @@ from app.core.security import (
 )
 from app.modules.usuarios.models import Usuario, RefreshToken
 from app.modules.usuarios.schemas import (
-    Token, UsuarioCreate, UsuarioUpdate, UsuarioPasswordChange, UsuarioResponse,
+    Token, UsuarioCreate, UsuarioUpdate, UsuarioPasswordChange, UsuarioPasswordReset, UsuarioResponse,
 )
 
 router = APIRouter()
@@ -178,6 +178,19 @@ async def toggle_usuario(user_id: int, session: SessionDep, current_user: Curren
     await session.commit()
     await session.refresh(user)
     return user
+
+
+@router.put("/v1/usuarios/{user_id}/reset-password")
+async def reset_usuario_password(user_id: int, body: UsuarioPasswordReset, session: SessionDep, _: SuperuserDep):
+    """Resetea la contraseña de un usuario sin acceso. Solo Admin."""
+    user = await session.get(Usuario, user_id)
+    if not user:
+        raise HTTPException(404, "Usuario no encontrado")
+    if len(body.new_password) < 8:
+        raise HTTPException(400, "La nueva contraseña debe tener al menos 8 caracteres")
+    user.hashed_password = get_password_hash(body.new_password)
+    await session.commit()
+    return {"message": "Contraseña restablecida correctamente"}
 
 
 # ── Cambio de contraseña propia (cualquier usuario) ──────

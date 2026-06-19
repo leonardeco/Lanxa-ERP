@@ -27,6 +27,9 @@ class UsuarioPasswordChange(BaseModel):
     current_password: str
     new_password: str
 
+class UsuarioPasswordReset(BaseModel):
+    new_password: str
+
 class UsuarioResponse(UsuarioBase):
     id: int
 

@@ -72,3 +72,67 @@ async def test_logout_revoca_refresh_token(client: AsyncClient):
         cookies={"refresh_token": refresh_cookie},
     )
     assert reuse_resp.status_code == 401
+
+@pytest.mark.asyncio
+async def test_admin_resetea_password_de_otro_usuario(client: AsyncClient, auth_headers):
+    create_resp = await client.post(
+        "/api/v1/usuarios",
+        json={
+            "email": "auxiliar@test.com",
+            "nombre_completo": "Auxiliar Test",
+            "rol": "Auxiliar",
+            "is_active": True,
+            "password": "passwordvieja",
+        },
+        headers=auth_headers,
+    )
+    assert create_resp.status_code == 201
+    user_id = create_resp.json()["id"]
+
+    reset_resp = await client.put(
+        f"/api/v1/usuarios/{user_id}/reset-password",
+        json={"new_password": "passwordnueva"},
+        headers=auth_headers,
+    )
+    assert reset_resp.status_code == 200
+
+    # La contraseña vieja ya no funciona, la nueva si
+    old_login = await client.post(
+        "/api/login/access-token",
+        data={"username": "auxiliar@test.com", "password": "passwordvieja"},
+    )
+    assert old_login.status_code == 400
+
+    new_login = await client.post(
+        "/api/login/access-token",
+        data={"username": "auxiliar@test.com", "password": "passwordnueva"},
+    )
+    assert new_login.status_code == 200
+
+@pytest.mark.asyncio
+async def test_no_admin_no_puede_resetear_password(client: AsyncClient, auth_headers):
+    create_resp = await client.post(
+        "/api/v1/usuarios",
+        json={
+            "email": "auxiliar2@test.com",
+            "nombre_completo": "Auxiliar Test 2",
+            "rol": "Auxiliar",
+            "is_active": True,
+            "password": "passwordvieja",
+        },
+        headers=auth_headers,
+    )
+    user_id = create_resp.json()["id"]
+
+    login_resp = await client.post(
+        "/api/login/access-token",
+        data={"username": "auxiliar2@test.com", "password": "passwordvieja"},
+    )
+    auxiliar_headers = {"Authorization": f"Bearer {login_resp.json()['access_token']}"}
+
+    reset_resp = await client.put(
+        f"/api/v1/usuarios/{user_id}/reset-password",
+        json={"new_password": "passwordnueva"},
+        headers=auxiliar_headers,
+    )
+    assert reset_resp.status_code == 403

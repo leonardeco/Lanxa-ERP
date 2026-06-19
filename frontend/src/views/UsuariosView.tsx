@@ -209,6 +209,54 @@ function ChangePasswordModal({ onClose, onSaved }: { onClose: () => void; onSave
   );
 }
 
+// ── Modal Resetear contraseña de otro usuario (Admin) ────
+
+function ResetPasswordModal({ usuario, onClose, onSaved }: { usuario: Usuario; onClose: () => void; onSaved: () => void }) {
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (next.length < 8) return setError('La nueva contraseña debe tener al menos 8 caracteres');
+    if (next !== confirm) return setError('Las contraseñas no coinciden');
+    setSaving(true);
+    try {
+      await usuariosApi.resetPassword(usuario.id, next);
+      onSaved();
+    } catch (err: any) {
+      setError(err?.response?.data?.detail ?? 'Error al restablecer la contraseña');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal title={`Resetear contraseña — ${usuario.nombre_completo}`} onClose={onClose}>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <p style={{ fontSize: '0.85rem', color: 'var(--neutral-400)', margin: 0 }}>
+          Define una contraseña nueva para este usuario y comunícasela por fuera del sistema.
+        </p>
+        <div className="form-group">
+          <label className="form-label">Contraseña nueva</label>
+          <input className="form-input" type="password" value={next} onChange={e => setNext(e.target.value)} placeholder="Mínimo 8 caracteres" autoComplete="new-password" required />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Confirmar contraseña nueva</label>
+          <input className="form-input" type="password" value={confirm} onChange={e => setConfirm(e.target.value)} autoComplete="new-password" required />
+        </div>
+        {error && <div className="form-error">{error}</div>}
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancelar</button>
+          <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : 'Restablecer contraseña'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 // ── Vista principal ───────────────────────────────────────
 
 export default function UsuariosView() {
@@ -221,6 +269,7 @@ export default function UsuariosView() {
   const [modalCreate, setModalCreate] = useState(false);
   const [modalEdit, setModalEdit] = useState<Usuario | null>(null);
   const [modalPassword, setModalPassword] = useState(false);
+  const [modalReset, setModalReset] = useState<Usuario | null>(null);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') =>
     setToast({ message, type });
@@ -375,6 +424,13 @@ export default function UsuariosView() {
                             ✏️ Editar
                           </button>
                           <button
+                            className="btn btn-ghost"
+                            style={{ fontSize: '0.78rem', padding: '4px 10px' }}
+                            onClick={() => setModalReset(u)}
+                          >
+                            🔓 Resetear contraseña
+                          </button>
+                          <button
                             className={`btn ${u.is_active ? 'btn-ghost' : 'btn-primary'}`}
                             style={{ fontSize: '0.78rem', padding: '4px 10px' }}
                             onClick={() => handleToggle(u)}
@@ -411,6 +467,13 @@ export default function UsuariosView() {
         <ChangePasswordModal
           onClose={() => setModalPassword(false)}
           onSaved={() => { setModalPassword(false); showToast('Contraseña actualizada correctamente'); }}
+        />
+      )}
+      {modalReset && (
+        <ResetPasswordModal
+          usuario={modalReset}
+          onClose={() => setModalReset(null)}
+          onSaved={() => { setModalReset(null); showToast('Contraseña restablecida correctamente'); }}
         />
       )}
     </div>
