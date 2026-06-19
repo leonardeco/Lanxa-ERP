@@ -10,7 +10,6 @@ import structlog
 from sqlalchemy import text
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
-from slowapi.middleware import SlowAPIMiddleware
 
 from app.core.config import get_settings
 from app.core.database import engine, async_session, Base
@@ -86,9 +85,12 @@ app = FastAPI(
 )
 
 # ── Rate limiting ────────────────────────────────────────
+# Solo usamos el decorador @limiter.limit() por endpoint (login), no default_limits
+# globales, así que SlowAPIMiddleware no hace falta. De hecho rompe escrituras async
+# a la BD (BaseHTTPMiddleware + greenlet de SQLAlchemy no son compatibles) — no
+# agregarlo de nuevo sin probar primero un INSERT real a través de la API.
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-app.add_middleware(SlowAPIMiddleware)
 
 # ── CORS ─────────────────────────────────────────────────
 app.add_middleware(

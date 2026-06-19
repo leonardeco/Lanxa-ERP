@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { api } from '../services/api';
+import { api, setOnSessionExpired } from '../services/api';
 import { jwtDecode } from 'jwt-decode';
 
 export interface User {
@@ -25,39 +25,62 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  useEffect(() => {
-    const loadUser = async () => {
-      if (token) {
-        try {
-          // Validar si expiró
-          const decoded: any = jwtDecode(token);
-          if (decoded.exp * 1000 < Date.now()) {
-            logout();
-            return;
-          }
-          // Fetch user data
-          const res = await api.get('/users/me');
-          setUser(res.data);
-        } catch (error) {
-          console.error("Error al cargar usuario:", error);
-          logout();
-        }
-      }
-      setIsLoading(false);
-    };
-    loadUser();
-  }, [token]);
-
   const login = (newToken: string) => {
     localStorage.setItem('token', newToken);
     setToken(newToken);
   };
 
   const logout = () => {
+    api.post('/login/logout').catch(() => {});
     localStorage.removeItem('token');
     setToken(null);
     setUser(null);
   };
+
+  useEffect(() => {
+    setOnSessionExpired(logout);
+  }, []);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      let currentToken: string | null = token;
+
+      if (currentToken) {
+        try {
+          const decoded: any = jwtDecode(currentToken);
+          if (decoded.exp * 1000 < Date.now()) {
+            currentToken = null;
+          }
+        } catch {
+          currentToken = null;
+        }
+      }
+
+      // Sin access token vigente: intentar renovarlo en silencio con el refresh token (cookie)
+      if (!currentToken) {
+        try {
+          const res = await api.post('/login/refresh-token');
+          currentToken = res.data.access_token;
+          localStorage.setItem('token', currentToken as string);
+          setToken(currentToken);
+        } catch {
+          logout();
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      try {
+        const res = await api.get('/users/me');
+        setUser(res.data);
+      } catch (error) {
+        console.error("Error al cargar usuario:", error);
+        logout();
+      }
+      setIsLoading(false);
+    };
+    loadUser();
+  }, [token]);
 
   return (
     <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>

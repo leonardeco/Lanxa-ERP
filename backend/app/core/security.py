@@ -2,6 +2,8 @@
 Super Ozono Global — Funciones criptográficas y JWT
 """
 
+import hashlib
+import secrets
 from datetime import datetime, timedelta
 from typing import Any, Union
 from jose import jwt
@@ -27,6 +29,20 @@ def create_access_token(
         to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
     )
     return encoded_jwt
+
+
+def generate_refresh_token() -> str:
+    """Token opaco aleatorio (no JWT) para usar como refresh token."""
+    return secrets.token_urlsafe(32)
+
+
+def hash_refresh_token(raw_token: str) -> str:
+    """Hash del refresh token para guardarlo en BD (nunca el valor crudo)."""
+    return hashlib.sha256(raw_token.encode()).hexdigest()
+
+
+def refresh_token_expiry() -> datetime:
+    return datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

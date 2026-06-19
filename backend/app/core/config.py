@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     # Security
     SECRET_KEY: str
-    ACCESS_TOKEN_EXPIRE_HOURS: int = 8
+    ACCESS_TOKEN_EXPIRE_HOURS: int = 1
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     ALGORITHM: str = "HS256"
 
