@@ -510,6 +510,7 @@ Estado real de las prácticas de seguridad del proyecto — qué está implement
 | **RBAC con Guards** | Backend valida rol con `get_admin_or_administradora` / `get_current_active_superuser` → `403` si no aplica. Frontend oculta opciones de menú/acciones según `rol` del usuario en `AuthContext` |
 | **Protección contra SQL Injection** | 100% de las consultas usan el ORM de SQLAlchemy (`select()`/queries parametrizadas) — no hay SQL crudo concatenado en el proyecto |
 | **Secretos fuera de código** | Credenciales y `SECRET_KEY` viven en archivos `.env` excluidos de git (`.gitignore`); solo se versionan plantillas (`.env.example`, `.env.produccion`) sin valores reales |
+| **Rate limiting en login** | `slowapi`, 5 intentos/min por IP, storage en memoria (`app/core/limiter.py`) — mitiga fuerza bruta en `POST /api/login/access-token`; responde `429` al superarse |
 
 ### Pendiente / riesgos conocidos
 
@@ -517,7 +518,6 @@ Estado real de las prácticas de seguridad del proyecto — qué está implement
 |---|---|---|
 | **TTL de JWT** | `ACCESS_TOKEN_EXPIRE_HOURS=8` — más largo de lo recomendado (15min–1h) y sin forma de revocar el token antes de que expire | Reducir el TTL del access token y compensar con refresh tokens |
 | **Sin Refresh Tokens** | El login solo emite un access token; no hay endpoint de refresh. El frontend guarda el JWT en `localStorage` (no `HTTPOnly` cookie), expuesto a robo vía XSS | Implementar refresh token en cookie `HTTPOnly` + `SameSite=Strict`, con access token de vida corta |
-| **Sin Rate Limiting** | `POST /api/login/access-token` no tiene límite de intentos — vulnerable a fuerza bruta | Agregar `slowapi` (o equivalente) al login y a endpoints sensibles |
 | **Sin SSL/TLS** | `nginx.conf` solo escucha el puerto 80, sin redirect a 443. Aceptable temporalmente por tratarse de una LAN cerrada de 5 PCs, pero debe revisarse antes de cualquier acceso remoto | Agregar certificado (Let's Encrypt o interno) y forzar HTTPS si el sistema sale de la LAN |
 | **Sin Backups automatizados** | No hay ningún script/cron de respaldo de la base de datos PostgreSQL en el repositorio | Configurar `pg_dump` diario cifrado, retención mínima de 30 días, almacenado fuera del PC servidor |
 | **`rol` sin constraint en BD** | El campo es `String(50)` libre — un valor de rol inválido podría insertarse directamente en la base de datos sin pasar por la API | Migrar a `Enum` de SQLAlchemy o agregar `CHECK constraint` |

@@ -54,6 +54,7 @@ ERP interno para la gestión contable y comercial de Super Ozono Global. Diseña
 | Validación | Pydantic v2 | 2.11.3 |
 | Autenticación | JWT (python-jose) | 3.5.0 |
 | Hashing contraseñas | passlib + bcrypt | 1.7.4 |
+| Rate limiting | slowapi | 0.1.9 |
 | Logging | structlog | 25.4.0 |
 | HTTP cliente | httpx | 0.28.1 |
 
@@ -429,7 +430,7 @@ Base URL: `http://[host]:8000/api`
 
 | Método | Ruta | Acceso | Descripción |
 |---|---|---|---|
-| POST | `/login/access-token` | Público | Login. Retorna JWT Bearer token |
+| POST | `/login/access-token` | Público | Login. Retorna JWT Bearer token. Rate limited: 5 intentos/min por IP (`slowapi`, en memoria) |
 | GET | `/users/me` | Autenticado | Datos del usuario en sesión |
 
 ### Usuarios
@@ -655,6 +656,7 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | 9 | Inventario con movimientos reales (entradas/salidas) | ✅ Completado 2026-06-17 |
 | 10 | Comprobante de pago numerado al abonar CxC/CxP | ✅ Completado 2026-06-17 |
 | 11 | Reportes — aging cartera, compras/ventas por período, retenciones acumuladas | ✅ Completado 2026-06-17 |
+| 12 | Rate limiting en login (mitigar fuerza bruta) | ✅ Completado 2026-06-19 |
 
 ### Fase 2 — Módulos futuros
 
