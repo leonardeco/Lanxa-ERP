@@ -140,7 +140,7 @@ b07a616  fix(login): mejorar nitidez del logo en el panel de marca
 3. ~~Sin backups automatizados de PostgreSQL.~~ → resuelto el 19 de junio para SQLite (que es lo que corre en producción), ver abajo. Queda como riesgo menor que el backup esté en el mismo PC.
 4. ~~Sin TLS — aceptable temporalmente por ser LAN cerrada.~~ → resuelto el 19 de junio con HTTPS + CA local, ver sesión más abajo. Queda pendiente instalar la CA en los 4 PCs cliente.
 5. `rol` sin constraint en BD e IDs secuenciales (no UUID) — deuda técnica, no urgente en este contexto.
-6. Reset de contraseña por Admin (usuario sin acceso) — sugerido, no implementado, pendiente de aprobación.
+6. ~~Reset de contraseña por Admin (usuario sin acceso) — sugerido, no implementado, pendiente de aprobación.~~ → resuelto el 19 de junio, ver sesión más abajo.
 7. Logo en mejor resolución si aparece el archivo original (no una captura de pantalla).
 
 ---
@@ -221,7 +221,7 @@ Corregido en `start.bat`: ahora lee el host de `VITE_API_URL` (`frontend\.env`) 
 3. ~~Sin backups automatizados de PostgreSQL.~~ → resuelto el 19 de junio para SQLite, ver sesión de backups más abajo.
 4. ~~Sin TLS — aceptable temporalmente por ser LAN cerrada.~~ → resuelto el 19 de junio con HTTPS + CA local, ver sesión más abajo (de paso la cookie del refresh token ya quedó con `Secure=True`). Queda pendiente instalar la CA en los 4 PCs cliente.
 5. `rol` sin constraint en BD e IDs secuenciales (no UUID).
-6. Reset de contraseña por Admin — sugerido, no implementado.
+6. ~~Reset de contraseña por Admin — sugerido, no implementado.~~ → resuelto el 19 de junio, ver sesión más abajo.
 7. Logo en mejor resolución si aparece el archivo original.
 
 ---
@@ -260,7 +260,7 @@ Se implementó el respaldo automatizado de la base de datos — resuelve el pend
 
 4. ~~Sin TLS — aceptable temporalmente por ser LAN cerrada.~~ → resuelto el 19 de junio con HTTPS + CA local, ver sesión más abajo. Queda pendiente instalar la CA en los 4 PCs cliente.
 5. `rol` sin constraint en BD e IDs secuenciales (no UUID).
-6. Reset de contraseña por Admin — sugerido, no implementado.
+6. ~~Reset de contraseña por Admin — sugerido, no implementado.~~ → resuelto el 19 de junio, ver sesión más abajo.
 7. Logo en mejor resolución si aparece el archivo original.
 
 ### Riesgo nuevo anotado
@@ -314,6 +314,50 @@ Instalar `certs\superozono-ca.crt` como certificado raíz de confianza en los ot
 ### Pendientes / riesgos conocidos restantes (del listado del 18 de junio)
 
 5. `rol` sin constraint en BD e IDs secuenciales (no UUID).
-6. Reset de contraseña por Admin — sugerido, no implementado.
+6. ~~Reset de contraseña por Admin — sugerido, no implementado.~~ → resuelto el 19 de junio, ver sesión más abajo.
 7. Logo en mejor resolución si aparece el archivo original.
 8. Backups guardados en el mismo PC que la BD real (ver sesión de backups arriba).
+
+---
+
+## Sesión — 19 de junio 2026 (continuación) — Reset de contraseña por Admin
+
+### Resumen
+
+Se implementó el reset de contraseña por Admin para usuarios sin acceso — resuelve el pendiente #6, que venía marcado como *"sugerido, no implementado, pendiente de aprobación"* desde la sesión del 18 de junio (nunca era una decisión tomada). Se confirmó el diseño con el usuario antes de tocar código: el Admin escribe directamente la contraseña nueva (no hay flujo de email/token porque el proyecto no tiene infraestructura de correo), sin forzar cambio en el próximo login.
+
+### Lo que se hizo
+
+**1. Backend**
+
+`PUT /v1/usuarios/{id}/reset-password` (solo Admin, `SuperuserDep`, igual que el resto del CRUD de usuarios): valida mínimo 8 caracteres y reescribe `hashed_password` directamente, sin pedir la contraseña actual (a diferencia de `/usuarios/me/password`, que sí la pide). Esquema nuevo `UsuarioPasswordReset` en `schemas.py`.
+
+**2. Frontend**
+
+Botón "🔓 Resetear contraseña" junto a cada usuario en `UsuariosView.tsx` (al lado de Editar/Activar-Desactivar), abre un modal (`ResetPasswordModal`) donde el Admin tipea la contraseña nueva dos veces. Sin campo de "contraseña actual" — esa es justo la diferencia con el modal de "Cambiar mi contraseña" que ya existía.
+
+**3. Bug real encontrado en el camino (no es del reset de contraseña — es de logout)**
+
+Verificando el flujo completo en un navegador real (crear usuario → resetear contraseña → cerrar sesión → loguear como el usuario afectado), el clic en "Cerrar Sesión" a veces **no cerraba la sesión**: el usuario volvía a aparecer logueado solo. Causa: `logout()` limpiaba el estado local (`token`/`user`) *antes* de que el backend terminara de revocar el refresh token; eso disparaba en paralelo el efecto de "renovación silenciosa" (agregado en la sesión de refresh tokens, se activa cuando `token` pasa a `null`), y a veces el `POST /login/refresh-token` le ganaba la carrera al `POST /login/logout` — conseguía un access token nuevo antes de que el refresh token quedara invalidado en la BD, re-logueando solo a quien acababa de cerrar sesión. Confirmado con los logs del backend: se veía `refresh-token 200 OK` *después* de `logout 200 OK`.
+
+Corregido haciendo que `logout()` espere (`await`) la respuesta de `/login/logout` antes de limpiar el estado local — así, cuando el efecto de renovación silenciosa se dispara, el refresh token ya está revocado en el servidor y el intento falla como corresponde (`401`).
+
+**4. Verificación end-to-end**
+
+- `pytest`: 8/8 en verde (2 tests nuevos: reset + login con la contraseña nueva confirmando que la vieja ya no funciona; un no-Admin recibe `403`).
+- Navegador real (Playwright, instalado temporalmente): creado un usuario de prueba, reseteada su contraseña desde la UI, confirmado que el login con la contraseña vieja falla y con la nueva entra correctamente mostrando su rol (Auxiliar) y las vistas que le corresponden. Repetido después de arreglar el bug de logout para confirmar el ciclo completo (login → crear → resetear → **logout real** → login del afectado) de punta a punta.
+- Usuarios de prueba y sus refresh tokens borrados de la BD real al terminar; Playwright desinstalado.
+
+### Commits de esta sesión
+
+```
+824d6f4  fix(auth): race condition entre logout y renovacion silenciosa de sesion
+54334c2  feat(usuarios): reset de contraseña por Admin para usuarios sin acceso
+```
+
+### Pendientes / riesgos conocidos restantes (del listado del 18 de junio)
+
+5. `rol` sin constraint en BD e IDs secuenciales (no UUID).
+7. Logo en mejor resolución si aparece el archivo original.
+8. Backups guardados en el mismo PC que la BD real.
+9. Instalar la CA local (`certs\superozono-ca.crt`) en los 4 PCs cliente (ver sesión de HTTPS arriba).
