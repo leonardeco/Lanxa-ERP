@@ -1,5 +1,9 @@
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.exc import IntegrityError
+
+from app.core.security import get_password_hash
+from app.modules.usuarios.models import Usuario
 
 @pytest.mark.asyncio
 async def test_read_main(client: AsyncClient):
@@ -136,3 +140,16 @@ async def test_no_admin_no_puede_resetear_password(client: AsyncClient, auth_hea
         headers=auxiliar_headers,
     )
     assert reset_resp.status_code == 403
+
+@pytest.mark.asyncio
+async def test_rol_invalido_rechazado_por_constraint_de_bd(db_session):
+    # Bypassea la validacion de la API: inserta directo con el ORM para
+    # confirmar que la BD misma rechaza un rol que no sea uno de los validos.
+    db_session.add(Usuario(
+        email="hacker@test.com",
+        nombre_completo="Rol Invalido",
+        rol="Hacker",
+        hashed_password=get_password_hash("password123"),
+    ))
+    with pytest.raises(IntegrityError):
+        await db_session.commit()

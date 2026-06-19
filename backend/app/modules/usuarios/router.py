@@ -11,7 +11,7 @@ from app.core.security import (
     verify_password, create_access_token, get_password_hash,
     generate_refresh_token, hash_refresh_token, refresh_token_expiry,
 )
-from app.modules.usuarios.models import Usuario, RefreshToken
+from app.modules.usuarios.models import Usuario, RefreshToken, ROLES_VALIDOS
 from app.modules.usuarios.schemas import (
     Token, UsuarioCreate, UsuarioUpdate, UsuarioPasswordChange, UsuarioPasswordReset, UsuarioResponse,
 )
@@ -20,8 +20,6 @@ router = APIRouter()
 settings = get_settings()
 
 SuperuserDep = AdminDep
-
-ROLES_VALIDOS = {"Admin", "Administradora", "Auxiliar"}
 
 REFRESH_COOKIE_NAME = "refresh_token"
 REFRESH_COOKIE_PATH = "/api/login"

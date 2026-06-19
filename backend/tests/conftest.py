@@ -48,6 +48,11 @@ async def setup_db():
         await conn.run_sync(Base.metadata.drop_all)
 
 @pytest_asyncio.fixture(scope="function")
+async def db_session():
+    async with TestingSessionLocal() as session:
+        yield session
+
+@pytest_asyncio.fixture(scope="function")
 async def client():
     # https en el base_url: el cookie jar de httpx no reenvia cookies "Secure"
     # sobre un esquema http, y el refresh token ahora va con Secure=True.
