@@ -229,7 +229,7 @@ Tabla de entidades principales con campos sensibles, tipos y restricciones de se
 | `usuarios` | `id` | `Integer` autoincrement | **No es UUID** — ID secuencial. Ver nota abajo |
 | `usuarios` | `email` | `String(255)` | `UNIQUE`, `NOT NULL` |
 | `usuarios` | `hashed_password` | `String(255)` | Hash **bcrypt** (passlib, cost factor 12 por defecto). Nunca se almacena ni se loguea texto plano |
-| `usuarios` | `rol` | `String(50)` | Valores válidos: `Admin`, `Administradora`, `Auxiliar`. **No es un ENUM de BD** — es un string libre sin `CHECK` constraint (ver nota abajo) |
+| `usuarios` | `rol` | `String(50)` | Valores válidos: `Admin`, `Administradora`, `Auxiliar`. **No es un ENUM de BD**, pero tiene `CHECK constraint` (`ROLES_VALIDOS` en `models.py`) — un `INSERT`/`UPDATE` directo con otro valor lo rechaza la propia BD |
 | `usuarios` | `is_active` | `Boolean` | Controla acceso; verificado en cada request autenticado (`get_current_user`) |
 | `*` (todas las tablas) | `id` | `Integer` autoincrement | Mismo patrón en todos los módulos (Contabilidad, Ventas, Compras, Inventario) |
 
@@ -521,13 +521,13 @@ Estado real de las prácticas de seguridad del proyecto — qué está implement
 | **Backups automatizados (SQLite)** | `backend/scripts/backup_db.py`, tarea diaria en el Programador de tareas de Windows (`SuperOzonoERP-BackupDB`, 2:00am). Copia consistente vía la API de backup de `sqlite3`, cifrada con Fernet (`cryptography`), retención 30 días. Restauración con `backend/scripts/restore_db.py` (guarda una copia `.bak` antes de sobreescribir) |
 | **HTTPS con CA local** | `nginx.conf` no aplica (es del stack Docker, no del modo `start.bat` real). `uvicorn` y Vite sirven TLS directo con un certificado de servidor firmado por una CA local autofirmada (`backend/scripts/generate_tls_cert.py`, librería `cryptography`) — no hay dominio público, así que Let's Encrypt no es viable. La cookie del refresh token ya va con `Secure=True`. Pendiente manual: instalar `certs/superozono-ca.crt` como confiable en los 4 PCs cliente (ver `DOCUMENTACION.md`, sección 6) |
 | **Reset de contraseña por Admin** | `PUT /api/v1/usuarios/{id}/reset-password` (solo Admin) — un usuario sin acceso ya no depende de conocer su contraseña actual para recuperarla. Sin flujo de email/token: el proyecto no tiene infraestructura de correo, el Admin comunica la contraseña nueva por fuera del sistema |
+| **`rol` con CHECK constraint en BD** | `usuarios.rol` ya no depende solo de la validación de la API — la BD rechaza un `INSERT`/`UPDATE` directo con un rol fuera de `Admin`/`Administradora`/`Auxiliar` (`ROLES_VALIDOS` en `models.py`, una sola fuente de verdad). Migración para la BD existente en `backend/scripts/migrate_rol_constraint.py` (SQLite no soporta `ALTER TABLE ADD CONSTRAINT`, recrea la tabla) |
 
 ### Pendiente / riesgos conocidos
 
 | Ítem | Riesgo | Recomendación |
 |---|---|---|
 | **Backups guardados en el mismo PC** | `C:/SuperOzono-Backups` está en el mismo disco que la BD real — si el PC servidor falla por completo (disco, robo, incendio), se pierden la BD, los backups y la clave de cifrado (`BACKUP_ENCRYPTION_KEY` en `backend/.env`) al mismo tiempo | Copiar periódicamente la carpeta de backups (y la clave, en un gestor de contraseñas) a un destino fuera de este PC: red local, NAS o nube |
-| **`rol` sin constraint en BD** | El campo es `String(50)` libre — un valor de rol inválido podría insertarse directamente en la base de datos sin pasar por la API | Migrar a `Enum` de SQLAlchemy o agregar `CHECK constraint` |
 | **IDs secuenciales** | Todas las tablas usan `Integer autoincrement` — los IDs son adivinables/enumerables | Aceptable en LAN cerrada; si se expone la API públicamente, migrar a UUID o reforzar autorización por objeto |
 
 ---

@@ -125,7 +125,8 @@ superozono-erp/
 │   ├── scripts/
 │   │   ├── backup_db.py             # Backup diario cifrado de la BD SQLite (tarea programada Windows)
 │   │   ├── restore_db.py            # Descifra y restaura un backup (con copia .bak previa)
-│   │   └── generate_tls_cert.py     # Genera la CA local + certificado de servidor para HTTPS
+│   │   ├── generate_tls_cert.py     # Genera la CA local + certificado de servidor para HTTPS
+│   │   └── migrate_rol_constraint.py  # Agrega el CHECK constraint de rol a una BD ya existente
 │   ├── .env                         # Variables de entorno (desarrollo local)
 │   ├── .env.servidor                # Plantilla para el PC servidor (copiar a .env)
 │   ├── requirements.txt
@@ -442,7 +443,8 @@ certutil -addstore -f "ROOT" "C:\ruta\al\proyecto\certs\superozono-ca.crt"
 
 | Tabla | Descripción |
 |---|---|
-| `usuarios` | Email, nombre, contraseña hasheada, rol, estado activo |
+| `usuarios` | Email, nombre, contraseña hasheada, rol (con `CHECK constraint`, `ROLES_VALIDOS`), estado activo |
+| `refresh_tokens` | Hash del refresh token (nunca el valor crudo), usuario, expiración. Uno por sesión, se rota en cada uso |
 
 ---
 
@@ -688,6 +690,7 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | 14 | Backups automatizados de la BD (SQLite, cifrados, tarea diaria) | ✅ Completado 2026-06-19 |
 | 15 | HTTPS con CA local autofirmada (uvicorn + Vite), pendiente instalar en los 4 PCs cliente | ✅ Completado 2026-06-19 |
 | 16 | Reset de contraseña por Admin para usuarios sin acceso | ✅ Completado 2026-06-19 |
+| 17 | CHECK constraint en `usuarios.rol` (BD nuevas y migración para la existente) | ✅ Completado 2026-06-19 |
 
 ### Fase 2 — Módulos futuros
 
