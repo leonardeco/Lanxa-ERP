@@ -139,7 +139,7 @@ b07a616  fix(login): mejorar nitidez del logo en el panel de marca
 2. ~~Sin refresh tokens — JWT de 8h en `localStorage`, sin revocación.~~ → resuelto el 19 de junio, ver abajo (de paso también se bajó el TTL del access token a 1h).
 3. ~~Sin backups automatizados de PostgreSQL.~~ → resuelto el 19 de junio para SQLite (que es lo que corre en producción), ver abajo. Queda como riesgo menor que el backup esté en el mismo PC.
 4. ~~Sin TLS — aceptable temporalmente por ser LAN cerrada.~~ → resuelto el 19 de junio con HTTPS + CA local, ver sesión más abajo. Queda pendiente instalar la CA en los 4 PCs cliente.
-5. `rol` sin constraint en BD e IDs secuenciales (no UUID) — deuda técnica, no urgente en este contexto.
+5. ~~`rol` sin constraint en BD~~ → resuelto el 19 de junio, ver sesión más abajo. IDs secuenciales (no UUID) sigue sin tocar — deuda técnica, no urgente en este contexto.
 6. ~~Reset de contraseña por Admin (usuario sin acceso) — sugerido, no implementado, pendiente de aprobación.~~ → resuelto el 19 de junio, ver sesión más abajo.
 7. Logo en mejor resolución si aparece el archivo original (no una captura de pantalla).
 
@@ -220,7 +220,7 @@ Corregido en `start.bat`: ahora lee el host de `VITE_API_URL` (`frontend\.env`) 
 
 3. ~~Sin backups automatizados de PostgreSQL.~~ → resuelto el 19 de junio para SQLite, ver sesión de backups más abajo.
 4. ~~Sin TLS — aceptable temporalmente por ser LAN cerrada.~~ → resuelto el 19 de junio con HTTPS + CA local, ver sesión más abajo (de paso la cookie del refresh token ya quedó con `Secure=True`). Queda pendiente instalar la CA en los 4 PCs cliente.
-5. `rol` sin constraint en BD e IDs secuenciales (no UUID).
+5. ~~`rol` sin constraint en BD.~~ → resuelto el 19 de junio, ver sesión más abajo. IDs secuenciales (no UUID) sigue sin tocar.
 6. ~~Reset de contraseña por Admin — sugerido, no implementado.~~ → resuelto el 19 de junio, ver sesión más abajo.
 7. Logo en mejor resolución si aparece el archivo original.
 
@@ -259,7 +259,7 @@ Se implementó el respaldo automatizado de la base de datos — resuelve el pend
 ### Pendientes / riesgos conocidos restantes (del listado del 18 de junio)
 
 4. ~~Sin TLS — aceptable temporalmente por ser LAN cerrada.~~ → resuelto el 19 de junio con HTTPS + CA local, ver sesión más abajo. Queda pendiente instalar la CA en los 4 PCs cliente.
-5. `rol` sin constraint en BD e IDs secuenciales (no UUID).
+5. ~~`rol` sin constraint en BD.~~ → resuelto el 19 de junio, ver sesión más abajo. IDs secuenciales (no UUID) sigue sin tocar.
 6. ~~Reset de contraseña por Admin — sugerido, no implementado.~~ → resuelto el 19 de junio, ver sesión más abajo.
 7. Logo en mejor resolución si aparece el archivo original.
 
@@ -313,7 +313,7 @@ Instalar `certs\superozono-ca.crt` como certificado raíz de confianza en los ot
 
 ### Pendientes / riesgos conocidos restantes (del listado del 18 de junio)
 
-5. `rol` sin constraint en BD e IDs secuenciales (no UUID).
+5. ~~`rol` sin constraint en BD.~~ → resuelto el 19 de junio, ver sesión más abajo. IDs secuenciales (no UUID) sigue sin tocar.
 6. ~~Reset de contraseña por Admin — sugerido, no implementado.~~ → resuelto el 19 de junio, ver sesión más abajo.
 7. Logo en mejor resolución si aparece el archivo original.
 8. Backups guardados en el mismo PC que la BD real (ver sesión de backups arriba).
@@ -357,7 +357,54 @@ Corregido haciendo que `logout()` espere (`await`) la respuesta de `/login/logou
 
 ### Pendientes / riesgos conocidos restantes (del listado del 18 de junio)
 
-5. `rol` sin constraint en BD e IDs secuenciales (no UUID).
+5. ~~`rol` sin constraint en BD.~~ → resuelto el 19 de junio, ver sesión más abajo. IDs secuenciales (no UUID) sigue sin tocar.
 7. Logo en mejor resolución si aparece el archivo original.
 8. Backups guardados en el mismo PC que la BD real.
 9. Instalar la CA local (`certs\superozono-ca.crt`) en los 4 PCs cliente (ver sesión de HTTPS arriba).
+
+---
+
+## Sesión — 19 de junio 2026 (continuación) — Constraint de rol en BD
+
+### Resumen
+
+Se agregó un `CHECK constraint` real sobre `usuarios.rol` — resuelve la mitad del pendiente #5 (la otra mitad, IDs secuenciales/UUID, queda igual, el usuario solo pidió el constraint de rol). En el camino, migrar la BD real rompió las foreign keys de otras 3 tablas — encontrado, reparado y corregido antes de seguir.
+
+### Lo que se hizo
+
+**1. CHECK constraint + fuente única de verdad**
+
+`backend/app/modules/usuarios/models.py`: `ROLES_VALIDOS = ("Admin", "Administradora", "Auxiliar")` ahora vive ahí, con un `CheckConstraint` en `__table_args__` del modelo `Usuario`. `router.py` importa esa misma tupla en vez de tener su propia copia (`ROLES_VALIDOS = {...}` duplicado, riesgo real de que las dos listas se desincronizaran con el tiempo).
+
+**2. Migración para la BD existente**
+
+`backend/scripts/migrate_rol_constraint.py`: SQLite no soporta `ALTER TABLE ADD CONSTRAINT`, así que recrea la tabla `usuarios` (rename → create con el constraint → copiar datos → drop → recrear índices). Idempotente.
+
+**3. Bug real encontrado al correr la migración sobre la BD real**
+
+Al ejecutar el script la primera vez, `PRAGMA foreign_key_check` mostró que `refresh_tokens`, `movimientos_inventario` y `pagos` quedaron con sus `FOREIGN KEY` apuntando a `usuarios_old` en vez de `usuarios`. Causa: `ALTER TABLE ... RENAME TO` en SQLite moderno (≥3.25, default) reescribe automáticamente las foreign keys de **otras** tablas para que sigan el renombre — comportamiento pensado para renombrar una tabla de forma permanente, no para la técnica de "recrear para agregar un constraint" donde el nombre final vuelve a ser el mismo.
+
+Reparación de la BD real (sin pérdida de datos, verificado con conteo de filas + `PRAGMA integrity_check` + `foreign_key_check` antes/después): backup de seguridad del `.db`, y luego `PRAGMA writable_schema=ON` para reescribir directamente el texto SQL guardado en `sqlite_master` de esas 3 tablas (de `"usuarios_old"` a `"usuarios"`), sin tocar ninguna fila de datos.
+
+Corrección del script para que esto no se repita: `PRAGMA legacy_alter_table=ON` antes del rename (evita que SQLite reescriba las FKs de otras tablas) + una verificación automática post-migración (`foreign_key_check` + `integrity_check`) que aborta si algo quedó mal. Probado el fix en una base de datos aislada (con una tabla extra referenciando `usuarios` por FK, replicando el escenario real) antes de confiar en él.
+
+**4. Test nuevo**
+
+Inserta un usuario con `rol="Hacker"` directo por el ORM (bypaseando toda validación de la API) y confirma que la BD lo rechaza con `IntegrityError`. Requirió agregar un fixture `db_session` a `conftest.py` — intentar `from tests.conftest import TestingSessionLocal` directamente desde el archivo de test duplicaba el módulo (pytest ya lo carga por su cuenta), y el segundo `engine` apuntaba a una base SQLite en memoria distinta y vacía (`no such table: usuarios`).
+
+**5. Verificación final**
+
+`pytest`: 9/9 en verde. `flake8` limpio. BD real: `PRAGMA integrity_check` → `ok`, `foreign_key_check` → sin problemas, conteo de filas igual antes/después en las 4 tablas afectadas, y un login real funcionando contra la base ya migrada.
+
+### Commit de esta sesión
+
+```
+1c3bbc0  feat(usuarios): CHECK constraint en rol + migracion para la BD existente
+```
+
+### Pendientes / riesgos conocidos restantes (del listado del 18 de junio)
+
+7. Logo en mejor resolución si aparece el archivo original.
+8. Backups guardados en el mismo PC que la BD real.
+9. Instalar la CA local (`certs\superozono-ca.crt`) en los 4 PCs cliente.
+10. IDs secuenciales (no UUID) — deuda técnica, no urgente en este contexto.
