@@ -14,7 +14,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (token: string) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -30,8 +30,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToken(newToken);
   };
 
-  const logout = () => {
-    api.post('/login/logout').catch(() => {});
+  const logout = async () => {
+    // Esperar a que el backend revoque el refresh token ANTES de poner token
+    // en null: si no, el efecto de renovacion silenciosa (dispara al quedar
+    // sin token) puede ganarle la carrera al logout y re-loguear solo.
+    try {
+      await api.post('/login/logout');
+    } catch {
+      // Igual se limpia el estado local aunque el backend no responda
+    }
     localStorage.removeItem('token');
     setToken(null);
     setUser(null);
