@@ -137,7 +137,7 @@ b07a616  fix(login): mejorar nitidez del logo en el panel de marca
 
 1. ~~Sin rate limiting en login (fuerza bruta).~~ → resuelto el 19 de junio, ver abajo.
 2. ~~Sin refresh tokens — JWT de 8h en `localStorage`, sin revocación.~~ → resuelto el 19 de junio, ver abajo (de paso también se bajó el TTL del access token a 1h).
-3. Sin backups automatizados de PostgreSQL.
+3. ~~Sin backups automatizados de PostgreSQL.~~ → resuelto el 19 de junio para SQLite (que es lo que corre en producción), ver abajo. Queda como riesgo menor que el backup esté en el mismo PC.
 4. Sin TLS — aceptable temporalmente por ser LAN cerrada.
 5. `rol` sin constraint en BD e IDs secuenciales (no UUID) — deuda técnica, no urgente en este contexto.
 6. Reset de contraseña por Admin (usuario sin acceso) — sugerido, no implementado, pendiente de aprobación.
@@ -218,8 +218,51 @@ Corregido en `start.bat`: ahora lee el host de `VITE_API_URL` (`frontend\.env`) 
 
 ### Pendientes / riesgos conocidos restantes (del listado del 18 de junio)
 
-3. Sin backups automatizados de PostgreSQL.
+3. ~~Sin backups automatizados de PostgreSQL.~~ → resuelto el 19 de junio para SQLite, ver sesión de backups más abajo.
 4. Sin TLS — aceptable temporalmente por ser LAN cerrada. *(Nota: mientras no haya TLS, la cookie del refresh token va sin `Secure`, viajando en claro por la LAN igual que el resto del tráfico HTTP actual.)*
 5. `rol` sin constraint en BD e IDs secuenciales (no UUID).
 6. Reset de contraseña por Admin — sugerido, no implementado.
 7. Logo en mejor resolución si aparece el archivo original.
+
+---
+
+## Sesión — 19 de junio 2026 (continuación) — Backups automatizados
+
+### Resumen
+
+Se implementó el respaldo automatizado de la base de datos — resuelve el pendiente #3 anotado al cierre de la sesión del 18 de junio. Antes de implementar se aclaró una discrepancia real: el README pedía backups de **PostgreSQL**, pero la base que corre en producción (este PC servidor) es **SQLite** — PostgreSQL solo existe en el `docker-compose.yml`, que no se usa. Se acordó con el usuario el alcance: solo SQLite, destino otra carpeta en el mismo disco (`C:\SuperOzono-Backups`, no hay otro disco físico en este PC), con cifrado.
+
+### Lo que se hizo
+
+**1. Scripts de backup y restore**
+
+- `backend/scripts/backup_db.py`: copia consistente de la BD en uso vía la API de backup de `sqlite3` (no corrompe aunque el backend esté escribiendo en ese momento), la cifra con `Fernet` (librería `cryptography`, ya estaba instalada como dependencia transitiva de `python-jose[cryptography]` — se declaró explícita en `requirements.txt` ya que ahora el backup depende directamente de ella), y borra backups con más de `BACKUP_RETENTION_DAYS` (30) días.
+- `backend/scripts/restore_db.py`: descifra un backup y lo restaura sobre `backend/superozono.db`, guardando antes una copia `.bak-<fecha>` de la base actual por seguridad.
+- Nuevas variables en `config.py` + `.env` (real, con clave generada) + `.env.servidor` (plantilla, con instrucciones para generar una clave propia por PC): `BACKUP_DIR`, `BACKUP_ENCRYPTION_KEY`, `BACKUP_RETENTION_DAYS`.
+
+**2. Tarea programada en Windows**
+
+`SuperOzonoERP-BackupDB` en el Programador de tareas de Windows, diaria a las 2:00am, corre `venv\Scripts\python.exe scripts\backup_db.py`. Creada y disparada manualmente una vez para confirmar que funciona fuera de una ejecución interactiva (`LastTaskResult: 0`, generó su backup correctamente).
+
+**3. Verificación end-to-end**
+
+- Backup manual → comparación de hashes crudos del archivo original vs. el restaurado: **no coinciden** (esperado — la API de backup de SQLite reorganiza páginas internamente, no produce un archivo byte-idéntico) pero el **contenido lógico sí es idéntico** (`conn.iterdump()` produce el mismo SQL en ambos, mismo largo). `PRAGMA integrity_check` → `ok`.
+- `restore_db.py` corrido de verdad contra la BD real: creó la copia `.bak` y restauró correctamente (el backend sigue funcionando después, `usuarios` con el mismo conteo).
+- `pytest`: 6/6 en verde. `flake8` limpio en los archivos nuevos.
+
+### Commit de esta sesión
+
+```
+9d98001  feat(backups): respaldo diario cifrado de la BD SQLite
+```
+
+### Pendientes / riesgos conocidos restantes (del listado del 18 de junio)
+
+4. Sin TLS — aceptable temporalmente por ser LAN cerrada.
+5. `rol` sin constraint en BD e IDs secuenciales (no UUID).
+6. Reset de contraseña por Admin — sugerido, no implementado.
+7. Logo en mejor resolución si aparece el archivo original.
+
+### Riesgo nuevo anotado
+
+8. Backups guardados en el mismo PC que la BD real (`C:\SuperOzono-Backups`) — no protege ante una falla total del PC (disco, robo, incendio). Tampoco la clave de cifrado (`BACKUP_ENCRYPTION_KEY`), que hoy vive solo en `backend/.env` de esta máquina. Pendiente: copiar periódicamente backups + clave a un destino fuera de este PC (red local, NAS o nube) cuando el usuario decida cuál.
