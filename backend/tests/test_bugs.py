@@ -154,7 +154,6 @@ def test_bug003_security_importa_sin_warning():
     El datetime.utcnow() es deprecated pero sigue funcionando en Python 3.12.
     Este test confirma que el módulo sigue operativo.
     """
-    import warnings
     from app.core.security import create_access_token, verify_password, get_password_hash
 
     # Verificar que las funciones básicas funcionan

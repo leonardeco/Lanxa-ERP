@@ -3,10 +3,8 @@ Super Ozono Global -- Modulo Alegra (Facturacion Electronica)
 Endpoints para sincronizar clientes, productos y enviar facturas a Alegra
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Annotated
 
 from app.api.deps import SessionDep, CurrentUser, AdminDep
 from app.core.config import get_settings
@@ -139,7 +137,10 @@ async def enviar_factura(venta_id: int, session: SessionDep, _: CurrentUser, iva
 
     cliente = await session.get(Cliente, venta.cliente_id)
     if not cliente or not cliente.alegra_id:
-        raise HTTPException(400, "El cliente no esta sincronizado con Alegra. Sincronizalo primero desde /alegra/sync/cliente/{id}")
+        raise HTTPException(
+            400,
+            "El cliente no esta sincronizado con Alegra. Sincronizalo primero desde /alegra/sync/cliente/{id}",
+        )
 
     # Verificar que todos los productos esten sincronizados
     items = []
@@ -147,7 +148,8 @@ async def enviar_factura(venta_id: int, session: SessionDep, _: CurrentUser, iva
         if not det.producto or not det.producto.alegra_id:
             raise HTTPException(
                 400,
-                f"El producto '{det.producto.nombre if det.producto else det.producto_id}' no esta sincronizado con Alegra"
+                f"El producto '{det.producto.nombre if det.producto else det.producto_id}'"
+                " no esta sincronizado con Alegra"
             )
         tax_ids = [iva_tax_id] if float(det.iva_porcentaje) > 0 else []
         items.append(detalle_to_alegra_item(det, det.producto.alegra_id, tax_ids))

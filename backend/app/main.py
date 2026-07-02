@@ -90,7 +90,9 @@ app = FastAPI(
 # a la BD (BaseHTTPMiddleware + greenlet de SQLAlchemy no son compatibles) — no
 # agregarlo de nuevo sin probar primero un INSERT real a través de la API.
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+# slowapi tipa su handler como (Request, RateLimitExceeded) y Starlette espera
+# (Request, Exception) — incompatibilidad conocida de la libreria, sin efecto real.
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
 # ── CORS ─────────────────────────────────────────────────
 app.add_middleware(

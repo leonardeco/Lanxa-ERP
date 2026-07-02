@@ -1,4 +1,4 @@
-from datetime import datetime
+from app.core.time import utcnow
 from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -75,7 +75,7 @@ async def refresh_access_token(request: Request, response: Response, session: Se
     stored = await session.scalar(
         select(RefreshToken).where(RefreshToken.token_hash == hash_refresh_token(raw_token))
     )
-    if not stored or stored.expires_at < datetime.utcnow():
+    if not stored or stored.expires_at < utcnow():
         response.delete_cookie(REFRESH_COOKIE_NAME, path=REFRESH_COOKIE_PATH)
         raise invalid
 
@@ -116,7 +116,7 @@ async def logout(request: Request, response: Response, session: SessionDep) -> d
 
 @router.get("/users/me", response_model=UsuarioResponse)
 async def read_users_me(current_user: CurrentUser) -> UsuarioResponse:
-    return current_user
+    return UsuarioResponse.model_validate(current_user)
 
 
 # ── CRUD Usuarios (solo Superadmin) ──────────────────────

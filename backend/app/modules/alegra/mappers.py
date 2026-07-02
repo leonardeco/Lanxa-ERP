@@ -2,11 +2,13 @@
 Super Ozono Global — Mapeo de modelos ERP → formato Alegra API
 """
 
+from typing import Any
+
 from app.modules.ventas.models import Cliente, Producto, VentaDocumento
 
 
 def cliente_to_alegra(c: Cliente) -> dict:
-    payload = {
+    payload: dict[str, Any] = {
         "name": c.razon_social,
         "identification": c.nit_cc,
         "type": ["client"],
@@ -30,7 +32,7 @@ def cliente_to_alegra(c: Cliente) -> dict:
 
 
 def producto_to_alegra(p: Producto, tax_ids: list[int]) -> dict:
-    payload = {
+    payload: dict[str, Any] = {
         "name": p.nombre,
         "description": p.descripcion or p.nombre,
         "reference": p.sku,
@@ -44,7 +46,7 @@ def producto_to_alegra(p: Producto, tax_ids: list[int]) -> dict:
 
 
 def venta_to_alegra(v: VentaDocumento, alegra_client_id: int, items: list[dict]) -> dict:
-    payload = {
+    payload: dict[str, Any] = {
         "date": v.fecha.isoformat(),
         "client": {"id": alegra_client_id},
         "items": items,

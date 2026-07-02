@@ -1,0 +1,5 @@
+[flake8]
+max-line-length = 120
+extend-exclude = venv,.venv,__pycache__
+# W503: salto de línea antes de operador binario — estilo moderno (black/PEP8 actual)
+extend-ignore = W503

@@ -6,11 +6,11 @@ Productos, Clientes, Documentos de Venta y Detalles de Venta
 from datetime import datetime, date
 from decimal import Decimal
 from sqlalchemy import (
-    Column, Integer, String, Boolean, Date, DateTime,
-    Numeric, ForeignKey, Text, Enum as SAEnum,
+    String, Date, DateTime, Numeric, ForeignKey, Text, Enum as SAEnum,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
+from app.core.time import utcnow
 import enum
 
 
@@ -56,26 +56,30 @@ class Producto(Base):
     """Catálogo de productos — Biocidas y agroquímicos por marca"""
     __tablename__ = "productos"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    sku = Column(String(30), unique=True, nullable=False, index=True)
-    nombre = Column(String(200), nullable=False)
-    descripcion = Column(Text, nullable=True)
-    categoria = Column(SAEnum(CategoriaProducto), default=CategoriaProducto.BIOCIDA)
-    marca = Column(String(100), nullable=False)  # Nombre de marca (Superozono, Ecoozono, etc.)
-    centro_costo_id = Column(Integer, ForeignKey("centros_costo.id"), nullable=True)
-    unidad_medida = Column(SAEnum(UnidadMedida), default=UnidadMedida.LITRO)
-    contenido_neto = Column(String(50), nullable=True)  # Ej: "1L", "20L", "200L"
-    precio_venta = Column(Numeric(18, 2), nullable=False, default=Decimal("0.00"))
-    precio_costo = Column(Numeric(18, 2), nullable=True, default=Decimal("0.00"))
-    tarifa_iva = Column(Numeric(5, 2), default=Decimal("19.00"))  # % IVA (19%, 5%, 0%)
-    stock_actual = Column(Numeric(12, 3), default=Decimal("0"))  # admite cantidades fraccionarias (litros/galones)
-    stock_minimo = Column(Integer, default=5)
-    activo = Column(Boolean, default=True)
-    alegra_id = Column(Integer, nullable=True, index=True)
-    registro_ica = Column(String(50), nullable=True)  # Registro ICA (para biocidas)
-    notas = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    sku: Mapped[str] = mapped_column(String(30), unique=True, index=True)
+    nombre: Mapped[str] = mapped_column(String(200))
+    descripcion: Mapped[str | None] = mapped_column(Text)
+    categoria: Mapped[CategoriaProducto] = mapped_column(
+        SAEnum(CategoriaProducto), default=CategoriaProducto.BIOCIDA)
+    marca: Mapped[str] = mapped_column(String(100))  # Nombre de marca (Superozono, Ecoozono, etc.)
+    centro_costo_id: Mapped[int | None] = mapped_column(ForeignKey("centros_costo.id"))
+    unidad_medida: Mapped[UnidadMedida] = mapped_column(
+        SAEnum(UnidadMedida), default=UnidadMedida.LITRO)
+    contenido_neto: Mapped[str | None] = mapped_column(String(50))  # Ej: "1L", "20L", "200L"
+    precio_venta: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    precio_costo: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    tarifa_iva: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2), default=Decimal("19.00"))  # % IVA (19%, 5%, 0%)
+    stock_actual: Mapped[Decimal] = mapped_column(
+        Numeric(12, 3), default=Decimal("0"))  # admite cantidades fraccionarias (litros/galones)
+    stock_minimo: Mapped[int] = mapped_column(default=5)
+    activo: Mapped[bool] = mapped_column(default=True)
+    alegra_id: Mapped[int | None] = mapped_column(index=True)
+    registro_ica: Mapped[str | None] = mapped_column(String(50))  # Registro ICA (para biocidas)
+    notas: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
     # Relationships
     centro_costo = relationship("CentroCosto")
@@ -89,34 +93,35 @@ class Cliente(Base):
     """Clientes comerciales — Distribuidores y compradores B2B"""
     __tablename__ = "clientes"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    nit_cc = Column(String(20), unique=True, nullable=False, index=True)
-    dv = Column(String(1), nullable=True)
-    razon_social = Column(String(200), nullable=False)
-    nombre_comercial = Column(String(200), nullable=True)
-    tipo_persona = Column(String(20), default="Jurídica")  # Natural / Jurídica
-    regimen_iva = Column(String(50), default="Responsable")
-    direccion = Column(String(300), nullable=True)
-    ciudad = Column(String(100), nullable=True)
-    departamento = Column(String(100), nullable=True)
-    telefono = Column(String(30), nullable=True)
-    celular = Column(String(30), nullable=True)
-    email = Column(String(150), nullable=True)
-    contacto_nombre = Column(String(200), nullable=True)  # Persona de contacto
-    contacto_cargo = Column(String(100), nullable=True)
-    lista_precios = Column(String(50), default="General")  # General, Distribuidor, Mayorista
-    cupo_credito = Column(Numeric(18, 2), default=Decimal("0.00"))
-    dias_credito = Column(Integer, default=30)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    nit_cc: Mapped[str] = mapped_column(String(20), unique=True, index=True)
+    dv: Mapped[str | None] = mapped_column(String(1))
+    razon_social: Mapped[str] = mapped_column(String(200))
+    nombre_comercial: Mapped[str | None] = mapped_column(String(200))
+    tipo_persona: Mapped[str] = mapped_column(String(20), default="Jurídica")  # Natural / Jurídica
+    regimen_iva: Mapped[str] = mapped_column(String(50), default="Responsable")
+    direccion: Mapped[str | None] = mapped_column(String(300))
+    ciudad: Mapped[str | None] = mapped_column(String(100))
+    departamento: Mapped[str | None] = mapped_column(String(100))
+    telefono: Mapped[str | None] = mapped_column(String(30))
+    celular: Mapped[str | None] = mapped_column(String(30))
+    email: Mapped[str | None] = mapped_column(String(150))
+    contacto_nombre: Mapped[str | None] = mapped_column(String(200))  # Persona de contacto
+    contacto_cargo: Mapped[str | None] = mapped_column(String(100))
+    lista_precios: Mapped[str] = mapped_column(
+        String(50), default="General")  # General, Distribuidor, Mayorista
+    cupo_credito: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    dias_credito: Mapped[int] = mapped_column(default=30)
     # Perfil tributario del comprador — determina qué retenciones practica
-    retiene_fuente = Column(Boolean, default=False)
-    retiene_iva = Column(Boolean, default=False)
-    retiene_ica = Column(Boolean, default=False)
-    tarifa_reteica = Column(Numeric(6, 3), nullable=True)  # por mil (ej. 4.140)
-    activo = Column(Boolean, default=True)
-    alegra_id = Column(Integer, nullable=True, index=True)
-    notas = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    retiene_fuente: Mapped[bool] = mapped_column(default=False)
+    retiene_iva: Mapped[bool] = mapped_column(default=False)
+    retiene_ica: Mapped[bool] = mapped_column(default=False)
+    tarifa_reteica: Mapped[Decimal | None] = mapped_column(Numeric(6, 3))  # por mil (ej. 4.140)
+    activo: Mapped[bool] = mapped_column(default=True)
+    alegra_id: Mapped[int | None] = mapped_column(index=True)
+    notas: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
     # Relationships
     ventas = relationship("VentaDocumento", back_populates="cliente")
@@ -129,36 +134,37 @@ class VentaDocumento(Base):
     """Documentos de venta — Cabecera de facturas internas"""
     __tablename__ = "ventas_documentos"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    numero = Column(String(20), unique=True, nullable=False, index=True)  # SOG-V-0001
-    fecha = Column(Date, nullable=False, default=date.today)
-    fecha_vencimiento = Column(Date, nullable=True)
-    cliente_id = Column(Integer, ForeignKey("clientes.id"), nullable=False)
-    centro_costo_id = Column(Integer, ForeignKey("centros_costo.id"), nullable=True)
-    vendedor = Column(String(200), nullable=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    numero: Mapped[str] = mapped_column(String(20), unique=True, index=True)  # SOG-V-0001
+    fecha: Mapped[date] = mapped_column(Date, default=date.today)
+    fecha_vencimiento: Mapped[date | None] = mapped_column(Date)
+    cliente_id: Mapped[int] = mapped_column(ForeignKey("clientes.id"))
+    centro_costo_id: Mapped[int | None] = mapped_column(ForeignKey("centros_costo.id"))
+    vendedor: Mapped[str | None] = mapped_column(String(200))
 
     # Totales
-    subtotal = Column(Numeric(18, 2), default=Decimal("0.00"))
-    descuento_total = Column(Numeric(18, 2), default=Decimal("0.00"))
-    base_gravable = Column(Numeric(18, 2), default=Decimal("0.00"))
-    iva_total = Column(Numeric(18, 2), default=Decimal("0.00"))
-    retefuente = Column(Numeric(18, 2), default=Decimal("0.00"))
-    reteiva = Column(Numeric(18, 2), default=Decimal("0.00"))
-    reteica = Column(Numeric(18, 2), default=Decimal("0.00"))
-    total = Column(Numeric(18, 2), default=Decimal("0.00"))
+    subtotal: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    descuento_total: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    base_gravable: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    iva_total: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    retefuente: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    reteiva: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    reteica: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    total: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
 
     # Estado
-    estado = Column(SAEnum(EstadoVenta), default=EstadoVenta.BORRADOR)
-    estado_pago = Column(SAEnum(EstadoPago), default=EstadoPago.PENDIENTE)
+    estado: Mapped[EstadoVenta] = mapped_column(SAEnum(EstadoVenta), default=EstadoVenta.BORRADOR)
+    estado_pago: Mapped[EstadoPago] = mapped_column(
+        SAEnum(EstadoPago), default=EstadoPago.PENDIENTE)
 
     # Alegra (facturación electrónica)
-    alegra_id = Column(Integer, nullable=True, index=True)
-    alegra_numero = Column(String(50), nullable=True)
-    cufe = Column(String(200), nullable=True)
+    alegra_id: Mapped[int | None] = mapped_column(index=True)
+    alegra_numero: Mapped[str | None] = mapped_column(String(50))
+    cufe: Mapped[str | None] = mapped_column(String(200))
 
-    observaciones = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    observaciones: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
     # Relationships
     cliente = relationship("Cliente", back_populates="ventas")
@@ -173,18 +179,18 @@ class VentaDetalle(Base):
     """Líneas de detalle de cada venta — Partida doble con productos"""
     __tablename__ = "ventas_detalles"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    venta_id = Column(Integer, ForeignKey("ventas_documentos.id"), nullable=False)
-    producto_id = Column(Integer, ForeignKey("productos.id"), nullable=False)
-    cantidad = Column(Numeric(12, 2), nullable=False, default=Decimal("1.00"))
-    precio_unitario = Column(Numeric(18, 2), nullable=False)
-    descuento_porcentaje = Column(Numeric(5, 2), default=Decimal("0.00"))
-    subtotal_linea = Column(Numeric(18, 2), default=Decimal("0.00"))
-    iva_porcentaje = Column(Numeric(5, 2), default=Decimal("19.00"))
-    iva_valor = Column(Numeric(18, 2), default=Decimal("0.00"))
-    total_linea = Column(Numeric(18, 2), default=Decimal("0.00"))
-    notas = Column(String(300), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    venta_id: Mapped[int] = mapped_column(ForeignKey("ventas_documentos.id"))
+    producto_id: Mapped[int] = mapped_column(ForeignKey("productos.id"))
+    cantidad: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("1.00"))
+    precio_unitario: Mapped[Decimal] = mapped_column(Numeric(18, 2))
+    descuento_porcentaje: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=Decimal("0.00"))
+    subtotal_linea: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    iva_porcentaje: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=Decimal("19.00"))
+    iva_valor: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    total_linea: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    notas: Mapped[str | None] = mapped_column(String(300))
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow)
 
     # Relationships
     venta = relationship("VentaDocumento", back_populates="detalles")

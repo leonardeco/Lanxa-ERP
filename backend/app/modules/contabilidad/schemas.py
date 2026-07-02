@@ -26,18 +26,19 @@ class PlanCuentasBase(BaseModel):
 class PlanCuentasCreate(PlanCuentasBase):
     pass
 
+
 class PlanCuentasUpdate(BaseModel):
     nombre: Optional[str] = None
     activo: Optional[bool] = None
     requiere_tercero: Optional[bool] = None
     requiere_centro_costo: Optional[bool] = None
 
+
 class PlanCuentasResponse(PlanCuentasBase):
     id: int
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 # ══════════════════════════════════════════════════════════
@@ -57,6 +58,7 @@ class CentroCostoBase(BaseModel):
 class CentroCostoCreate(CentroCostoBase):
     pass
 
+
 class CentroCostoUpdate(BaseModel):
     nombre: Optional[str] = None
     tipo: Optional[str] = None
@@ -65,12 +67,12 @@ class CentroCostoUpdate(BaseModel):
     activo: Optional[bool] = None
     notas: Optional[str] = None
 
+
 class CentroCostoResponse(CentroCostoBase):
     id: int
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 # ══════════════════════════════════════════════════════════
@@ -89,13 +91,13 @@ class PeriodoContableCreate(BaseModel):
     anio: int
     mes: int
 
+
 class PeriodoContableResponse(PeriodoContableBase):
     id: int
     fecha_cierre: Optional[date] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 # ══════════════════════════════════════════════════════════
@@ -120,8 +122,7 @@ class TerceroResponse(TerceroBase):
     id: int
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 # ══════════════════════════════════════════════════════════
@@ -143,13 +144,13 @@ class ParametroTributarioUpdate(BaseModel):
     notas: Optional[str] = None
     activo: Optional[bool] = None
 
+
 class ParametroTributarioResponse(ParametroTributarioBase):
     id: int
     activo: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 # ══════════════════════════════════════════════════════════
@@ -169,13 +170,13 @@ class ParametroNominaUpdate(BaseModel):
     notas: Optional[str] = None
     activo: Optional[bool] = None
 
+
 class ParametroNominaResponse(ParametroNominaBase):
     id: int
     activo: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 # ══════════════════════════════════════════════════════════
@@ -207,15 +208,18 @@ class CxCCreate(BaseModel):
     fecha_vencimiento: Optional[date] = None
     notas: Optional[str] = None
 
+
 class CxCUpdate(BaseModel):
     nombre_cliente: Optional[str] = None
     marca: Optional[str] = None
     fecha_vencimiento: Optional[date] = None
     notas: Optional[str] = None
 
+
 class AbonoCreate(BaseModel):
     valor: Decimal = Field(gt=0, description="Valor del abono; debe ser mayor que cero")
     notas: Optional[str] = None
+
 
 class CxCResponse(BaseModel):
     id: int
@@ -233,8 +237,8 @@ class CxCResponse(BaseModel):
     notas: Optional[str]
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
+
 
 class CarteraStats(BaseModel):
     total_cxc: int = 0
@@ -259,11 +263,13 @@ class CxPCreate(BaseModel):
     fecha_vencimiento: Optional[date] = None
     notas: Optional[str] = None
 
+
 class CxPUpdate(BaseModel):
     razon_social: Optional[str] = None
     concepto: Optional[str] = None
     fecha_vencimiento: Optional[date] = None
     notas: Optional[str] = None
+
 
 class CxPResponse(BaseModel):
     id: int
@@ -282,8 +288,7 @@ class CxPResponse(BaseModel):
     notas: Optional[str]
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 # ══════════════════════════════════════════════════════════
@@ -304,8 +309,7 @@ class PagoResponse(BaseModel):
     fecha: datetime
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class AbonoCxCResultado(BaseModel):

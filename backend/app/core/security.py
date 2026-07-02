@@ -5,6 +5,7 @@ Super Ozono Global — Funciones criptográficas y JWT
 import hashlib
 import secrets
 from datetime import datetime, timedelta
+from app.core.time import utcnow
 from typing import Any, Union
 from jose import jwt
 from passlib.context import CryptContext
@@ -15,13 +16,13 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def create_access_token(
-    subject: Union[str, Any], expires_delta: timedelta = None
+    subject: Union[str, Any], expires_delta: timedelta | None = None
 ) -> str:
     """Genera un JWT para el usuario logueado."""
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(
+        expire = utcnow() + timedelta(
             hours=settings.ACCESS_TOKEN_EXPIRE_HOURS
         )
     to_encode = {"exp": expire, "sub": str(subject)}
@@ -42,7 +43,7 @@ def hash_refresh_token(raw_token: str) -> str:
 
 
 def refresh_token_expiry() -> datetime:
-    return datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    return utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

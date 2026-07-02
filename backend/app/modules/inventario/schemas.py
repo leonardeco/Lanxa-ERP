@@ -20,7 +20,7 @@ class MovimientoResponse(BaseModel):
     motivo: Optional[str] = None
     usuario_id: Optional[int] = None
     fecha: datetime
-    created_at: datetime
+    created_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 

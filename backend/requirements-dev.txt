@@ -1,0 +1,16 @@
+# Herramientas de desarrollo y QA — instalar sobre requirements.txt:
+#   pip install -r requirements.txt -r requirements-dev.txt
+
+# ── Testing ──────────────────────────────────────────────
+pytest==9.1.1
+pytest-asyncio==1.4.0
+pytest-cov==7.1.0
+
+# ── Análisis estático ────────────────────────────────────
+flake8==7.3.0
+mypy==2.1.0
+autopep8==2.3.2
+
+# ── Stubs de tipos para mypy ─────────────────────────────
+types-passlib==1.7.7.20260211
+types-python-jose==3.5.0.20260408

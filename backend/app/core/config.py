@@ -3,7 +3,7 @@ Super Ozono Global -- ERP Backend Configuration
 """
 
 from decimal import Decimal
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
 
@@ -52,11 +52,10 @@ class Settings(BaseSettings):
     BACKUP_ENCRYPTION_KEY: str = ""
     BACKUP_RETENTION_DAYS: int = 30
 
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
 @lru_cache()
 def get_settings() -> Settings:
-    return Settings()
+    # DATABASE_URL y SECRET_KEY llegan por .env / variables de entorno
+    return Settings()  # type: ignore[call-arg]

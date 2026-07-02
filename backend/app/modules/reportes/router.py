@@ -39,7 +39,8 @@ def _aging_from_rows(items) -> AgingReporte:
     """items: lista de tuplas (id, numero, tercero, nit, saldo, fecha_vencimiento)"""
     hoy = date.today()
     detalle: List[AgingDetalle] = []
-    totales = {b: {"cantidad": 0, "total": Decimal("0")} for b in BUCKET_ORDER}
+    cantidades = {b: 0 for b in BUCKET_ORDER}
+    montos = {b: Decimal("0") for b in BUCKET_ORDER}
     total_pendiente = Decimal("0")
 
     for id_, numero, tercero, nit, saldo, fecha_venc in items:
@@ -50,13 +51,13 @@ def _aging_from_rows(items) -> AgingReporte:
             saldo_pendiente=saldo, dias_vencido=dias, bucket=bucket,
             fecha_vencimiento=fecha_venc,
         ))
-        totales[bucket]["cantidad"] += 1
-        totales[bucket]["total"] += saldo
+        cantidades[bucket] += 1
+        montos[bucket] += saldo
         total_pendiente += saldo
 
     detalle.sort(key=lambda d: d.dias_vencido, reverse=True)
     buckets = [
-        AgingBucket(bucket=b, cantidad=totales[b]["cantidad"], total=totales[b]["total"])
+        AgingBucket(bucket=b, cantidad=cantidades[b], total=montos[b])
         for b in BUCKET_ORDER
     ]
     return AgingReporte(buckets=buckets, detalle=detalle, total_pendiente=total_pendiente)

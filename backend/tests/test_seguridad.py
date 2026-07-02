@@ -85,10 +85,8 @@ async def test_sec_refresh_cookie_es_samesite_strict(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_sec_refresh_token_invalido_da_401(client: AsyncClient):
-    resp = await client.post(
-        "/api/login/refresh-token",
-        cookies={"refresh_token": "token_completamente_falso"},
-    )
+    client.cookies.set("refresh_token", "token_completamente_falso")
+    resp = await client.post("/api/login/refresh-token")
     assert resp.status_code == 401
 
 
@@ -104,10 +102,8 @@ async def test_sec_refresh_token_rotacion_invalida_viejo(client: AsyncClient):
 
     await client.post("/api/login/refresh-token")
 
-    resp = await client.post(
-        "/api/login/refresh-token",
-        cookies={"refresh_token": old_refresh},
-    )
+    client.cookies.set("refresh_token", old_refresh)
+    resp = await client.post("/api/login/refresh-token")
     assert resp.status_code == 401
 
 
@@ -123,10 +119,8 @@ async def test_sec_logout_invalida_refresh_token(client: AsyncClient):
 
     await client.post("/api/login/logout")
 
-    resp = await client.post(
-        "/api/login/refresh-token",
-        cookies={"refresh_token": refresh_cookie},
-    )
+    client.cookies.set("refresh_token", refresh_cookie)
+    resp = await client.post("/api/login/refresh-token")
     assert resp.status_code == 401
 
 

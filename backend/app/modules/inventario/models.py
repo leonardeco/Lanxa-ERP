@@ -6,9 +6,10 @@ o registrado manualmente como ajuste.
 
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import Column, Integer, String, DateTime, Numeric, ForeignKey, Enum as SAEnum
-from sqlalchemy.orm import relationship
+from sqlalchemy import String, DateTime, Numeric, ForeignKey, Enum as SAEnum
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
+from app.core.time import utcnow
 import enum
 
 
@@ -31,24 +32,24 @@ class MovimientoInventario(Base):
     """Kardex — un registro por cada movimiento de stock, con snapshot antes/después."""
     __tablename__ = "movimientos_inventario"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    producto_id = Column(Integer, ForeignKey("productos.id"), nullable=False, index=True)
-    tipo = Column(SAEnum(TipoMovimientoInventario), nullable=False)
-    origen = Column(SAEnum(OrigenMovimiento), nullable=False)
-    cantidad = Column(Numeric(12, 3), nullable=False)
-    stock_antes = Column(Numeric(12, 3), nullable=False)
-    stock_despues = Column(Numeric(12, 3), nullable=False)
-    costo_unitario = Column(Numeric(18, 2), nullable=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    producto_id: Mapped[int] = mapped_column(ForeignKey("productos.id"), index=True)
+    tipo: Mapped[TipoMovimientoInventario] = mapped_column(SAEnum(TipoMovimientoInventario))
+    origen: Mapped[OrigenMovimiento] = mapped_column(SAEnum(OrigenMovimiento))
+    cantidad: Mapped[Decimal] = mapped_column(Numeric(12, 3))
+    stock_antes: Mapped[Decimal] = mapped_column(Numeric(12, 3))
+    stock_despues: Mapped[Decimal] = mapped_column(Numeric(12, 3))
+    costo_unitario: Mapped[Decimal | None] = mapped_column(Numeric(18, 2))
 
     # FK lógicas (sin constraint real) — mismo patrón que CuentaPorPagar.compra_id
-    compra_id = Column(Integer, nullable=True, index=True)
-    compra_detalle_id = Column(Integer, nullable=True)
-    venta_id = Column(Integer, nullable=True, index=True)
-    venta_detalle_id = Column(Integer, nullable=True)
+    compra_id: Mapped[int | None] = mapped_column(index=True)
+    compra_detalle_id: Mapped[int | None] = mapped_column()
+    venta_id: Mapped[int | None] = mapped_column(index=True)
+    venta_detalle_id: Mapped[int | None] = mapped_column()
 
-    motivo = Column(String(300), nullable=True)
-    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
-    fecha = Column(DateTime, default=datetime.utcnow, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    motivo: Mapped[str | None] = mapped_column(String(300))
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
+    fecha: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow)
 
     producto = relationship("Producto")

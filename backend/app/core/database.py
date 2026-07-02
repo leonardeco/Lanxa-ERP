@@ -3,6 +3,9 @@ Super Ozono Global — Database connection (async SQLAlchemy 2.0)
 Soporta PostgreSQL (producción/Docker) y SQLite (desarrollo local)
 """
 
+from collections.abc import AsyncGenerator
+from typing import Any
+
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 from app.core.config import get_settings
@@ -12,7 +15,7 @@ settings = get_settings()
 # ── Configuración de pool según driver ───────────────────
 _is_sqlite = settings.DATABASE_URL.startswith("sqlite")
 
-_engine_kwargs = {
+_engine_kwargs: dict[str, Any] = {
     "echo": settings.DEBUG,
 }
 
@@ -42,7 +45,7 @@ class Base(DeclarativeBase):
     pass
 
 
-async def get_db() -> AsyncSession:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Dependency that yields a database session."""
     async with async_session() as session:
         try:

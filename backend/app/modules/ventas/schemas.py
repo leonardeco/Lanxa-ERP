@@ -60,11 +60,10 @@ class ProductoUpdate(BaseModel):
 
 class ProductoResponse(ProductoBase):
     id: int
-    created_at: datetime
+    created_at: datetime | None = None
     updated_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 # ══════════════════════════════════════════════════════════
@@ -128,11 +127,10 @@ class ClienteUpdate(BaseModel):
 
 class ClienteResponse(ClienteBase):
     id: int
-    created_at: datetime
+    created_at: datetime | None = None
     updated_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 # ══════════════════════════════════════════════════════════
@@ -159,14 +157,13 @@ class VentaDetalleResponse(BaseModel):
     iva_valor: Decimal
     total_linea: Decimal
     notas: Optional[str] = None
-    created_at: datetime
+    created_at: datetime | None = None
 
     # Producto info for display
     producto_nombre: Optional[str] = None
     producto_sku: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 # ══════════════════════════════════════════════════════════
@@ -207,7 +204,7 @@ class VentaResponse(BaseModel):
     estado: str
     estado_pago: str
     observaciones: Optional[str] = None
-    created_at: datetime
+    created_at: datetime | None = None
     updated_at: Optional[datetime] = None
 
     # Related data for display
@@ -215,8 +212,7 @@ class VentaResponse(BaseModel):
     cliente_nit: Optional[str] = None
     detalles: List[VentaDetalleResponse] = []
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 # ══════════════════════════════════════════════════════════

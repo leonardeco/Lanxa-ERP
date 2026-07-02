@@ -26,7 +26,7 @@ def _headers() -> dict:
     }
 
 
-async def alegra_get(path: str, params: dict = None) -> dict:
+async def alegra_get(path: str, params: dict | None = None) -> dict:
     async with httpx.AsyncClient(timeout=15) as client:
         r = await client.get(f"{ALEGRA_BASE}{path}", headers=_headers(), params=params or {})
         r.raise_for_status()

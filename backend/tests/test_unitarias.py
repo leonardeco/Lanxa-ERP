@@ -452,7 +452,7 @@ async def test_auxiliar_no_puede_crear_producto(client: AsyncClient, auth_header
 @pytest.mark.asyncio
 async def test_auxiliar_no_puede_listar_usuarios(client: AsyncClient, auth_headers: dict):
     """Listar usuarios es solo para Admin."""
-    cr = await client.post(
+    await client.post(
         "/api/v1/usuarios",
         json={
             "email": "auxiliar.usr@test.com",

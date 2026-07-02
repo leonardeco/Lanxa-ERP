@@ -91,7 +91,9 @@ async def create_cuenta_puc(body: PlanCuentasCreate, _: AdminOrAdministradoraDep
 
 
 @router.put("/puc/{cuenta_id}", response_model=PlanCuentasResponse)
-async def update_cuenta_puc(cuenta_id: int, body: PlanCuentasUpdate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def update_cuenta_puc(
+    cuenta_id: int, body: PlanCuentasUpdate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+):
     cuenta = await db.get(PlanCuentas, cuenta_id)
     if not cuenta:
         raise HTTPException(404, "Cuenta PUC no encontrada")
@@ -134,7 +136,9 @@ async def create_centro_costo(body: CentroCostoCreate, _: AdminOrAdministradoraD
 
 
 @router.put("/centros-costo/{cc_id}", response_model=CentroCostoResponse)
-async def update_centro_costo(cc_id: int, body: CentroCostoUpdate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def update_centro_costo(
+    cc_id: int, body: CentroCostoUpdate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+):
     cc = await db.get(CentroCosto, cc_id)
     if not cc:
         raise HTTPException(404, "Centro de costo no encontrado")
@@ -226,7 +230,9 @@ async def list_parametros_tributarios(
 
 
 @router.put("/parametros-tributarios/{param_id}", response_model=ParametroTributarioResponse)
-async def update_parametro_tributario(param_id: int, body: ParametroTributarioUpdate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def update_parametro_tributario(
+    param_id: int, body: ParametroTributarioUpdate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+):
     param = await db.get(ParametroTributario, param_id)
     if not param:
         raise HTTPException(404, "Parámetro tributario no encontrado")
@@ -263,7 +269,9 @@ async def list_parametros_nomina(
 
 
 @router.put("/parametros-nomina/{param_id}", response_model=ParametroNominaResponse)
-async def update_parametro_nomina(param_id: int, body: ParametroNominaUpdate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def update_parametro_nomina(
+    param_id: int, body: ParametroNominaUpdate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+):
     param = await db.get(ParametroNomina, param_id)
     if not param:
         raise HTTPException(404, "Parámetro de nómina no encontrado")
@@ -308,7 +316,12 @@ def _enrich_cxc(c: CuentaPorCobrar) -> dict:
 
 def _enrich_cxp(p: CuentaPorPagar) -> dict:
     saldo = (p.valor or Decimal("0")) - (p.abonos or Decimal("0"))
-    return {**p.__dict__, "saldo_pendiente": saldo, "dias_vencido": _dias_vencido(p.fecha_vencimiento, p.estado), "compra_id": p.compra_id}
+    return {
+        **p.__dict__,
+        "saldo_pendiente": saldo,
+        "dias_vencido": _dias_vencido(p.fecha_vencimiento, p.estado),
+        "compra_id": p.compra_id,
+    }
 
 
 # -- Stats globales de cartera ---------------------------------
@@ -388,7 +401,9 @@ async def update_cxc(cxc_id: int, body: CxCUpdate, _: CurrentUser, db: AsyncSess
 
 
 @router.post("/cartera/cxc/{cxc_id}/abonar", response_model=AbonoCxCResultado)
-async def abonar_cxc(cxc_id: int, body: AbonoCreate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def abonar_cxc(
+    cxc_id: int, body: AbonoCreate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+):
     cxc = await db.get(CuentaPorCobrar, cxc_id)
     if not cxc:
         raise HTTPException(404, "CxC no encontrada")
@@ -419,7 +434,10 @@ async def abonar_cxc(cxc_id: int, body: AbonoCreate, current: AdminOrAdministrad
     await db.commit()
     await db.refresh(cxc)
     await db.refresh(pago)
-    return AbonoCxCResultado(documento=_enrich_cxc(cxc), pago=pago)
+    return AbonoCxCResultado(
+        documento=CxCResponse.model_validate(_enrich_cxc(cxc)),
+        pago=PagoResponse.model_validate(pago),
+    )
 
 
 @router.patch("/cartera/cxc/{cxc_id}/anular", response_model=CxCResponse)
@@ -473,7 +491,9 @@ async def update_cxp(cxp_id: int, body: CxPUpdate, _: CurrentUser, db: AsyncSess
 
 
 @router.post("/cartera/cxp/{cxp_id}/abonar", response_model=AbonoCxPResultado)
-async def abonar_cxp(cxp_id: int, body: AbonoCreate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def abonar_cxp(
+    cxp_id: int, body: AbonoCreate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+):
     cxp = await db.get(CuentaPorPagar, cxp_id)
     if not cxp:
         raise HTTPException(404, "CxP no encontrada")
@@ -509,7 +529,10 @@ async def abonar_cxp(cxp_id: int, body: AbonoCreate, current: AdminOrAdministrad
     await db.commit()
     await db.refresh(cxp)
     await db.refresh(pago)
-    return AbonoCxPResultado(documento=_enrich_cxp(cxp), pago=pago)
+    return AbonoCxPResultado(
+        documento=CxPResponse.model_validate(_enrich_cxp(cxp)),
+        pago=PagoResponse.model_validate(pago),
+    )
 
 
 @router.patch("/cartera/cxp/{cxp_id}/anular", response_model=CxPResponse)
