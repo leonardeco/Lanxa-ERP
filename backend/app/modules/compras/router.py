@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
+from app.core.numbering import next_sequential_numero
 from app.api.deps import CurrentUser, AdminOrAdministradoraDep
 
 from .models import Proveedor, CompraDocumento, CompraDetalle
@@ -242,11 +243,8 @@ async def create_compra(
     if not prov:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
 
-    # Auto-number: find max existing number
-    nums_result = await session.execute(select(CompraDocumento.numero))
-    nums = nums_result.scalars().all()
-    max_num = max((int(n.split("-")[-1]) for n in nums), default=0)
-    numero = f"SOG-CP-{max_num + 1:04d}"
+    # Auto-number robusto y basado en MAX del sufijo
+    numero = await next_sequential_numero(session, CompraDocumento.numero, "SOG-CP")
 
     subtotal, desc_total, base_grav, iva_total, lineas = _calc_lineas(data.detalles)
     rete = Decimal(str(data.retefuente))

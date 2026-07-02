@@ -38,8 +38,8 @@ async def registrar_movimiento(
     if not producto:
         raise ValueError(f"Producto {producto_id} no encontrado")
 
-    stock_antes = producto.stock_actual or 0
-    delta = int(round(cantidad))
+    stock_antes = producto.stock_actual if producto.stock_actual is not None else Decimal("0")
+    delta = Decimal(cantidad)  # se conserva la cantidad fraccionaria (sin redondear)
     stock_despues = stock_antes + delta if tipo in _ENTRADAS else stock_antes - delta
 
     producto.stock_actual = stock_despues

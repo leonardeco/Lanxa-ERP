@@ -68,7 +68,7 @@ class Producto(Base):
     precio_venta = Column(Numeric(18, 2), nullable=False, default=Decimal("0.00"))
     precio_costo = Column(Numeric(18, 2), nullable=True, default=Decimal("0.00"))
     tarifa_iva = Column(Numeric(5, 2), default=Decimal("19.00"))  # % IVA (19%, 5%, 0%)
-    stock_actual = Column(Integer, default=0)
+    stock_actual = Column(Numeric(12, 3), default=Decimal("0"))  # admite cantidades fraccionarias (litros/galones)
     stock_minimo = Column(Integer, default=5)
     activo = Column(Boolean, default=True)
     alegra_id = Column(Integer, nullable=True, index=True)
@@ -107,6 +107,11 @@ class Cliente(Base):
     lista_precios = Column(String(50), default="General")  # General, Distribuidor, Mayorista
     cupo_credito = Column(Numeric(18, 2), default=Decimal("0.00"))
     dias_credito = Column(Integer, default=30)
+    # Perfil tributario del comprador — determina qué retenciones practica
+    retiene_fuente = Column(Boolean, default=False)
+    retiene_iva = Column(Boolean, default=False)
+    retiene_ica = Column(Boolean, default=False)
+    tarifa_reteica = Column(Numeric(6, 3), nullable=True)  # por mil (ej. 4.140)
     activo = Column(Boolean, default=True)
     alegra_id = Column(Integer, nullable=True, index=True)
     notas = Column(Text, nullable=True)

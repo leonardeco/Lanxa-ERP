@@ -203,7 +203,7 @@ class CxCCreate(BaseModel):
     cliente_nit: str
     nombre_cliente: str
     marca: Optional[str] = None
-    valor_factura: Decimal
+    valor_factura: Decimal = Field(gt=0)
     fecha_vencimiento: Optional[date] = None
     notas: Optional[str] = None
 
@@ -214,7 +214,7 @@ class CxCUpdate(BaseModel):
     notas: Optional[str] = None
 
 class AbonoCreate(BaseModel):
-    valor: Decimal
+    valor: Decimal = Field(gt=0, description="Valor del abono; debe ser mayor que cero")
     notas: Optional[str] = None
 
 class CxCResponse(BaseModel):
@@ -255,7 +255,7 @@ class CxPCreate(BaseModel):
     proveedor_nit: str
     razon_social: str
     concepto: Optional[str] = None
-    valor: Decimal
+    valor: Decimal = Field(gt=0)
     fecha_vencimiento: Optional[date] = None
     notas: Optional[str] = None
 

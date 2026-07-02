@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from decimal import Decimal
 from datetime import date, datetime
@@ -58,10 +58,10 @@ class ProveedorResponse(ProveedorBase):
 class CompraDetalleInput(BaseModel):
     descripcion: str
     producto_id: Optional[int] = None
-    cantidad: Decimal = Decimal("1")
-    precio_unitario: Decimal
-    descuento_porcentaje: Decimal = Decimal("0")
-    iva_porcentaje: Decimal = Decimal("19")
+    cantidad: Decimal = Field(default=Decimal("1"), gt=0)
+    precio_unitario: Decimal = Field(ge=0)
+    descuento_porcentaje: Decimal = Field(default=Decimal("0"), ge=0, le=100)
+    iva_porcentaje: Decimal = Field(default=Decimal("19"), ge=0, le=100)
 
 
 class CompraDetalleResponse(BaseModel):
@@ -86,9 +86,9 @@ class CompraInput(BaseModel):
     fecha_vencimiento: Optional[date] = None
     proveedor_id: int
     ref_proveedor: Optional[str] = None
-    retefuente: Decimal = Decimal("0")
-    reteiva: Decimal = Decimal("0")
-    reteica: Decimal = Decimal("0")
+    retefuente: Decimal = Field(default=Decimal("0"), ge=0)
+    reteiva: Decimal = Field(default=Decimal("0"), ge=0)
+    reteica: Decimal = Field(default=Decimal("0"), ge=0)
     observaciones: Optional[str] = None
     detalles: List[CompraDetalleInput]
 

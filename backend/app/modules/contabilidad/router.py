@@ -11,6 +11,7 @@ from decimal import Decimal
 
 from app.core.database import get_db
 from app.core.config import get_settings
+from app.core.numbering import next_sequential_numero
 from app.api.deps import CurrentUser, AdminOrAdministradoraDep
 from app.modules.contabilidad.models import (
     PlanCuentas, CentroCosto, PeriodoContable, Tercero,
@@ -297,11 +298,7 @@ def _dias_vencido(fecha_vencimiento, estado: str) -> int:
 
 async def _next_numero_comprobante(db: AsyncSession, prefijo: str) -> str:
     """Numeración secuencial por prefijo: RC-0001 (Recibo de Caja, CxC), CE-0001 (Comprobante de Egreso, CxP)."""
-    nums = (await db.execute(
-        select(Pago.numero_comprobante).where(Pago.numero_comprobante.like(f"{prefijo}-%"))
-    )).scalars().all()
-    max_num = max((int(n.split("-")[-1]) for n in nums), default=0)
-    return f"{prefijo}-{max_num + 1:04d}"
+    return await next_sequential_numero(db, Pago.numero_comprobante, prefijo)
 
 
 def _enrich_cxc(c: CuentaPorCobrar) -> dict:

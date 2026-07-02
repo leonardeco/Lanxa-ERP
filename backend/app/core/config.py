@@ -2,6 +2,7 @@
 Super Ozono Global -- ERP Backend Configuration
 """
 
+from decimal import Decimal
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
@@ -23,6 +24,16 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     APP_NAME: str = "Super Ozono Global ERP"
     APP_VERSION: str = "0.2.0"
+
+    # Retenciones en ventas — VERIFICAR/ACTUALIZAR con el contador cada año.
+    # La aplicabilidad depende del perfil del cliente (flags retiene_*); estos son
+    # los topes/valores base. Las tarifas viven en ParametroTributario.
+    UVT_VALOR: Decimal = Decimal("49799")          # UVT vigente (placeholder — actualizar por año)
+    RETEFUENTE_BASE_UVT: Decimal = Decimal("27")   # tope en UVT para retefuente de compras generales
+
+    # Seed — usuario administrador inicial (override vía .env en producción)
+    SEED_ADMIN_EMAIL: str = "admin@superozonoglobal.com"
+    SEED_ADMIN_PASSWORD: str = "Admin2026!"
 
     # Empresa
     EMPRESA_NIT: str = "901841798-5"

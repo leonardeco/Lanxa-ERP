@@ -415,10 +415,19 @@ async def test_bug010_retefuente_ventas_no_aplica_bajo_umbral(client: AsyncClien
 
 @pytest.mark.asyncio
 async def test_bug010_retefuente_ventas_aplica_sobre_umbral(client: AsyncClient, auth_headers: dict):
-    """Retefuente en ventas debe aplicar si base >= $1.092.000."""
-    cliente = await _crear_cliente(client, auth_headers, "BUG010b-NIT")
-    # 2 unidades × $600.000 = $1.200.000 → sobre el umbral
-    producto = await _crear_producto(client, auth_headers, "BUG010b-P", precio="600000.00")
+    """Retefuente debe aplicar si el cliente es agente retenedor de fuente y la base
+    supera el tope (RETEFUENTE_BASE_UVT × UVT_VALOR = 27 × 49.799 ≈ $1.344.573)."""
+    # Cliente agente retenedor de fuente
+    cli_resp = await client.post(
+        "/api/v1/ventas/clientes",
+        json={"nit_cc": "BUG010b-NIT", "razon_social": "Cliente Retenedor", "retiene_fuente": True},
+        headers=auth_headers,
+    )
+    assert cli_resp.status_code == 201, cli_resp.text
+    cliente = cli_resp.json()
+
+    # 2 × $1.000.000 = $2.000.000 → sobre el tope
+    producto = await _crear_producto(client, auth_headers, "BUG010b-P", precio="1000000.00")
 
     resp = await client.post(
         "/api/v1/ventas/",
@@ -428,7 +437,7 @@ async def test_bug010_retefuente_ventas_aplica_sobre_umbral(client: AsyncClient,
             "detalles": [{
                 "producto_id": producto["id"],
                 "cantidad": "2.00",
-                "precio_unitario": "600000.00",
+                "precio_unitario": "1000000.00",
                 "descuento_porcentaje": "0.00",
                 "iva_porcentaje": "19.00",
             }],
@@ -441,9 +450,8 @@ async def test_bug010_retefuente_ventas_aplica_sobre_umbral(client: AsyncClient,
     base = Decimal(str(venta["base_gravable"]))
     retefuente = Decimal(str(venta["retefuente"]))
 
-    assert base >= Decimal("1092000"), f"La base ({base}) debería superar el umbral para este test"
     assert retefuente > Decimal("0.00"), (
-        f"BUG-010b: No se calculó retefuente sobre base {base} (umbral: $1.092.000)"
+        f"No se calculó retefuente para cliente retenedor sobre base {base}"
     )
     esperado = round(base * Decimal("0.025"), 2)
     assert retefuente == esperado, f"Retefuente incorrecto: {retefuente} ≠ {esperado}"

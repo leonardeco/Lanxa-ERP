@@ -5,12 +5,15 @@ CRUD completo para Productos, Clientes y Documentos de Venta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, extract, desc
+from sqlalchemy import select, func, extract, desc, and_
+from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from decimal import Decimal
 from datetime import date
 
 from app.core.database import get_db
+from app.core.config import get_settings
+from app.core.numbering import next_sequential_numero
 from app.api.deps import CurrentUser, AdminOrAdministradoraDep
 from app.modules.ventas.models import (
     Producto, Cliente, VentaDocumento, VentaDetalle,
@@ -24,8 +27,42 @@ from app.modules.ventas.schemas import (
 )
 from app.modules.inventario.models import TipoMovimientoInventario, OrigenMovimiento
 from app.modules.inventario.service import registrar_movimiento
+from app.modules.contabilidad.models import CuentaPorCobrar, EstadoDocumento, ParametroTributario
 
 router = APIRouter(prefix="/api/v1/ventas", tags=["Ventas & Comercial"])
+settings = get_settings()
+
+# Conceptos de ParametroTributario usados para sugerir retenciones en ventas
+_CONCEPTO_RETEFUENTE = "Retención en la fuente - compras"
+_CONCEPTO_RETEIVA = "ReteIVA"
+
+
+async def _sugerir_retenciones(db: AsyncSession, cliente, base_gravable: Decimal, iva_total: Decimal):
+    """Sugiere (retefuente, reteiva, reteica) según el perfil tributario del cliente
+    y las tarifas vigentes en ParametroTributario. Es solo una sugerencia: el
+    endpoint permite override manual por factura."""
+    rows = (await db.execute(
+        select(ParametroTributario).where(
+            ParametroTributario.concepto.in_([_CONCEPTO_RETEFUENTE, _CONCEPTO_RETEIVA]),
+            ParametroTributario.activo == True,  # noqa: E712
+        )
+    )).scalars().all()
+    rates = {r.concepto: (r.tarifa_valor or Decimal("0")) for r in rows}
+
+    retefuente = Decimal("0.00")
+    reteiva = Decimal("0.00")
+    reteica = Decimal("0.00")
+
+    if getattr(cliente, "retiene_fuente", False):
+        umbral = settings.RETEFUENTE_BASE_UVT * settings.UVT_VALOR
+        if base_gravable >= umbral:
+            retefuente = round(base_gravable * rates.get(_CONCEPTO_RETEFUENTE, Decimal("0")), 2)
+    if getattr(cliente, "retiene_iva", False):
+        reteiva = round(iva_total * rates.get(_CONCEPTO_RETEIVA, Decimal("0")), 2)
+    if getattr(cliente, "retiene_ica", False) and cliente.tarifa_reteica:
+        reteica = round(base_gravable * (cliente.tarifa_reteica / Decimal("1000")), 2)
+
+    return retefuente, reteiva, reteica
 
 
 # ══════════════════════════════════════════════════════════
@@ -34,11 +71,7 @@ router = APIRouter(prefix="/api/v1/ventas", tags=["Ventas & Comercial"])
 
 async def _next_venta_numero(db: AsyncSession) -> str:
     """Genera el siguiente número de venta: SOG-V-0001, SOG-V-0002..."""
-    result = await db.scalar(
-        select(func.count(VentaDocumento.id))
-    )
-    next_num = (result or 0) + 1
-    return f"SOG-V-{next_num:04d}"
+    return await next_sequential_numero(db, VentaDocumento.numero, "SOG-V")
 
 
 def _calcular_detalle(detalle_data) -> dict:
@@ -59,6 +92,61 @@ def _calcular_detalle(detalle_data) -> dict:
         "iva_valor": round(iva_valor, 2),
         "total_linea": round(total, 2),
     }
+
+
+def _build_venta_response(venta: VentaDocumento) -> VentaResponse:
+    """Construye el VentaResponse. Requiere que venta.cliente y venta.detalles
+    (con .producto) estén precargados vía selectinload — sin queries extra."""
+    detalles_resp = [
+        VentaDetalleResponse(
+            id=d.id,
+            producto_id=d.producto_id,
+            cantidad=d.cantidad,
+            precio_unitario=d.precio_unitario,
+            descuento_porcentaje=d.descuento_porcentaje,
+            subtotal_linea=d.subtotal_linea,
+            iva_porcentaje=d.iva_porcentaje,
+            iva_valor=d.iva_valor,
+            total_linea=d.total_linea,
+            notas=d.notas,
+            created_at=d.created_at,
+            producto_nombre=d.producto.nombre if d.producto else None,
+            producto_sku=d.producto.sku if d.producto else None,
+        )
+        for d in venta.detalles
+    ]
+    cliente = venta.cliente
+    return VentaResponse(
+        id=venta.id,
+        numero=venta.numero,
+        fecha=venta.fecha,
+        fecha_vencimiento=venta.fecha_vencimiento,
+        cliente_id=venta.cliente_id,
+        centro_costo_id=venta.centro_costo_id,
+        vendedor=venta.vendedor,
+        subtotal=venta.subtotal,
+        descuento_total=venta.descuento_total,
+        base_gravable=venta.base_gravable,
+        iva_total=venta.iva_total,
+        retefuente=venta.retefuente,
+        reteiva=venta.reteiva,
+        reteica=venta.reteica,
+        total=venta.total,
+        estado=venta.estado.value if hasattr(venta.estado, 'value') else venta.estado,
+        estado_pago=venta.estado_pago.value if hasattr(venta.estado_pago, 'value') else venta.estado_pago,
+        observaciones=venta.observaciones,
+        created_at=venta.created_at,
+        updated_at=venta.updated_at,
+        cliente_razon_social=cliente.razon_social if cliente else None,
+        cliente_nit=cliente.nit_cc if cliente else None,
+        detalles=detalles_resp,
+    )
+
+
+_VENTA_EAGER = (
+    selectinload(VentaDocumento.cliente),
+    selectinload(VentaDocumento.detalles).selectinload(VentaDetalle.producto),
+)
 
 
 # ══════════════════════════════════════════════════════════
@@ -130,7 +218,14 @@ async def get_ventas_dashboard(_: CurrentUser, db: AsyncSession = Depends(get_db
             func.coalesce(func.sum(VentaDetalle.total_linea), 0).label("total"),
         )
         .join(VentaDetalle, VentaDetalle.producto_id == Producto.id, isouter=True)
-        .join(VentaDocumento, VentaDocumento.id == VentaDetalle.venta_id, isouter=True)
+        .join(
+            VentaDocumento,
+            and_(
+                VentaDocumento.id == VentaDetalle.venta_id,
+                VentaDocumento.estado != EstadoVenta.ANULADA,
+            ),
+            isouter=True,
+        )
         .where(Producto.activo == True)  # noqa: E712
         .group_by(Producto.marca)
         .order_by(desc("total"))
@@ -309,127 +404,29 @@ async def list_ventas(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar documentos de venta."""
-    query = select(VentaDocumento).order_by(desc(VentaDocumento.fecha), desc(VentaDocumento.id))
+    query = (
+        select(VentaDocumento)
+        .options(*_VENTA_EAGER)
+        .order_by(desc(VentaDocumento.fecha), desc(VentaDocumento.id))
+    )
     if estado:
         query = query.where(VentaDocumento.estado == estado)
     result = await db.execute(query)
     ventas = result.scalars().all()
 
-    # Enriquecer con datos de cliente y detalles
-    response = []
-    for venta in ventas:
-        cliente = await db.get(Cliente, venta.cliente_id)
-        # Cargar detalles
-        detalles_result = await db.execute(
-            select(VentaDetalle).where(VentaDetalle.venta_id == venta.id)
-        )
-        detalles_raw = detalles_result.scalars().all()
-
-        detalles_resp = []
-        for d in detalles_raw:
-            prod = await db.get(Producto, d.producto_id)
-            detalles_resp.append(VentaDetalleResponse(
-                id=d.id,
-                producto_id=d.producto_id,
-                cantidad=d.cantidad,
-                precio_unitario=d.precio_unitario,
-                descuento_porcentaje=d.descuento_porcentaje,
-                subtotal_linea=d.subtotal_linea,
-                iva_porcentaje=d.iva_porcentaje,
-                iva_valor=d.iva_valor,
-                total_linea=d.total_linea,
-                notas=d.notas,
-                created_at=d.created_at,
-                producto_nombre=prod.nombre if prod else None,
-                producto_sku=prod.sku if prod else None,
-            ))
-
-        response.append(VentaResponse(
-            id=venta.id,
-            numero=venta.numero,
-            fecha=venta.fecha,
-            fecha_vencimiento=venta.fecha_vencimiento,
-            cliente_id=venta.cliente_id,
-            centro_costo_id=venta.centro_costo_id,
-            vendedor=venta.vendedor,
-            subtotal=venta.subtotal,
-            descuento_total=venta.descuento_total,
-            base_gravable=venta.base_gravable,
-            iva_total=venta.iva_total,
-            retefuente=venta.retefuente,
-            reteiva=venta.reteiva,
-            reteica=venta.reteica,
-            total=venta.total,
-            estado=venta.estado.value if hasattr(venta.estado, 'value') else venta.estado,
-            estado_pago=venta.estado_pago.value if hasattr(venta.estado_pago, 'value') else venta.estado_pago,
-            observaciones=venta.observaciones,
-            created_at=venta.created_at,
-            updated_at=venta.updated_at,
-            cliente_razon_social=cliente.razon_social if cliente else None,
-            cliente_nit=cliente.nit_cc if cliente else None,
-            detalles=detalles_resp,
-        ))
-
-    return response
+    return [_build_venta_response(venta) for venta in ventas]
 
 
 @router.get("/{venta_id}", response_model=VentaResponse)
 async def get_venta(venta_id: int, _: CurrentUser, db: AsyncSession = Depends(get_db)):
     """Obtener un documento de venta por ID con detalles."""
-    venta = await db.get(VentaDocumento, venta_id)
+    venta = await db.scalar(
+        select(VentaDocumento).options(*_VENTA_EAGER).where(VentaDocumento.id == venta_id)
+    )
     if not venta:
         raise HTTPException(status_code=404, detail="Venta no encontrada")
 
-    cliente = await db.get(Cliente, venta.cliente_id)
-    detalles_result = await db.execute(
-        select(VentaDetalle).where(VentaDetalle.venta_id == venta.id)
-    )
-    detalles_raw = detalles_result.scalars().all()
-
-    detalles_resp = []
-    for d in detalles_raw:
-        prod = await db.get(Producto, d.producto_id)
-        detalles_resp.append(VentaDetalleResponse(
-            id=d.id,
-            producto_id=d.producto_id,
-            cantidad=d.cantidad,
-            precio_unitario=d.precio_unitario,
-            descuento_porcentaje=d.descuento_porcentaje,
-            subtotal_linea=d.subtotal_linea,
-            iva_porcentaje=d.iva_porcentaje,
-            iva_valor=d.iva_valor,
-            total_linea=d.total_linea,
-            notas=d.notas,
-            created_at=d.created_at,
-            producto_nombre=prod.nombre if prod else None,
-            producto_sku=prod.sku if prod else None,
-        ))
-
-    return VentaResponse(
-        id=venta.id,
-        numero=venta.numero,
-        fecha=venta.fecha,
-        fecha_vencimiento=venta.fecha_vencimiento,
-        cliente_id=venta.cliente_id,
-        centro_costo_id=venta.centro_costo_id,
-        vendedor=venta.vendedor,
-        subtotal=venta.subtotal,
-        descuento_total=venta.descuento_total,
-        base_gravable=venta.base_gravable,
-        iva_total=venta.iva_total,
-        retefuente=venta.retefuente,
-        reteiva=venta.reteiva,
-        reteica=venta.reteica,
-        total=venta.total,
-        estado=venta.estado.value if hasattr(venta.estado, 'value') else venta.estado,
-        estado_pago=venta.estado_pago.value if hasattr(venta.estado_pago, 'value') else venta.estado_pago,
-        observaciones=venta.observaciones,
-        created_at=venta.created_at,
-        updated_at=venta.updated_at,
-        cliente_razon_social=cliente.razon_social if cliente else None,
-        cliente_nit=cliente.nit_cc if cliente else None,
-        detalles=detalles_resp,
-    )
+    return _build_venta_response(venta)
 
 
 @router.post("/", response_model=VentaResponse, status_code=201)
@@ -512,11 +509,15 @@ async def create_venta(data: VentaCreate, _: CurrentUser, db: AsyncSession = Dep
             producto_sku=producto.sku,
         ))
 
-    # Calcular retenciones (ejemplo basado en parámetros tributarios colombianos)
     base_gravable = subtotal_total - descuento_total
-    retefuente = round(base_gravable * Decimal("0.025"), 2) if base_gravable >= Decimal("1092000") else Decimal("0.00")
-    reteiva = round(iva_total * Decimal("0.15"), 2) if iva_total > 0 else Decimal("0.00")
-    total = base_gravable + iva_total - retefuente - reteiva
+
+    # Retenciones: sugerencia según el perfil tributario del cliente + tarifas
+    # vigentes, con override manual por factura (si el payload trae el valor, manda).
+    sug_rf, sug_ri, sug_ic = await _sugerir_retenciones(db, cliente, base_gravable, iva_total)
+    retefuente = data.retefuente if data.retefuente is not None else sug_rf
+    reteiva = data.reteiva if data.reteiva is not None else sug_ri
+    reteica = data.reteica if data.reteica is not None else sug_ic
+    total = base_gravable + iva_total - retefuente - reteiva - reteica
 
     # Actualizar totales de cabecera
     venta.subtotal = round(subtotal_total, 2)
@@ -525,6 +526,7 @@ async def create_venta(data: VentaCreate, _: CurrentUser, db: AsyncSession = Dep
     venta.iva_total = round(iva_total, 2)
     venta.retefuente = retefuente
     venta.reteiva = reteiva
+    venta.reteica = reteica
     venta.total = round(total, 2)
 
     await db.flush()
@@ -566,11 +568,26 @@ async def confirmar_venta(venta_id: int, current: CurrentUser, db: AsyncSession 
     if venta.estado != EstadoVenta.BORRADOR:
         raise HTTPException(status_code=400, detail="Solo se pueden confirmar ventas en estado Borrador")
 
+    # Validar stock disponible ANTES de confirmar y descontar (evita sobreventa)
+    detalles = (await db.execute(select(VentaDetalle).where(VentaDetalle.venta_id == venta.id))).scalars().all()
+    faltantes = []
+    for d in detalles:
+        prod = await db.get(Producto, d.producto_id)
+        requerido = d.cantidad
+        disponible = prod.stock_actual if (prod and prod.stock_actual is not None) else Decimal("0")
+        if disponible < requerido:
+            nombre = prod.nombre if prod else f"Producto {d.producto_id}"
+            faltantes.append(f"{nombre} (disponible: {disponible}, requerido: {requerido})")
+    if faltantes:
+        raise HTTPException(
+            status_code=400,
+            detail="Stock insuficiente para confirmar la venta: " + "; ".join(faltantes),
+        )
+
     venta.estado = EstadoVenta.CONFIRMADA
 
     # Salidas automáticas de inventario por cada línea
-    detalles_result = await db.execute(select(VentaDetalle).where(VentaDetalle.venta_id == venta.id))
-    for d in detalles_result.scalars().all():
+    for d in detalles:
         await registrar_movimiento(
             db,
             producto_id=d.producto_id,
@@ -582,6 +599,24 @@ async def confirmar_venta(venta_id: int, current: CurrentUser, db: AsyncSession 
             venta_id=venta.id,
             venta_detalle_id=d.id,
         )
+
+    # Crear CxC automáticamente (espejo de compras→CxP), si no existe ya una
+    existing_cxc = await db.scalar(
+        select(CuentaPorCobrar).where(CuentaPorCobrar.numero_factura == venta.numero)
+    )
+    if not existing_cxc:
+        cliente = await db.get(Cliente, venta.cliente_id)
+        db.add(CuentaPorCobrar(
+            numero_factura=venta.numero,
+            fecha_emision=venta.fecha,
+            cliente_nit=(cliente.nit_cc if cliente else ""),
+            nombre_cliente=(cliente.razon_social if cliente else None),
+            valor_factura=venta.total,
+            abonos=Decimal("0.00"),
+            fecha_vencimiento=venta.fecha_vencimiento,
+            estado=EstadoDocumento.PENDIENTE,
+            notas=f"Generada automáticamente por venta {venta.numero}",
+        ))
 
     await db.flush()
     await db.refresh(venta)

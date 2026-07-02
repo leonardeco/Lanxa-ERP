@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_serializer
 from typing import Optional, List, Literal
 from decimal import Decimal
 from datetime import datetime
@@ -12,8 +12,8 @@ class MovimientoResponse(BaseModel):
     tipo: str
     origen: str
     cantidad: Decimal
-    stock_antes: int
-    stock_despues: int
+    stock_antes: Decimal
+    stock_despues: Decimal
     costo_unitario: Optional[Decimal] = None
     compra_id: Optional[int] = None
     venta_id: Optional[int] = None
@@ -23,6 +23,11 @@ class MovimientoResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @field_serializer("stock_antes", "stock_despues")
+    def _serialize_stock(self, v: Decimal) -> float:
+        """Snapshots de stock como número JSON (no string) para el frontend."""
+        return float(v)
 
 
 class AjusteInventarioInput(BaseModel):

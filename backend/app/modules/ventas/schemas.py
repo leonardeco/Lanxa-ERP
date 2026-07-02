@@ -2,7 +2,7 @@
 Super Ozono Global — Schemas Pydantic para Ventas & Comercial
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
 from typing import Optional, List
 from datetime import date, datetime
 from decimal import Decimal
@@ -21,14 +21,19 @@ class ProductoBase(BaseModel):
     centro_costo_id: Optional[int] = None
     unidad_medida: str = "Litro"
     contenido_neto: Optional[str] = None
-    precio_venta: Decimal = Decimal("0.00")
-    precio_costo: Optional[Decimal] = Decimal("0.00")
-    tarifa_iva: Decimal = Decimal("19.00")
-    stock_actual: int = 0
+    precio_venta: Decimal = Field(default=Decimal("0.00"), ge=0)
+    precio_costo: Optional[Decimal] = Field(default=Decimal("0.00"), ge=0)
+    tarifa_iva: Decimal = Field(default=Decimal("19.00"), ge=0, le=100)
+    stock_actual: Decimal = Decimal("0")  # admite fraccionarios; se serializa como número
     stock_minimo: int = 5
     activo: bool = True
     registro_ica: Optional[str] = None
     notas: Optional[str] = None
+
+    @field_serializer("stock_actual")
+    def _serialize_stock_actual(self, v: Decimal) -> float:
+        """Emite el stock como número JSON (no string) para no romper el frontend."""
+        return float(v)
 
 
 class ProductoCreate(ProductoBase):
@@ -84,6 +89,11 @@ class ClienteBase(BaseModel):
     lista_precios: str = "General"
     cupo_credito: Decimal = Decimal("0.00")
     dias_credito: int = 30
+    # Perfil tributario del comprador
+    retiene_fuente: bool = False
+    retiene_iva: bool = False
+    retiene_ica: bool = False
+    tarifa_reteica: Optional[Decimal] = None  # por mil (ej. 4.140)
     activo: bool = True
     notas: Optional[str] = None
 
@@ -108,6 +118,10 @@ class ClienteUpdate(BaseModel):
     lista_precios: Optional[str] = None
     cupo_credito: Optional[Decimal] = None
     dias_credito: Optional[int] = None
+    retiene_fuente: Optional[bool] = None
+    retiene_iva: Optional[bool] = None
+    retiene_ica: Optional[bool] = None
+    tarifa_reteica: Optional[Decimal] = None
     activo: Optional[bool] = None
     notas: Optional[str] = None
 
@@ -127,10 +141,10 @@ class ClienteResponse(ClienteBase):
 
 class VentaDetalleCreate(BaseModel):
     producto_id: int
-    cantidad: Decimal = Decimal("1.00")
-    precio_unitario: Decimal
-    descuento_porcentaje: Decimal = Decimal("0.00")
-    iva_porcentaje: Decimal = Decimal("19.00")
+    cantidad: Decimal = Field(default=Decimal("1.00"), gt=0)
+    precio_unitario: Decimal = Field(ge=0)
+    descuento_porcentaje: Decimal = Field(default=Decimal("0.00"), ge=0, le=100)
+    iva_porcentaje: Decimal = Field(default=Decimal("19.00"), ge=0, le=100)
     notas: Optional[str] = None
 
 
@@ -167,6 +181,11 @@ class VentaCreate(BaseModel):
     vendedor: Optional[str] = None
     observaciones: Optional[str] = None
     detalles: List[VentaDetalleCreate] = []
+    # Override manual de retenciones (opcional). Si se omite, se sugieren según
+    # el perfil tributario del cliente y los ParametroTributario vigentes.
+    retefuente: Optional[Decimal] = Field(default=None, ge=0)
+    reteiva: Optional[Decimal] = Field(default=None, ge=0)
+    reteica: Optional[Decimal] = Field(default=None, ge=0)
 
 
 class VentaResponse(BaseModel):

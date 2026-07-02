@@ -183,9 +183,9 @@ async def test_crear_venta_calcula_totales_correctamente(client: AsyncClient, au
     Línea: 2 unidades × $50.000 → subtotal $100.000
     Sin descuento → base_gravable $100.000
     IVA 19% → $19.000
-    Retefuente 2.5% si base >= $1.092.000 → $0 (base < umbral)
-    Reteiva 15% del IVA si IVA > 0 → $2.850
-    Total = $100.000 + $19.000 - $0 - $2.850 = $116.150
+    Cliente por defecto NO es agente retenedor → sin retenciones.
+    Total = $100.000 + $19.000 = $119.000
+    (Las retenciones dependen del perfil del cliente; ver test dedicado.)
     """
     cliente = await _crear_cliente(client, auth_headers, "900000001-1")
     producto = await _crear_producto(client, auth_headers, "VENTA-001")
@@ -195,8 +195,9 @@ async def test_crear_venta_calcula_totales_correctamente(client: AsyncClient, au
     assert Decimal(str(venta["subtotal"])) == Decimal("100000.00")
     assert Decimal(str(venta["iva_total"])) == Decimal("19000.00")
     assert Decimal(str(venta["retefuente"])) == Decimal("0.00")
-    assert Decimal(str(venta["reteiva"])) == Decimal("2850.00")
-    assert Decimal(str(venta["total"])) == Decimal("116150.00")
+    assert Decimal(str(venta["reteiva"])) == Decimal("0.00")
+    assert Decimal(str(venta["reteica"])) == Decimal("0.00")
+    assert Decimal(str(venta["total"])) == Decimal("119000.00")
     assert venta["estado"] == "Borrador"
     assert venta["estado_pago"] == "Pendiente"
 

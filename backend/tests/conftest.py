@@ -3,10 +3,13 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from httpx import AsyncClient, ASGITransport
 
+from decimal import Decimal
+
 from app.main import app
 from app.core.database import Base, get_db
 from app.core.limiter import limiter
 from app.modules.usuarios.models import Usuario
+from app.modules.contabilidad.models import ParametroTributario
 from app.core.security import get_password_hash
 
 limiter.enabled = False
@@ -45,8 +48,13 @@ async def setup_db():
             hashed_password=get_password_hash("testpassword")
         )
         db.add(admin)
+        # Tarifas de retención que el motor de ventas lee (reflejan el seed de producción)
+        db.add(ParametroTributario(concepto="Retención en la fuente - compras",
+                                   tarifa_valor=Decimal("0.02500"), activo=True))
+        db.add(ParametroTributario(concepto="ReteIVA",
+                                   tarifa_valor=Decimal("0.15000"), activo=True))
         await db.commit()
-        
+
     yield
     
     async with engine.begin() as conn:

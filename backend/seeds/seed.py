@@ -21,8 +21,13 @@ from app.modules.ventas.models import (
 )
 from app.modules.usuarios.models import Usuario
 from app.core.security import get_password_hash
+from app.core.config import get_settings
 
 logger = structlog.get_logger()
+settings = get_settings()
+
+# Password de fábrica: si sigue en uso, avisamos para que se cambie en producción.
+_DEFAULT_ADMIN_PASSWORD = "Admin2026!"
 
 
 # ══════════════════════════════════════════════════════════
@@ -270,16 +275,22 @@ async def seed_usuarios(session):
         logger.info("[SKIP] Usuarios ya tienen datos, omitiendo seed")
         return
 
+    if settings.SEED_ADMIN_PASSWORD == _DEFAULT_ADMIN_PASSWORD:
+        logger.warning(
+            "[SEC] El admin se está creando con la contraseña de fábrica. "
+            "Configura SEED_ADMIN_PASSWORD en el .env y cámbiala tras el primer login."
+        )
+
     admin = Usuario(
-        email="admin@superozonoglobal.com",
+        email=settings.SEED_ADMIN_EMAIL,
         nombre_completo="Administrador del Sistema",
-        hashed_password=get_password_hash("Admin2026!"),
+        hashed_password=get_password_hash(settings.SEED_ADMIN_PASSWORD),
         rol="Admin",
         is_active=True
     )
     session.add(admin)
     await session.commit()
-    logger.info("[OK] Usuario administrador creado (admin@superozonoglobal.com)")
+    logger.info(f"[OK] Usuario administrador creado ({settings.SEED_ADMIN_EMAIL})")
 
 
 async def seed_productos(session):

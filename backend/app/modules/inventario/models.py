@@ -36,8 +36,8 @@ class MovimientoInventario(Base):
     tipo = Column(SAEnum(TipoMovimientoInventario), nullable=False)
     origen = Column(SAEnum(OrigenMovimiento), nullable=False)
     cantidad = Column(Numeric(12, 3), nullable=False)
-    stock_antes = Column(Integer, nullable=False)
-    stock_despues = Column(Integer, nullable=False)
+    stock_antes = Column(Numeric(12, 3), nullable=False)
+    stock_despues = Column(Numeric(12, 3), nullable=False)
     costo_unitario = Column(Numeric(18, 2), nullable=True)
 
     # FK lógicas (sin constraint real) — mismo patrón que CuentaPorPagar.compra_id
