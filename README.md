@@ -1,5 +1,7 @@
 # Super Ozono ERP
 
+[![CI](https://github.com/leonardeco/superozono-erp/actions/workflows/ci.yml/badge.svg)](https://github.com/leonardeco/superozono-erp/actions/workflows/ci.yml)
+
 Sistema de gestión empresarial (ERP) desarrollado a medida para **TECNOLOGÍA E INNOVACIÓN SUPER OZONO S.A.S.** — empresa colombiana del sector agroindustrial especializada en biocidas naturales con tecnología de ozono.
 
 > **Stack:** FastAPI · React 19 · TypeScript · SQLAlchemy 2.0 async · PostgreSQL / SQLite · Docker Compose
@@ -246,6 +248,15 @@ El proyecto cuenta con una infraestructura automatizada para asegurar su integri
 - **Pruebas Unitarias y de Integración (Backend)**: Usando `pytest`, `pytest-asyncio` y `httpx`. Las pruebas levantan automáticamente una base de datos `SQLite` en memoria que se crea y destruye limpiamente con cada ejecución, validando el correcto funcionamiento de la API, la inyección de JWT, y los dashboards de módulos como Inventario.
 - **Análisis Estático Continuo (Linter & Type Checking)**: `flake8` y `mypy` se encargan de detectar errores de código, dependencias sin uso, o violaciones lógicas de Python (como `E712`). En el frontend, `ESLint` protege las reglas de hooks de React y la sintaxis de TypeScript.
 
+Las herramientas de QA se instalan aparte de las dependencias de runtime:
+
+```bash
+cd backend
+pip install -r requirements.txt -r requirements-dev.txt
+```
+
+La configuración vive en `backend/.flake8` (línea máx. 120), `backend/mypy.ini` y `backend/pytest.ini`. Además, `.github/workflows/ci.yml` corre lint + tipos + tests (backend) y ESLint + tsc + build (frontend) en cada push/PR a `main`.
+
 **Para correr las pruebas:**
 
 ```bash
@@ -296,7 +307,14 @@ cp .env.produccion .env
 # Edita .env con las credenciales reales
 ```
 
-> **Nota — migraciones de base de datos:** el proyecto no usa Alembic en este momento (aunque está listado en `requirements.txt`). El esquema se crea automáticamente al arrancar el backend vía `Base.metadata.create_all()` (ver `app/main.py`, lifespan). No hay un comando de migración que ejecutar manualmente; para cambios de esquema en producción se recomienda planear la adopción de Alembic.
+> **Nota — migraciones de base de datos:** el proyecto usa **Alembic** (configuración async en `backend/alembic/`, URL tomada del `.env` de la app). Existe una migración *baseline* con el esquema completo; las BD creadas antes de Alembic ya están marcadas con `alembic stamp head`. El `create_all()` del lifespan (`app/main.py`) se mantiene como red de seguridad en desarrollo, pero **todo cambio de esquema nuevo debe hacerse por migración**:
+>
+> ```bash
+> cd backend
+> alembic revision --autogenerate -m "descripcion del cambio"   # generar
+> alembic upgrade head                                          # aplicar
+> alembic check                                                 # verificar que modelos y BD están en sync
+> ```
 
 ### 3. Instalar dependencias backend
 

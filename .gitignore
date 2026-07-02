@@ -6,6 +6,13 @@ backend/venv/
 *.db
 *.sqlite3
 
+# Testing / QA
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
 # Certificados HTTPS (CA local + claves privadas, generados por cada PC servidor)
 certs/
 
