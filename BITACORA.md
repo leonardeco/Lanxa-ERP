@@ -437,3 +437,86 @@ Fix: agregar `EstadoPeriodo` al import existente. Una línea.
 ```
 cd7f708  fix(contabilidad): NameError al crear o togglear un periodo contable
 ```
+
+---
+
+## Sesión — 1 de julio 2026 — Mejoras de frontend + auditoría y fixes de backend
+
+### Resumen
+
+Sesión larga en dos frentes. **Frontend:** refactor de visualización (componentes compartidos, accesibilidad, responsive, skeletons) y exposición del perfil tributario del cliente. **Backend:** revisión profunda tipo "code review senior" de todos los módulos y BD, seguida de la implementación por fases de los hallazgos de mayor valor. Todo quedó **commiteado en local (rama `mejoras-frontend`), sin push** — a pedido del usuario, por ahora solo local. Suite de tests: de 113 → **123/123 en verde**; type-check y build del frontend limpios.
+
+### Lo que se hizo
+
+**1. Frontend — refactor de visualización**
+
+- Se extrajeron `Toast` y `Modal` (duplicados inline en casi todas las vistas) a componentes compartidos y accesibles en `frontend/src/components/`: `Toast.tsx` (`role="status"`, `aria-live`) y `Modal.tsx` (focus-trap, cierre con `Escape`, `role="dialog"`+`aria-modal`, restauración de foco). Adoptados en las 10 vistas; se convirtieron también los modales de formulario (CentrosCosto, Nomina, Puc, Tributarios).
+- **Skeleton loaders**: nuevo `Skeleton.tsx` + CSS shimmer, aplicado en Dashboard (elimina el salto de layout) y en las 5 vistas de lista de contabilidad.
+- **Accesibilidad** (`index.css`): `:focus-visible` global y `@media (prefers-reduced-motion: reduce)`.
+- **Responsive** (`index.css`): breakpoints 1024/768/480, sidebar más angosta, grids apilados, tablas con scroll horizontal, botones full-width en móvil. La sidebar ya tenía toggle de colapso manual.
+- **Estilos inline → utilidades**: `.form-vertical`, `.form-grid-2`, `.form-actions`, `.row-actions`, `.section-label` (25 reemplazos).
+- Fix de bug preexistente `TS2488` (`.filter(Boolean)` no estrecha `null`) en `printFactura.ts`, `printCompra.ts` y `ComprasView.tsx` (2 sitios). Bloqueaba el build.
+
+**2. Backend — revisión profunda (bloque 1: correctitud/robustez)**
+
+- **Validación de entradas** en schemas (ventas/compras/contabilidad): `gt=0` en abonos y valores de CxC/CxP, `gt=0` cantidad, `ge=0` precios, `0–100` en descuentos e IVA. Bloquea abonos negativos, precios negativos y % fuera de rango.
+- **Guard de sobreventa** en `confirmar_venta`: valida stock disponible y devuelve `400` antes de descontar (antes dejaba stock negativo en silencio).
+- **N+1 eliminado** en `list_ventas`/`get_venta` con `selectinload` + helper `_build_venta_response` (601 → ~3 queries con 100 ventas).
+- **Numeración robusta unificada** en nuevo `core/numbering.py` (`MAX` del sufijo + parseo tolerante), reemplaza el `COUNT+1`/`max+1` frágil en ventas, compras y comprobantes RC/CE.
+- **Dashboard**: "ventas por marca" ahora excluye ventas ANULADAS (en el `ON` del LEFT JOIN, sin perder productos sin ventas).
+
+**3. Backend — bloque 2 (features / decisiones)**
+
+- **Admin del seed por env var** (`SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` en `config.py`), con warning si sigue la contraseña de fábrica.
+- **Auto-CxC al confirmar venta** (espejo de compras→CxP), vinculada por `numero_factura`, idempotente.
+- **Stock fraccionario**: `Producto.stock_actual` y los snapshots del kardex (`stock_antes/despues`) migrados a `Numeric(12,3)`; el servicio ya no redondea (`int(round)` eliminado); `field_serializer` mantiene el stock como número en la API para no romper el frontend.
+- **Retenciones en ventas — modelo híbrido** (era hardcodeado 2.5%/15%): perfil tributario del cliente (flags nuevos `retiene_fuente/iva/ica`, `tarifa_reteica`) + tarifas desde `ParametroTributario` + tope en UVT configurable (`UVT_VALOR`, `RETEFUENTE_BASE_UVT`) + **override manual por factura**. `reteica` ya se calcula (antes siempre 0). Helper `_sugerir_retenciones`.
+- **Migración SQLite** `scripts/migrate_cliente_retenciones.py` (idempotente, `ADD COLUMN`) para las columnas nuevas de `clientes` en la BD real. **Ya ejecutada** contra `superozono.db`.
+
+**4. Frontend — flags de retención**
+
+Formulario de Cliente (`VentasView.tsx`) ahora tiene la sección "Perfil tributario" con checkboxes ReteFuente/ReteIVA/ReteICA y el campo Tarifa ReteICA (por mil). Tipo `Cliente` actualizado en `ventasApi.ts`.
+
+**5. Tests**
+
+Nuevo `tests/test_validaciones.py` (10 casos: abono ≤0, venta inválida, sobreventa 400, stock fraccionario, numeración secuencial, auto-CxC, retenciones por perfil, override manual). Se actualizaron 2 tests que codificaban la lógica vieja de retenciones (`test_unitarias`, `test_bugs` BUG-010b) y `conftest.py` siembra las tarifas de retención. **123/123 en verde.**
+
+### Commits de esta sesión (LOCAL — sin push)
+
+```
+944898d  feat(frontend): componentes compartidos, accesibilidad, responsive y flags de retención
+6cafaba  fix(backend): validaciones, integridad de inventario y motor de retenciones
+```
+
+### Cómo correr en local (notas de entorno)
+
+- El `venv` del backend está **roto** (creado en otra máquina, usuario "MI PC"). Esta sesión se corrió con el Python del sistema (`C:\Program Files\Python313`), donde se instaló `uvicorn`. **Pendiente recrear el venv** (`python -m venv venv` + `pip install -r requirements.txt`).
+- Local: backend `python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --ssl-keyfile ../certs/server.key --ssl-certfile ../certs/server.crt`; frontend `npm run dev -- --host 0.0.0.0` (queda en `https://localhost:5173`).
+- Se creó `frontend/.env.local` (ignorado por git) apuntando `VITE_API_URL=https://localhost:8000/api` para desarrollo en esta máquina.
+- Recordatorio: hay que **aceptar el certificado autofirmado del backend** (`https://localhost:8000`) en el navegador, si no el frontend no puede llamar a la API.
+
+### Pendientes / lo que falta (para la próxima sesión)
+
+**Recomendado antes de producción (backend, aplica en local):**
+1. Refresh tokens: el `delete` del token de usuario inactivo se revierte por el rollback del `raise`; los tokens expirados nunca se limpian (tabla crece).
+2. `int(token_data.sub)` en `deps.py` puede dar 500 en vez de 401.
+3. Auto-lockout de Admin: puede cambiarse el rol a sí mismo / dejar el sistema sin admins (falta guard de "último admin").
+4. Enumeración de usuarios: el login da mensajes distintos ("Usuario inactivo" vs credenciales).
+5. Paginación en listados (`list_ventas`, `list_compras`, `productos`) — hoy cargan todo.
+
+**Opcionales / calidad:**
+6. Unificar `estado` Enum vs String (ventas usa `SAEnum`, compras usa string).
+7. `EmailStr` en cliente/proveedor (diferido por acoplamiento Base/Response).
+8. `_enrich_cxc/cxp` usan `{**__dict__}` (frágil).
+9. Alegra: POST donde debería PUT para actualizar (BUG-007 del REPORTE_BUGS.md).
+10. Frontend menor: form de producto usa `parseInt` para stock inicial (no fraccionario); lista/detalle de cliente no muestra los flags de retención (solo el formulario).
+
+**Solo al desplegar al servidor / PostgreSQL (no aplica en local):**
+11. **Alembic** (migraciones) — para aplicar en Postgres los cambios de columnas/tipos hechos en SQLite (stock a Numeric, columnas de retención en clientes).
+12. Locks de concurrencia (`with_for_update`) en abonos y stock — evita lost-update/sobrepago en multi-worker.
+13. `datetime` tz-aware — quitar el deprecation de `utcnow()` (delicado por la comparación del refresh token; requiere `DateTime(timezone=True)`).
+
+**Config / negocio (no es código):**
+14. Confirmar `UVT_VALOR` con el contador (hoy placeholder = 49799, UVT 2025) y **activar los flags `retiene_*`** en los clientes que sean agentes retenedores.
+
+**Nota:** esta sesión NO se pusheó a GitHub. Cuando se decida subir, revisar que `.env.local`, `venv/` y `superozono.db` sigan ignorados (lo están).
