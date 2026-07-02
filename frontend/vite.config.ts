@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import fs from 'node:fs'
@@ -14,4 +15,9 @@ export default defineConfig({
   server: hasCerts
     ? { https: { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) } }
     : undefined,
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: './src/test/setup.ts',
+  },
 })

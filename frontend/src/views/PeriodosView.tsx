@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { contabilidadApi, type Periodo } from '../services/contabilidadApi';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/auth';
 import Toast from '../components/Toast';
 import Skeleton from '../components/Skeleton';
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { usuariosApi, ROLES, type Usuario, type UsuarioCreate, type UsuarioUpdate } from '../services/usuariosApi';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/auth';
 import Toast from '../components/Toast';
 import Modal from '../components/Modal';
 

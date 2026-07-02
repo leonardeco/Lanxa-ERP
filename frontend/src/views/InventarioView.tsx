@@ -5,7 +5,7 @@ import {
   type InventarioDashboard,
 } from '../services/inventarioApi';
 import { ventasApi, type Producto } from '../services/ventasApi';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/auth';
 import Toast from '../components/Toast';
 
 type InventarioTab = 'dashboard' | 'productos' | 'movimientos' | 'ajuste';

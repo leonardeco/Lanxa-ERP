@@ -1,21 +1,26 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import Sidebar from './components/Sidebar'
 import HeaderBar from './components/HeaderBar'
 import StatusBar from './components/StatusBar'
+import ErrorBoundary from './components/ErrorBoundary'
 import DashboardView from './views/DashboardView'
-import PucView from './views/PucView'
-import CentrosCostoView from './views/CentrosCostoView'
-import PeriodosView from './views/PeriodosView'
-import TributariosView from './views/TributariosView'
-import NominaView from './views/NominaView'
-import VentasView from './views/VentasView'
-import UsuariosView from './views/UsuariosView'
-import CarteraView from './views/CarteraView'
-import ComprasView from './views/ComprasView'
-import InventarioView from './views/InventarioView'
-import ReportesView from './views/ReportesView'
 import LoginView from './views/LoginView'
-import { useAuth } from './contexts/AuthContext'
+import { useAuth } from './contexts/auth'
+
+// Vistas con code splitting: cada una baja en su propio chunk al abrirla,
+// en vez de inflar el bundle inicial (Dashboard y Login quedan eager
+// porque son la primera pantalla).
+const PucView = lazy(() => import('./views/PucView'))
+const CentrosCostoView = lazy(() => import('./views/CentrosCostoView'))
+const PeriodosView = lazy(() => import('./views/PeriodosView'))
+const TributariosView = lazy(() => import('./views/TributariosView'))
+const NominaView = lazy(() => import('./views/NominaView'))
+const VentasView = lazy(() => import('./views/VentasView'))
+const UsuariosView = lazy(() => import('./views/UsuariosView'))
+const CarteraView = lazy(() => import('./views/CarteraView'))
+const ComprasView = lazy(() => import('./views/ComprasView'))
+const InventarioView = lazy(() => import('./views/InventarioView'))
+const ReportesView = lazy(() => import('./views/ReportesView'))
 
 export type ViewId =
   | 'dashboard'
@@ -157,7 +162,18 @@ function App() {
           role={activeRole}
         />
         <div className="page-content">
-          {renderView()}
+          <ErrorBoundary>
+            <Suspense
+              fallback={
+                <div className="loading-screen">
+                  <div className="loading-spinner" />
+                  <div className="loading-text">Cargando módulo...</div>
+                </div>
+              }
+            >
+              {renderView()}
+            </Suspense>
+          </ErrorBoundary>
         </div>
         <StatusBar role={activeRole} userName={userName} />
       </div>
