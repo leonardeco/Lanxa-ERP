@@ -1,0 +1,37 @@
+# Normalización de finales de línea — evita el churn CRLF/LF entre PCs.
+# Git guarda LF en el repo; el working tree usa el default del sistema
+# salvo los tipos marcados explícitamente.
+* text=auto
+
+# Código fuente: siempre LF en el repo y en el working tree
+*.py text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.toml text eol=lf
+*.ini text eol=lf
+*.cfg text eol=lf
+.flake8 text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+Dockerfile text eol=lf
+*.sql text eol=lf
+
+# Scripts de Windows: CRLF (cmd.exe los necesita así)
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binarios
+*.ico binary
+*.png binary
+*.jpg binary
+*.db binary
+*.crt binary
+*.key binary
