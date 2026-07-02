@@ -39,6 +39,24 @@ jobs:
           SECRET_KEY: "ci-secret-key-solo-para-tests-0123456789abcdef"
         run: pytest -q --cov=app --cov-report=term-missing:skip-covered
 
+  security:
+    name: Seguridad — auditoría de dependencias
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: pip-audit
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt --desc off
+
   frontend:
     name: Frontend — lint, tipos y build
     runs-on: ubuntu-latest

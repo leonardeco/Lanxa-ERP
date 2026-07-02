@@ -116,7 +116,7 @@ modules/<nombre>/
 
 | Librería | Versión | Uso |
 |----------|---------|-----|
-| FastAPI | 0.115 | Framework web async |
+| FastAPI | 0.139 | Framework web async |
 | SQLAlchemy | 2.0 | ORM async — PostgreSQL y SQLite |
 | Pydantic | 2.11 | Validación y serialización |
 | python-jose | 3.5 | Generación y verificación JWT |
@@ -424,7 +424,7 @@ docker-compose up -d
 | `POSTGRES_PASSWORD` | Docker | Contraseña PostgreSQL |
 | `POSTGRES_DB` | Docker | Nombre de la base de datos |
 | `REDIS_URL` | No | `redis://redis:6379/0` |
-| `ACCESS_TOKEN_EXPIRE_HOURS` | No | Expiración JWT en horas (default: 8) |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | No | Expiración del access token en minutos (default: 15) |
 | `CORS_ORIGINS` | No | Orígenes permitidos separados por coma (default: `http://localhost:5173,http://127.0.0.1:5173`). **En producción nunca usar `*`** — listar explícitamente los orígenes reales |
 | `DEBUG` | No | `true` en desarrollo, `false` en producción |
 | `ALEGRA_EMAIL` | Alegra | Email de la cuenta Alegra |
@@ -542,7 +542,7 @@ Estado real de las prácticas de seguridad del proyecto — qué está implement
 | **Protección contra SQL Injection** | 100% de las consultas usan el ORM de SQLAlchemy (`select()`/queries parametrizadas) — no hay SQL crudo concatenado en el proyecto |
 | **Secretos fuera de código** | Credenciales y `SECRET_KEY` viven en archivos `.env` excluidos de git (`.gitignore`); solo se versionan plantillas (`.env.example`, `.env.produccion`) sin valores reales |
 | **Rate limiting en login** | `slowapi`, 5 intentos/min por IP, storage en memoria (`app/core/limiter.py`) — mitiga fuerza bruta en `POST /api/login/access-token`; responde `429` al superarse |
-| **Refresh tokens con rotación** | Access token bajado a `ACCESS_TOKEN_EXPIRE_HOURS=1`. Refresh token opaco (no JWT) en cookie `HTTPOnly` + `SameSite=Strict`, hash en BD (tabla `refresh_tokens`), rotado en cada uso (`POST /api/login/refresh-token`) y revocable de verdad (`POST /api/login/logout`) — ya no depende solo de borrar el token del navegador |
+| **Refresh tokens con rotación** | Access token bajado a `ACCESS_TOKEN_EXPIRE_MINUTES=15`. Refresh token opaco (no JWT) en cookie `HTTPOnly` + `SameSite=Strict`, hash en BD (tabla `refresh_tokens`), rotado en cada uso (`POST /api/login/refresh-token`) y revocable de verdad (`POST /api/login/logout`) — ya no depende solo de borrar el token del navegador |
 | **Backups automatizados (SQLite)** | `backend/scripts/backup_db.py`, tarea diaria en el Programador de tareas de Windows (`SuperOzonoERP-BackupDB`, 2:00am). Copia consistente vía la API de backup de `sqlite3`, cifrada con Fernet (`cryptography`), retención 30 días. Restauración con `backend/scripts/restore_db.py` (guarda una copia `.bak` antes de sobreescribir) |
 | **HTTPS con CA local** | `nginx.conf` no aplica (es del stack Docker, no del modo `start.bat` real). `uvicorn` y Vite sirven TLS directo con un certificado de servidor firmado por una CA local autofirmada (`backend/scripts/generate_tls_cert.py`, librería `cryptography`) — no hay dominio público, así que Let's Encrypt no es viable. La cookie del refresh token ya va con `Secure=True`. Pendiente manual: instalar `certs/superozono-ca.crt` como confiable en los 4 PCs cliente (ver `DOCUMENTACION.md`, sección 6) |
 | **Reset de contraseña por Admin** | `PUT /api/v1/usuarios/{id}/reset-password` (solo Admin) — un usuario sin acceso ya no depende de conocer su contraseña actual para recuperarla. Sin flujo de email/token: el proyecto no tiene infraestructura de correo, el Admin comunica la contraseña nueva por fuera del sistema |

@@ -79,8 +79,11 @@ app = FastAPI(
         "Módulos: Contabilidad, Ventas, Inventario, RRHH, Plataformas y Reportes."
     ),
     version=settings.APP_VERSION,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    # SEC-001: la documentación interactiva solo se expone en desarrollo.
+    # Con DEBUG=false (producción) /docs, /redoc y /openapi.json devuelven 404.
+    docs_url="/docs" if settings.DEBUG else None,
+    redoc_url="/redoc" if settings.DEBUG else None,
+    openapi_url="/openapi.json" if settings.DEBUG else None,
     lifespan=lifespan,
 )
 
@@ -102,6 +105,38 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ── Security headers ─────────────────────────────────────
+# Middleware ASGI puro (no BaseHTTPMiddleware — ver nota de rate limiting arriba:
+# BaseHTTPMiddleware rompe las escrituras async de SQLAlchemy).
+class SecurityHeadersMiddleware:
+    _HEADERS = [
+        (b"x-content-type-options", b"nosniff"),
+        (b"x-frame-options", b"DENY"),
+        (b"referrer-policy", b"same-origin"),
+        # HSTS solo tiene efecto sobre HTTPS (uvicorn sirve TLS con la CA local)
+        (b"strict-transport-security", b"max-age=31536000; includeSubDomains"),
+    ]
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_con_headers(message):
+            if message["type"] == "http.response.start":
+                message.setdefault("headers", [])
+                message["headers"].extend(self._HEADERS)
+            await send(message)
+
+        await self.app(scope, receive, send_con_headers)
+
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 
 # ── Health Check ─────────────────────────────────────────
@@ -126,15 +161,17 @@ async def health_check():
 
 @app.get("/", tags=["System"])
 async def root():
-    """Root endpoint con información del sistema."""
-    return {
-        "app": settings.APP_NAME,
-        "version": settings.APP_VERSION,
-        "empresa": settings.EMPRESA_RAZON_SOCIAL,
-        "nit": settings.EMPRESA_NIT,
-        "docs": "/docs",
-        "health": "/health",
-    }
+    """Root endpoint. SEC-007: en producción no expone versión ni datos fiscales."""
+    if settings.DEBUG:
+        return {
+            "app": settings.APP_NAME,
+            "version": settings.APP_VERSION,
+            "empresa": settings.EMPRESA_RAZON_SOCIAL,
+            "nit": settings.EMPRESA_NIT,
+            "docs": "/docs",
+            "health": "/health",
+        }
+    return {"status": "online"}
 
 
 # ── Register Routers ─────────────────────────────────────

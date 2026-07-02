@@ -179,7 +179,10 @@ async def toggle_usuario(user_id: int, session: SessionDep, current_user: Curren
 
 
 @router.put("/v1/usuarios/{user_id}/reset-password")
-async def reset_usuario_password(user_id: int, body: UsuarioPasswordReset, session: SessionDep, _: SuperuserDep):
+@limiter.limit("5/minute")
+async def reset_usuario_password(
+    request: Request, user_id: int, body: UsuarioPasswordReset, session: SessionDep, _: SuperuserDep
+):
     """Resetea la contraseña de un usuario sin acceso. Solo Admin."""
     user = await session.get(Usuario, user_id)
     if not user:
@@ -194,7 +197,10 @@ async def reset_usuario_password(user_id: int, body: UsuarioPasswordReset, sessi
 # ── Cambio de contraseña propia (cualquier usuario) ──────
 
 @router.put("/v1/usuarios/me/password")
-async def change_my_password(body: UsuarioPasswordChange, session: SessionDep, current_user: CurrentUser):
+@limiter.limit("10/minute")
+async def change_my_password(
+    request: Request, body: UsuarioPasswordChange, session: SessionDep, current_user: CurrentUser
+):
     if not verify_password(body.current_password, current_user.hashed_password):
         raise HTTPException(400, "Contraseña actual incorrecta")
     if len(body.new_password) < 8:

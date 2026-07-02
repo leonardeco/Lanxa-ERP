@@ -420,3 +420,35 @@ async def test_sec_usuario_inactivo_con_token_valido_rechazado(client: AsyncClie
     # pero get_current_user verifica is_active → debe dar 400
     resp = await client.get("/api/users/me", headers=user_headers)
     assert resp.status_code == 400
+
+
+# ══════════════════════════════════════════════════════════
+# SEC-006 — CORS wildcard bloqueado en producción
+# ══════════════════════════════════════════════════════════
+
+def test_sec_cors_wildcard_rechazado_en_produccion():
+    from pydantic import ValidationError
+    from app.core.config import Settings
+
+    base = {"DATABASE_URL": "sqlite+aiosqlite:///:memory:", "SECRET_KEY": "x" * 64}
+
+    # Con DEBUG=false, '*' debe ser rechazado por el validador
+    with pytest.raises(ValidationError, match="CORS_ORIGINS"):
+        Settings(_env_file=None, DEBUG=False, CORS_ORIGINS="*", **base)
+
+    # En desarrollo (DEBUG=true) se tolera
+    s = Settings(_env_file=None, DEBUG=True, CORS_ORIGINS="*", **base)
+    assert s.CORS_ORIGINS == "*"
+
+    # Orígenes explícitos siempre válidos
+    s = Settings(_env_file=None, DEBUG=False, CORS_ORIGINS="https://192.168.1.10:5173", **base)
+    assert "192.168.1.10" in s.CORS_ORIGINS
+
+
+@pytest.mark.asyncio
+async def test_sec_headers_de_seguridad_presentes(client: AsyncClient):
+    resp = await client.get("/health")
+    assert resp.headers["x-content-type-options"] == "nosniff"
+    assert resp.headers["x-frame-options"] == "DENY"
+    assert resp.headers["referrer-policy"] == "same-origin"
+    assert "max-age=" in resp.headers["strict-transport-security"]

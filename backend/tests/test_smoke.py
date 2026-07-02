@@ -21,17 +21,28 @@ async def test_smoke_health(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_smoke_root(client: AsyncClient):
+    from app.core.config import get_settings
+
     resp = await client.get("/")
     assert resp.status_code == 200
     data = resp.json()
-    assert "version" in data
-    assert "docs" in data
+    if get_settings().DEBUG:
+        assert "version" in data
+        assert "docs" in data
+    else:
+        # SEC-007: en producción no se expone versión, NIT ni razón social
+        assert data == {"status": "online"}
 
 
 @pytest.mark.asyncio
-async def test_smoke_docs_disponibles(client: AsyncClient):
-    resp = await client.get("/docs")
-    assert resp.status_code == 200
+async def test_smoke_docs_segun_debug(client: AsyncClient):
+    """SEC-001: /docs, /redoc y /openapi.json solo existen con DEBUG=true."""
+    from app.core.config import get_settings
+
+    esperado = 200 if get_settings().DEBUG else 404
+    for ruta in ("/docs", "/redoc", "/openapi.json"):
+        resp = await client.get(ruta)
+        assert resp.status_code == esperado, f"{ruta} devolvió {resp.status_code}"
 
 
 # ══════════════════════════════════════════════════════════

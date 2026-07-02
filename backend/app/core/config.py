@@ -3,6 +3,7 @@ Super Ozono Global -- ERP Backend Configuration
 """
 
 from decimal import Decimal
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
@@ -16,7 +17,9 @@ class Settings(BaseSettings):
 
     # Security
     SECRET_KEY: str
-    ACCESS_TOKEN_EXPIRE_HOURS: int = 1
+    # SEC-004: access token de vida corta — la sesión larga la sostiene el
+    # refresh token (rotado, revocable). Antes era ACCESS_TOKEN_EXPIRE_HOURS=1.
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     ALGORITHM: str = "HS256"
 
@@ -53,6 +56,18 @@ class Settings(BaseSettings):
     BACKUP_RETENTION_DAYS: int = 30
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @field_validator("CORS_ORIGINS")
+    @classmethod
+    def _cors_sin_wildcard_en_produccion(cls, v: str, info) -> str:
+        # SEC-006: con credenciales habilitadas, un wildcard permitiría a
+        # cualquier sitio hacer requests autenticados desde el navegador.
+        if not info.data.get("DEBUG", False) and "*" in v:
+            raise ValueError(
+                "CORS_ORIGINS no admite '*' en producción (DEBUG=false) — "
+                "listar los orígenes exactos separados por coma"
+            )
+        return v
 
 
 @lru_cache()

@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from app.api.deps import SessionDep, CurrentUser, AdminDep
 from app.core.config import get_settings
-from app.modules.alegra.client import alegra_get, alegra_post
+from app.modules.alegra.client import alegra_get, alegra_post, alegra_put
 from app.modules.alegra.mappers import cliente_to_alegra, producto_to_alegra, venta_to_alegra, detalle_to_alegra_item
 from app.modules.ventas.models import Cliente, Producto, VentaDocumento, VentaDetalle, EstadoVenta
 from sqlalchemy.orm import selectinload
@@ -71,7 +71,8 @@ async def sync_cliente(cliente_id: int, session: SessionDep, _: CurrentUser):
 
     try:
         if cliente.alegra_id:
-            result = await alegra_post(f"/contacts/{cliente.alegra_id}", payload)
+            # SEC-009: actualizar es PUT — POST a /contacts/{id} puede duplicar
+            result = await alegra_put(f"/contacts/{cliente.alegra_id}", payload)
         else:
             result = await alegra_post("/contacts", payload)
             cliente.alegra_id = result["id"]
@@ -100,7 +101,8 @@ async def sync_producto(producto_id: int, session: SessionDep, _: CurrentUser, i
 
     try:
         if producto.alegra_id:
-            result = await alegra_post(f"/items/{producto.alegra_id}", payload)
+            # SEC-009: actualizar es PUT — POST a /items/{id} puede duplicar
+            result = await alegra_put(f"/items/{producto.alegra_id}", payload)
         else:
             result = await alegra_post("/items", payload)
             producto.alegra_id = result["id"]

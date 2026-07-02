@@ -263,3 +263,31 @@ else:
 - [ ] Agregar rate limiting en endpoints de cambio de contraseña
 - [ ] Revisar API de Alegra y usar PUT para actualizar contactos/productos
 - [ ] Reemplazar `datetime.utcnow()` por `datetime.now(timezone.utc)` en todo el codebase
+
+---
+
+## Actualización — 2026-07-02
+
+**Auditor:** Claude Fable 5 · **Método:** pip-audit + npm audit + revisión de código
+
+### Resuelto en esta fecha
+
+| Hallazgo | Fix |
+|---|---|
+| **14 CVEs en dependencias** (python-multipart 0.0.20 ×6, starlette 0.46.2 ×8) | `python-multipart==0.0.31`, `fastapi==0.139.0` + `starlette==1.3.1` — pip-audit ahora reporta 0 vulnerabilidades |
+| **SEC-001** — Swagger expuesto en producción | `/docs`, `/redoc` y `/openapi.json` devuelven 404 con `DEBUG=false` (`app/main.py`) |
+| **SEC-003** — `datetime.utcnow()` deprecado | Helper `utcnow()` naive-UTC en `app/core/time.py`, aplicado en todo el codebase |
+| **SEC-004** — Access token válido 1h tras logout | `ACCESS_TOKEN_EXPIRE_MINUTES=15` (nueva variable, reemplaza `ACCESS_TOKEN_EXPIRE_HOURS`) |
+| **SEC-005** — Sin rate limit en cambio de contraseña | `@limiter.limit` en `reset-password` (5/min) y `me/password` (10/min) |
+| **SEC-006** — CORS `*` posible en producción | Validador en `Settings` rechaza `*` con `DEBUG=false` (test incluido) |
+| **SEC-007** — Versión y NIT expuestos en `/` | Con `DEBUG=false` el root devuelve solo `{"status": "online"}` |
+| **SEC-008** — Cifrado de backups opcional | Ya estaba resuelto: `backup_db.py` aborta sin `BACKUP_ENCRYPTION_KEY` |
+| **SEC-009** — POST en updates de Alegra | `alegra_put()` para `/contacts/{id}` y `/items/{id}` |
+| **Nuevo** — Sin headers de seguridad HTTP | Middleware ASGI puro: `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`, HSTS (test incluido) |
+| **Nuevo** — Sin auditoría continua de dependencias | Job `security` en CI corre `pip-audit` en cada push/PR; `npm audit` reporta 0 vulnerabilidades |
+
+### Pendiente (aceptado por contexto LAN)
+
+- **SEC-002** — Rotación documentada del token de Alegra: pendiente definir procedimiento con la empresa
+- Access token en `localStorage` (exposición ante XSS): mitigado por refresh token en cookie HttpOnly y vida de 15 min; reevaluar si el ERP sale de la LAN
+- Blacklist de JTI en Redis para revocación inmediata de access tokens: innecesario con vida de 15 min en LAN cerrada
