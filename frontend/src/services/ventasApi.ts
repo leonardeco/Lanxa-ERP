@@ -52,6 +52,11 @@ export interface Cliente {
   lista_precios: string;
   cupo_credito: number;
   dias_credito: number;
+  // Perfil tributario del comprador — qué retenciones practica
+  retiene_fuente: boolean;
+  retiene_iva: boolean;
+  retiene_ica: boolean;
+  tarifa_reteica?: number | null;
   activo: boolean;
   notas?: string;
   created_at: string;

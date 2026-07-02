@@ -1,21 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { contabilidadApi, type CuentaPUC } from '../services/contabilidadApi';
 import { useAuth } from '../contexts/AuthContext';
+import Toast from '../components/Toast';
+import Modal from '../components/Modal';
+import Skeleton from '../components/Skeleton';
 
 const CLASE_COLORS: Record<string, string> = {
   Activo: 'green', Pasivo: 'blue', Patrimonio: 'purple',
   Ingreso: 'amber', Gasto: 'red', Costo: 'cyan',
 };
-
-function Toast({ message, type, onClose }: { message: string; type: 'success' | 'error'; onClose: () => void }) {
-  useEffect(() => { const t = setTimeout(onClose, 3500); return () => clearTimeout(t); }, [onClose]);
-  return (
-    <div className={`toast toast-${type} fade-in`}>
-      <span>{type === 'success' ? '✅' : '❌'}</span><span>{message}</span>
-      <button className="toast-close" onClick={onClose}>×</button>
-    </div>
-  );
-}
 
 const CLASES = ['Activo', 'Pasivo', 'Patrimonio', 'Ingreso', 'Gasto', 'Costo'];
 const NATURALEZAS = ['Débito', 'Crédito'];
@@ -55,14 +48,8 @@ function CuentaModal({ cuenta, onSave, onClose }: {
   };
 
   return (
-    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal-card fade-in">
-        <div className="modal-header">
-          <h3>{isEdit ? 'Editar cuenta PUC' : 'Nueva cuenta PUC'}</h3>
-          <button className="modal-close" onClick={onClose}>×</button>
-        </div>
-        <div className="modal-body">
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <Modal title={isEdit ? 'Editar cuenta PUC' : 'Nueva cuenta PUC'} onClose={onClose}>
+          <form onSubmit={handleSubmit} className="form-vertical">
             {!isEdit && (
               <div className="form-group">
                 <label className="form-label">Código PUC *</label>
@@ -81,7 +68,7 @@ function CuentaModal({ cuenta, onSave, onClose }: {
             </div>
             {!isEdit && (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="form-grid-2">
                   <div className="form-group">
                     <label className="form-label">Clase</label>
                     <select className="form-input" value={clase} onChange={e => setClase(e.target.value)}>
@@ -114,14 +101,12 @@ function CuentaModal({ cuenta, onSave, onClose }: {
               </label>
             </div>
             {error && <div className="form-error">{error}</div>}
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <div className="form-actions">
               <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancelar</button>
               <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</button>
             </div>
           </form>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -177,7 +162,7 @@ export default function PucView() {
 
   const modalCuenta = modal === 'new' ? {} : (modal as Partial<CuentaPUC> | null);
 
-  if (loading) return <div className="loading-screen" style={{ minHeight: 200 }}><div className="loading-spinner" /></div>;
+  if (loading) return <div className="table-container" aria-busy="true" style={{ padding: 16 }}><Skeleton variant="row" count={8} /></div>;
 
   return (
     <div className="fade-in">
@@ -239,7 +224,7 @@ export default function PucView() {
                   </td>
                   {canEdit && (
                     <td>
-                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                      <div className="row-actions">
                         <button className="btn btn-ghost" style={{ fontSize: '0.75rem', padding: '3px 8px' }} onClick={() => setModal(c)}>✏️</button>
                         <button className={`btn ${c.activo ? 'btn-ghost' : 'btn-primary'}`} style={{ fontSize: '0.75rem', padding: '3px 8px' }} onClick={() => handleToggle(c)}>
                           {c.activo ? '🚫' : '✅'}

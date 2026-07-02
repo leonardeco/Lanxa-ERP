@@ -8,6 +8,8 @@ import {
 } from '../services/comprasApi';
 import { ventasApi, type Producto } from '../services/ventasApi';
 import { printCompra } from '../utils/printCompra';
+import Toast from '../components/Toast';
+import Modal from '../components/Modal';
 
 type ComprasTab = 'dashboard' | 'proveedores' | 'compras' | 'nueva';
 
@@ -26,43 +28,6 @@ const ESTADO_PAGO_COLOR: Record<string, string> = {
 };
 
 const IVA_OPTIONS = [0, 5, 19];
-
-// ══════════════════════════════════════════════════════════
-// TOAST
-// ══════════════════════════════════════════════════════════
-
-function Toast({ message, type, onClose }: { message: string; type: 'success' | 'error'; onClose: () => void }) {
-  useEffect(() => {
-    const timer = setTimeout(onClose, 3500);
-    return () => clearTimeout(timer);
-  }, [onClose]);
-
-  return (
-    <div className={`toast toast-${type} fade-in`}>
-      <span>{type === 'success' ? '✅' : '❌'}</span>
-      <span>{message}</span>
-      <button className="toast-close" onClick={onClose}>×</button>
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════
-// MODAL
-// ══════════════════════════════════════════════════════════
-
-function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
-  return (
-    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={`modal-card fade-in ${wide ? 'modal-wide' : ''}`}>
-        <div className="modal-header">
-          <h3>{title}</h3>
-          <button className="modal-close" onClick={onClose}>×</button>
-        </div>
-        <div className="modal-body">{children}</div>
-      </div>
-    </div>
-  );
-}
 
 // ══════════════════════════════════════════════════════════
 // DASHBOARD TAB
@@ -540,7 +505,7 @@ function ComprasListTab({
                     Number(selected.retefuente) > 0 ? ['ReteFuente', -Number(selected.retefuente)] : null,
                     Number(selected.reteiva) > 0 ? ['ReteIVA', -Number(selected.reteiva)] : null,
                     Number(selected.reteica) > 0 ? ['ReteICA', -Number(selected.reteica)] : null,
-                  ].filter(Boolean).map(([label, val], i) => (
+                  ].filter((row): row is (string | number)[] => row !== null).map(([label, val], i) => (
                     <tr key={i}>
                       <td style={{ padding: '3px 12px', color: '#666', fontSize: 12 }}>{label as string}</td>
                       <td style={{ padding: '3px 12px', textAlign: 'right', fontFamily: 'monospace' }}>{COP(val as number)}</td>
@@ -826,7 +791,7 @@ function NuevaCompraTab({
                   Number(form.retefuente) > 0 ? ['ReteFuente', -Number(form.retefuente)] : null,
                   Number(form.reteiva) > 0 ? ['ReteIVA', -Number(form.reteiva)] : null,
                   Number(form.reteica) > 0 ? ['ReteICA', -Number(form.reteica)] : null,
-                ].filter(Boolean).map(([label, val], i) => (
+                ].filter((row): row is (string | number)[] => row !== null).map(([label, val], i) => (
                   <tr key={i} style={{ borderBottom: '1px solid #f0f0f0' }}>
                     <td style={{ padding: '4px 12px', color: '#666', fontSize: 12 }}>{label as string}</td>
                     <td style={{ padding: '4px 12px', textAlign: 'right', fontFamily: 'monospace', fontSize: 12 }}>{COP(val as number)}</td>

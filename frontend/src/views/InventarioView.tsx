@@ -6,6 +6,7 @@ import {
 } from '../services/inventarioApi';
 import { ventasApi, type Producto } from '../services/ventasApi';
 import { useAuth } from '../contexts/AuthContext';
+import Toast from '../components/Toast';
 
 type InventarioTab = 'dashboard' | 'productos' | 'movimientos' | 'ajuste';
 
@@ -19,24 +20,6 @@ const TIPO_COLOR: Record<string, string> = {
   'Ajuste negativo': '#f59e0b',
 };
 
-// ══════════════════════════════════════════════════════════
-// TOAST / MODAL
-// ══════════════════════════════════════════════════════════
-
-function Toast({ message, type, onClose }: { message: string; type: 'success' | 'error'; onClose: () => void }) {
-  useEffect(() => {
-    const timer = setTimeout(onClose, 3500);
-    return () => clearTimeout(timer);
-  }, [onClose]);
-
-  return (
-    <div className={`toast toast-${type} fade-in`}>
-      <span>{type === 'success' ? '✅' : '❌'}</span>
-      <span>{message}</span>
-      <button className="toast-close" onClick={onClose}>×</button>
-    </div>
-  );
-}
 
 // ══════════════════════════════════════════════════════════
 // DASHBOARD TAB

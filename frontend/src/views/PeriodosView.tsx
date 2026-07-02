@@ -1,19 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { contabilidadApi, type Periodo } from '../services/contabilidadApi';
 import { useAuth } from '../contexts/AuthContext';
+import Toast from '../components/Toast';
+import Skeleton from '../components/Skeleton';
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-
-function Toast({ message, type, onClose }: { message: string; type: 'success' | 'error'; onClose: () => void }) {
-  useEffect(() => { const t = setTimeout(onClose, 3500); return () => clearTimeout(t); }, [onClose]);
-  return (
-    <div className={`toast toast-${type} fade-in`}>
-      <span>{type === 'success' ? '✅' : '❌'}</span><span>{message}</span>
-      <button className="toast-close" onClick={onClose}>×</button>
-    </div>
-  );
-}
 
 export default function PeriodosView() {
   const { user } = useAuth();
@@ -74,7 +66,7 @@ export default function PeriodosView() {
     return acc;
   }, {});
 
-  if (loading) return <div className="loading-screen" style={{ minHeight: 200 }}><div className="loading-spinner" /></div>;
+  if (loading) return <div className="table-container" aria-busy="true" style={{ padding: 16 }}><Skeleton variant="row" count={8} /></div>;
 
   return (
     <div className="fade-in">

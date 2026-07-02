@@ -13,6 +13,8 @@ import {
   type VentaDetalleInput,
 } from '../services/ventasApi';
 import { printFactura } from '../utils/printFactura';
+import Toast from '../components/Toast';
+import Modal from '../components/Modal';
 
 type VentasTab = 'dashboard' | 'productos' | 'clientes' | 'facturas';
 
@@ -30,45 +32,6 @@ const MARCA_COLORS: Record<string, string> = {
   'Ozono Evolution': '#a78bfa', 'Agro Vital': '#22d3ee', 'Agro Fusion': '#6ee7b7',
   'Hiper Ozono': '#3b82f6', 'Ozono Pro': '#f59e0b', Ozomax: '#f87171', Biozono: '#8b5cf6',
 };
-
-// ══════════════════════════════════════════════════════════
-// TOAST NOTIFICATION
-// ══════════════════════════════════════════════════════════
-
-function Toast({ message, type, onClose }: { message: string; type: 'success' | 'error'; onClose: () => void }) {
-  useEffect(() => {
-    const timer = setTimeout(onClose, 3500);
-    return () => clearTimeout(timer);
-  }, [onClose]);
-
-  return (
-    <div className={`toast toast-${type} fade-in`}>
-      <span>{type === 'success' ? '✅' : '❌'}</span>
-      <span>{message}</span>
-      <button className="toast-close" onClick={onClose}>×</button>
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════
-// MODAL WRAPPER
-// ══════════════════════════════════════════════════════════
-
-function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
-  return (
-    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={`modal-card fade-in ${wide ? 'modal-wide' : ''}`}>
-        <div className="modal-header">
-          <h3>{title}</h3>
-          <button className="modal-close" onClick={onClose}>×</button>
-        </div>
-        <div className="modal-body">
-          {children}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ══════════════════════════════════════════════════════════
 // VENTAS DASHBOARD TAB
@@ -590,6 +553,10 @@ function ClienteFormModal({ cliente, onSave, onClose }: {
     lista_precios: cliente?.lista_precios || 'General',
     cupo_credito: cliente?.cupo_credito?.toString() || '0',
     dias_credito: cliente?.dias_credito?.toString() || '30',
+    retiene_fuente: cliente?.retiene_fuente ?? false,
+    retiene_iva: cliente?.retiene_iva ?? false,
+    retiene_ica: cliente?.retiene_ica ?? false,
+    tarifa_reteica: cliente?.tarifa_reteica != null ? String(cliente.tarifa_reteica) : '',
     notas: cliente?.notas || '',
   });
 
@@ -599,11 +566,15 @@ function ClienteFormModal({ cliente, onSave, onClose }: {
       ...form,
       cupo_credito: parseFloat(form.cupo_credito) || 0,
       dias_credito: parseInt(form.dias_credito) || 30,
+      tarifa_reteica: form.retiene_ica && form.tarifa_reteica ? parseFloat(form.tarifa_reteica) : null,
     });
   };
 
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm(prev => ({ ...prev, [field]: e.target.value }));
+
+  const setCheck = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm(prev => ({ ...prev, [field]: e.target.checked }));
 
   return (
     <Modal title={cliente ? 'Editar Cliente' : 'Nuevo Cliente'} onClose={onClose} wide>
@@ -704,6 +675,34 @@ function ClienteFormModal({ cliente, onSave, onClose }: {
           <div className="form-group">
             <label>Días Crédito</label>
             <input type="number" value={form.dias_credito} onChange={set('dias_credito')} min="0" />
+          </div>
+        </div>
+
+        <div className="form-group" style={{ border: '1px solid var(--neutral-800)', borderRadius: 'var(--radius-md)', padding: 14 }}>
+          <label style={{ marginBottom: 8 }}>Perfil tributario — retenciones que practica el cliente</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 400 }}>
+              <input type="checkbox" checked={form.retiene_fuente} onChange={setCheck('retiene_fuente')} />
+              <span>Practica ReteFuente</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 400 }}>
+              <input type="checkbox" checked={form.retiene_iva} onChange={setCheck('retiene_iva')} />
+              <span>Practica ReteIVA</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 400 }}>
+              <input type="checkbox" checked={form.retiene_ica} onChange={setCheck('retiene_ica')} />
+              <span>Practica ReteICA</span>
+            </label>
+          </div>
+          {form.retiene_ica && (
+            <div className="form-group" style={{ marginTop: 12, maxWidth: 220 }}>
+              <label>Tarifa ReteICA (por mil)</label>
+              <input type="number" value={form.tarifa_reteica} onChange={set('tarifa_reteica')}
+                min="0" step="0.001" placeholder="Ej: 4.140" />
+            </div>
+          )}
+          <div style={{ fontSize: '0.72rem', color: 'var(--neutral-500)', marginTop: 8 }}>
+            Estos indicadores determinan qué retenciones se sugieren automáticamente al facturarle. Puedes ajustarlas manualmente en cada venta.
           </div>
         </div>
 

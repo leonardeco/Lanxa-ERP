@@ -4,7 +4,7 @@
    Desktop App Feel — Professional Grade
    ══════════════════════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+/* Fuentes (Inter + JetBrains Mono) cargadas en index.html para no bloquear el render */
 
 :root {
   /* ── Brand Colors (from superozonoglobal.com) ──────── */
@@ -1874,4 +1874,147 @@ body {
 .login-button:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+/* ══════════════════════════════════════════════════════════
+   UTILIDADES DE LAYOUT — reemplazan estilos inline repetidos
+   ══════════════════════════════════════════════════════════ */
+
+/* Formulario vertical (usado dentro de los modales) */
+.form-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Grid de 2 columnas para pares de campos */
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* Pie de formulario: botones alineados a la derecha */
+.form-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* Acciones compactas en filas de tabla (editar / toggle) */
+.row-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+/* Etiqueta de sección (mayúsculas, tenue) */
+.section-label {
+  font-size: 0.7rem;
+  color: var(--neutral-500);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+
+/* ══════════════════════════════════════════════════════════
+   SKELETON LOADERS
+   ══════════════════════════════════════════════════════════ */
+
+.skeleton {
+  display: block;
+  background: linear-gradient(
+    90deg,
+    var(--neutral-850) 25%,
+    var(--neutral-800) 37%,
+    var(--neutral-850) 63%
+  );
+  background-size: 400% 100%;
+  border-radius: var(--radius-sm);
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+.skeleton-text { height: 0.8rem; margin: 5px 0; }
+.skeleton-card { height: 104px; border-radius: var(--radius-lg); }
+.skeleton-row { height: 44px; margin-bottom: 8px; border-radius: var(--radius-md); }
+
+/* ══════════════════════════════════════════════════════════
+   ACCESIBILIDAD — Foco por teclado y movimiento reducido
+   ══════════════════════════════════════════════════════════ */
+
+/* Anillo de foco visible SOLO para navegación por teclado (no en clics de mouse).
+   Cubre botones, enlaces, ítems de sidebar, tabs y demás elementos interactivos. */
+:focus-visible {
+  outline: 2px solid var(--oz-green-400);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Los inputs ya resaltan el foco con su propio box-shadow: evitamos el doble anillo */
+.form-group input:focus-visible,
+.form-group select:focus-visible,
+.form-group textarea:focus-visible,
+.form-search:focus-visible,
+.form-select-sm:focus-visible,
+.role-selector select:focus-visible,
+.venta-linea select:focus-visible,
+.venta-linea input:focus-visible,
+.login-form .form-group input:focus-visible {
+  outline: none;
+}
+
+/* Respetar la preferencia del sistema de "reducir movimiento":
+   desactiva animaciones (fade-in, float, pulse, spin) y transiciones largas. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   RESPONSIVE — breakpoints para portátiles y ventanas chicas
+   (La sidebar ya tiene su propio toggle de colapso manual ◂/▸)
+   ══════════════════════════════════════════════════════════ */
+
+/* Portátiles y ventanas medianas */
+@media (max-width: 1024px) {
+  :root { --sidebar-width: 210px; }
+  .page-content { padding: 14px; }
+  .charts-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 10px; }
+}
+
+/* Tablets / ventanas angostas */
+@media (max-width: 768px) {
+  :root { --sidebar-width: 180px; }
+  .page-content { padding: 10px; }
+  .header-bar { padding: 0 12px; }
+
+  /* Grids apilados */
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .form-grid-2 { grid-template-columns: 1fr; }
+
+  /* Tablas: permitir scroll horizontal en vez de recortar contenido ancho */
+  .table-container { overflow-x: auto; }
+
+  /* Cabeceras de tabla que puedan envolver sus acciones */
+  .table-header { flex-wrap: wrap; gap: 8px; }
+}
+
+/* Pantallas muy chicas */
+@media (max-width: 480px) {
+  html { font-size: 13px; }
+  .stats-grid { grid-template-columns: 1fr; }
+  .form-actions { flex-direction: column-reverse; }
+  .form-actions .btn { width: 100%; }
 }

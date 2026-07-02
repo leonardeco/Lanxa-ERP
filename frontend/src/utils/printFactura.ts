@@ -32,7 +32,7 @@ export function printFactura(venta: Venta) {
     Number(venta.retefuente) > 0 ? ['Retención en la Fuente', -Number(venta.retefuente)] : null,
     Number(venta.reteiva) > 0 ? ['ReteIVA', -Number(venta.reteiva)] : null,
     Number(venta.reteica) > 0 ? ['ReteICA', -Number(venta.reteica)] : null,
-  ].filter(Boolean).map(([label, val]) =>
+  ].filter((row): row is (string | number)[] => row !== null).map(([label, val]) =>
     `<tr><td>${label}</td><td class="num">${COP(val as number)}</td></tr>`
   ).join('');
 

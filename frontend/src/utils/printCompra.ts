@@ -31,7 +31,7 @@ export function printCompra(compra: Compra) {
     Number(compra.retefuente) > 0 ? ['ReteFuente (aplicada)', -Number(compra.retefuente)] : null,
     Number(compra.reteiva) > 0 ? ['ReteIVA (aplicada)', -Number(compra.reteiva)] : null,
     Number(compra.reteica) > 0 ? ['ReteICA (aplicada)', -Number(compra.reteica)] : null,
-  ].filter(Boolean).map(([label, val]) =>
+  ].filter((row): row is (string | number)[] => row !== null).map(([label, val]) =>
     `<tr><td>${label}</td><td class="num">${COP(val as number)}</td></tr>`
   ).join('');
 

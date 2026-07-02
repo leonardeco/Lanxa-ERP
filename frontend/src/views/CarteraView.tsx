@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { carteraApi, type CxC, type CxP, type CarteraStats, type Pago } from '../services/carteraApi';
 import { printComprobante } from '../utils/printComprobante';
+import Toast from '../components/Toast';
+import Modal from '../components/Modal';
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -24,35 +26,6 @@ function estadoBadge(estado: string, dias: number) {
   if (estado === 'Parcial') return <span className="badge blue">Parcial</span>;
   if (dias > 0) return <span className="badge red">Vencida {dias}d</span>;
   return <span className="badge amber">Pendiente</span>;
-}
-
-// ── Toast ────────────────────────────────────────────────
-
-function Toast({ message, type, onClose }: { message: string; type: 'success' | 'error'; onClose: () => void }) {
-  useEffect(() => { const t = setTimeout(onClose, 3500); return () => clearTimeout(t); }, [onClose]);
-  return (
-    <div className={`toast toast-${type} fade-in`}>
-      <span>{type === 'success' ? '✅' : '❌'}</span>
-      <span>{message}</span>
-      <button className="toast-close" onClick={onClose}>×</button>
-    </div>
-  );
-}
-
-// ── Modal ────────────────────────────────────────────────
-
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal-card fade-in">
-        <div className="modal-header">
-          <h3>{title}</h3>
-          <button className="modal-close" onClick={onClose}>×</button>
-        </div>
-        <div className="modal-body">{children}</div>
-      </div>
-    </div>
-  );
 }
 
 // ── Modal Abono ───────────────────────────────────────────
@@ -79,7 +52,7 @@ function AbonoModal({ saldo, onAbono, onClose }: {
 
   return (
     <Modal title="Registrar abono" onClose={onClose}>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <form onSubmit={handleSubmit} className="form-vertical">
         <div style={{ padding: '10px 14px', background: 'var(--neutral-850)', borderRadius: 8, fontSize: '0.85rem', color: 'var(--neutral-300)' }}>
           Saldo pendiente: <strong style={{ color: 'var(--neutral-100)' }}>{formatCOP(saldo)}</strong>
         </div>
@@ -93,7 +66,7 @@ function AbonoModal({ saldo, onAbono, onClose }: {
           <input className="form-input" type="text" value={notas} onChange={e => setNotas(e.target.value)} placeholder="Referencia de pago, banco, etc." />
         </div>
         {error && <div className="form-error">{error}</div>}
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+        <div className="form-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancelar</button>
           <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : 'Registrar abono'}</button>
         </div>
@@ -177,7 +150,7 @@ function CxCFormModal({ onSave, onClose }: { onSave: (d: any) => Promise<void>; 
   return (
     <Modal title="Nueva Cuenta por Cobrar" onClose={onClose}>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="form-grid-2">
           <div className="form-group"><label className="form-label">N° Factura *</label><input className="form-input" value={form.numero_factura} onChange={e => set('numero_factura', e.target.value)} required /></div>
           <div className="form-group"><label className="form-label">Fecha emisión *</label><input className="form-input" type="date" value={form.fecha_emision} onChange={e => set('fecha_emision', e.target.value)} required /></div>
           <div className="form-group"><label className="form-label">NIT Cliente *</label><input className="form-input" value={form.cliente_nit} onChange={e => set('cliente_nit', e.target.value)} required /></div>
@@ -188,7 +161,7 @@ function CxCFormModal({ onSave, onClose }: { onSave: (d: any) => Promise<void>; 
         </div>
         <div className="form-group"><label className="form-label">Notas</label><input className="form-input" value={form.notas} onChange={e => set('notas', e.target.value)} /></div>
         {error && <div className="form-error">{error}</div>}
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+        <div className="form-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancelar</button>
           <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : 'Crear CxC'}</button>
         </div>
@@ -218,7 +191,7 @@ function CxPFormModal({ onSave, onClose }: { onSave: (d: any) => Promise<void>; 
   return (
     <Modal title="Nueva Cuenta por Pagar" onClose={onClose}>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="form-grid-2">
           <div className="form-group"><label className="form-label">N° Documento *</label><input className="form-input" value={form.numero_documento} onChange={e => set('numero_documento', e.target.value)} required /></div>
           <div className="form-group"><label className="form-label">Fecha *</label><input className="form-input" type="date" value={form.fecha} onChange={e => set('fecha', e.target.value)} required /></div>
           <div className="form-group"><label className="form-label">NIT Proveedor *</label><input className="form-input" value={form.proveedor_nit} onChange={e => set('proveedor_nit', e.target.value)} required /></div>
@@ -229,7 +202,7 @@ function CxPFormModal({ onSave, onClose }: { onSave: (d: any) => Promise<void>; 
         </div>
         <div className="form-group"><label className="form-label">Notas</label><input className="form-input" value={form.notas} onChange={e => set('notas', e.target.value)} /></div>
         {error && <div className="form-error">{error}</div>}
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+        <div className="form-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancelar</button>
           <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : 'Crear CxP'}</button>
         </div>
@@ -384,7 +357,7 @@ export default function CarteraView() {
                       </td>
                       <td>{estadoBadge(c.estado, c.dias_vencido)}</td>
                       <td>
-                        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                        <div className="row-actions">
                           {!['Pagado', 'Anulado'].includes(c.estado) && (
                             <button className="btn btn-ghost" style={{ fontSize: '0.75rem', padding: '3px 8px' }}
                               onClick={() => setAbonoTarget({ id: c.id, saldo: c.saldo_pendiente, tipo: 'cxc' })}>
@@ -457,7 +430,7 @@ export default function CarteraView() {
                       </td>
                       <td>{estadoBadge(p.estado, p.dias_vencido)}</td>
                       <td>
-                        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                        <div className="row-actions">
                           {!['Pagado', 'Anulado'].includes(p.estado) && (
                             <button className="btn btn-ghost" style={{ fontSize: '0.75rem', padding: '3px 8px' }}
                               onClick={() => setAbonoTarget({ id: p.id, saldo: p.saldo_pendiente, tipo: 'cxp' })}>

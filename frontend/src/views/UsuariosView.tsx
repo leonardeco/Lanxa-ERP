@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { usuariosApi, ROLES, type Usuario, type UsuarioCreate, type UsuarioUpdate } from '../services/usuariosApi';
 import { useAuth } from '../contexts/AuthContext';
+import Toast from '../components/Toast';
+import Modal from '../components/Modal';
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -13,38 +15,6 @@ const ROL_COLORS: Record<string, string> = {
   Administradora: 'purple',
   Auxiliar: 'green',
 };
-
-// ── Toast ────────────────────────────────────────────────
-
-function Toast({ message, type, onClose }: { message: string; type: 'success' | 'error'; onClose: () => void }) {
-  useEffect(() => {
-    const t = setTimeout(onClose, 3500);
-    return () => clearTimeout(t);
-  }, [onClose]);
-  return (
-    <div className={`toast toast-${type} fade-in`}>
-      <span>{type === 'success' ? '✅' : '❌'}</span>
-      <span>{message}</span>
-      <button className="toast-close" onClick={onClose}>×</button>
-    </div>
-  );
-}
-
-// ── Modal wrapper ─────────────────────────────────────────
-
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal-card fade-in">
-        <div className="modal-header">
-          <h3>{title}</h3>
-          <button className="modal-close" onClick={onClose}>×</button>
-        </div>
-        <div className="modal-body">{children}</div>
-      </div>
-    </div>
-  );
-}
 
 // ── Modal Crear / Editar usuario ─────────────────────────
 
@@ -97,7 +67,7 @@ function UsuarioFormModal({
 
   return (
     <Modal title={isEdit ? 'Editar usuario' : 'Nuevo usuario'} onClose={onClose}>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <form onSubmit={handleSubmit} className="form-vertical">
         {!isEdit && (
           <div className="form-group">
             <label className="form-label">Correo electrónico *</label>
@@ -186,7 +156,7 @@ function ChangePasswordModal({ onClose, onSaved }: { onClose: () => void; onSave
 
   return (
     <Modal title="Cambiar mi contraseña" onClose={onClose}>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <form onSubmit={handleSubmit} className="form-vertical">
         <div className="form-group">
           <label className="form-label">Contraseña actual</label>
           <input className="form-input" type="password" value={current} onChange={e => setCurrent(e.target.value)} autoComplete="current-password" required />
@@ -235,7 +205,7 @@ function ResetPasswordModal({ usuario, onClose, onSaved }: { usuario: Usuario; o
 
   return (
     <Modal title={`Resetear contraseña — ${usuario.nombre_completo}`} onClose={onClose}>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <form onSubmit={handleSubmit} className="form-vertical">
         <p style={{ fontSize: '0.85rem', color: 'var(--neutral-400)', margin: 0 }}>
           Define una contraseña nueva para este usuario y comunícasela por fuera del sistema.
         </p>

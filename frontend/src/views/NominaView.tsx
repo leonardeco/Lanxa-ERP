@@ -1,16 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { contabilidadApi, type ParametroNomina } from '../services/contabilidadApi';
 import { useAuth } from '../contexts/AuthContext';
-
-function Toast({ message, type, onClose }: { message: string; type: 'success' | 'error'; onClose: () => void }) {
-  useEffect(() => { const t = setTimeout(onClose, 3500); return () => clearTimeout(t); }, [onClose]);
-  return (
-    <div className={`toast toast-${type} fade-in`}>
-      <span>{type === 'success' ? '✅' : '❌'}</span><span>{message}</span>
-      <button className="toast-close" onClick={onClose}>×</button>
-    </div>
-  );
-}
+import Toast from '../components/Toast';
+import Modal from '../components/Modal';
+import Skeleton from '../components/Skeleton';
 
 function EditModal({ param, onSave, onClose }: {
   param: ParametroNomina;
@@ -41,14 +34,8 @@ function EditModal({ param, onSave, onClose }: {
   };
 
   return (
-    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal-card fade-in">
-        <div className="modal-header">
-          <h3>Editar parámetro de nómina</h3>
-          <button className="modal-close" onClick={onClose}>×</button>
-        </div>
-        <div className="modal-body">
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <Modal title="Editar parámetro de nómina" onClose={onClose}>
+          <form onSubmit={handleSubmit} className="form-vertical">
             <div className="form-group">
               <label className="form-label">Concepto</label>
               <input className="form-input" value={param.concepto} disabled style={{ opacity: 0.5 }} />
@@ -71,14 +58,12 @@ function EditModal({ param, onSave, onClose }: {
               <input className="form-input" value={notas} onChange={e => setNotas(e.target.value)} />
             </div>
             {error && <div className="form-error">{error}</div>}
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <div className="form-actions">
               <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancelar</button>
               <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</button>
             </div>
           </form>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -121,7 +106,7 @@ export default function NominaView() {
     }
   };
 
-  if (loading) return <div className="loading-screen" style={{ minHeight: 200 }}><div className="loading-spinner" /></div>;
+  if (loading) return <div className="table-container" aria-busy="true" style={{ padding: 16 }}><Skeleton variant="row" count={8} /></div>;
 
   return (
     <div className="fade-in">
@@ -158,7 +143,7 @@ export default function NominaView() {
                 <td><span className={`badge ${p.activo ? 'green' : 'neutral'}`}>{p.activo ? 'Activo' : 'Inactivo'}</span></td>
                 {canEdit && (
                   <td>
-                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                    <div className="row-actions">
                       <button className="btn btn-ghost" style={{ fontSize: '0.78rem', padding: '4px 10px' }} onClick={() => setEditing(p)}>✏️ Editar</button>
                       <button className={`btn ${p.activo ? 'btn-ghost' : 'btn-primary'}`} style={{ fontSize: '0.78rem', padding: '4px 10px' }} onClick={() => handleToggle(p)}>
                         {p.activo ? '🚫 Desactivar' : '✅ Activar'}

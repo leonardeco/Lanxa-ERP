@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { dashboardApi, type ContabilidadStats, type VentasStats } from '../services/dashboardApi';
+import Skeleton from '../components/Skeleton';
 
 const PHASES = [
   { fase: 'Fase 1', desc: 'Setup, RBAC, Contabilidad, Ventas, Inventario', estado: 'En progreso', color: 'green' },
@@ -48,9 +49,19 @@ export default function DashboardView() {
 
   if (loading) {
     return (
-      <div className="loading-screen" style={{ minHeight: 300 }}>
-        <div className="loading-spinner" />
-        <div className="loading-sub">Cargando estadísticas...</div>
+      <div aria-busy="true" aria-label="Cargando estadísticas">
+        <Skeleton variant="text" width={140} style={{ marginBottom: 10 }} />
+        <div className="stats-grid">
+          <Skeleton variant="card" count={6} />
+        </div>
+        <Skeleton variant="text" width={200} style={{ margin: '24px 0 10px' }} />
+        <div className="stats-grid">
+          <Skeleton variant="card" count={6} />
+        </div>
+        <div className="charts-grid">
+          <div className="chart-card"><Skeleton variant="row" count={6} /></div>
+          <div className="chart-card"><Skeleton variant="row" count={6} /></div>
+        </div>
       </div>
     );
   }
@@ -77,7 +88,7 @@ export default function DashboardView() {
   return (
     <div>
       {/* ── Sección Contabilidad ──────────────────────── */}
-      <div style={{ fontSize: '0.7rem', color: 'var(--neutral-500)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+      <div className="section-label">
         Módulo Contabilidad
       </div>
       <div className="stats-grid">
@@ -90,7 +101,7 @@ export default function DashboardView() {
       </div>
 
       {/* ── Sección Ventas ───────────────────────────── */}
-      <div style={{ fontSize: '0.7rem', color: 'var(--neutral-500)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '24px 0 10px' }}>
+      <div className="section-label" style={{ marginTop: 24 }}>
         Módulo Ventas — {mesActual}
       </div>
       <div className="stats-grid">
@@ -174,7 +185,7 @@ export default function DashboardView() {
             </table>
           </div>
           <div style={{ marginTop: 20, padding: '16px', background: 'var(--neutral-850)', borderRadius: 'var(--radius-md)', border: '1px solid var(--neutral-800)' }}>
-            <div style={{ fontSize: '0.7rem', color: 'var(--neutral-500)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+            <div className="section-label" style={{ marginBottom: 8 }}>
               Empresa
             </div>
             <div style={{ fontSize: '0.9rem', color: 'var(--neutral-100)', fontWeight: 600, marginBottom: 4 }}>
