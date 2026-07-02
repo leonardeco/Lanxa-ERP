@@ -255,7 +255,14 @@ cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 ```
 
-La configuración vive en `backend/.flake8` (línea máx. 120), `backend/mypy.ini` y `backend/pytest.ini`. Además, `.github/workflows/ci.yml` corre lint + tipos + tests (backend) y ESLint + tsc + build (frontend) en cada push/PR a `main`.
+La configuración vive en `backend/.flake8` (línea máx. 120), `backend/mypy.ini`, `backend/pytest.ini` y `backend/.coveragerc` (con `concurrency = greenlet` — necesario para que coverage trace los endpoints async de SQLAlchemy). Además, `.github/workflows/ci.yml` corre lint + tipos + tests (backend) y ESLint + tsc + Vitest + build (frontend) en cada push/PR a `main`.
+
+Opcionalmente, instala los hooks de pre-commit para que el lint corra automático antes de cada commit:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
 
 **Para correr las pruebas:**
 

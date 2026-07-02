@@ -1,0 +1,26 @@
+# Hooks de pre-commit — instalación (una vez por PC):
+#   pip install pre-commit
+#   pre-commit install
+#
+# Después, cada `git commit` corre estas verificaciones sobre los archivos
+# modificados. Para saltarlas en una emergencia: git commit --no-verify
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: detect-private-key
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.3.0
+    hooks:
+      - id: flake8
+        files: ^backend/(app|tests)/.*\.py$
+        args: [--config=backend/.flake8]
