@@ -3,8 +3,8 @@
 **Empresa:** TECNOLOGIA E INNOVACION SUPER OZONO S.A.S.
 **NIT:** 901841798-5
 **Ciudad:** Armenia, Quindío
-**Versión ERP:** 0.6.0
-**Última actualización:** 2026-06-17
+**Versión ERP:** 0.7.0
+**Última actualización:** 2026-07-01
 
 ---
 
@@ -89,7 +89,9 @@ superozono-erp/
 │   │   ├── core/
 │   │   │   ├── config.py            # Settings (pydantic-settings, .env)
 │   │   │   ├── database.py          # Engine SQLAlchemy async + sesión
-│   │   │   └── security.py          # JWT, hash contraseñas
+│   │   │   ├── numbering.py         # Numeración robusta unificada (MAX del sufijo, parseo tolerante)
+│   │   │   ├── limiter.py           # Instancia slowapi (rate limiting login)
+│   │   │   └── security.py          # JWT, hash contraseñas, refresh tokens
 │   │   ├── modules/
 │   │   │   ├── contabilidad/
 │   │   │   │   ├── models.py        # PUC, CentroCosto, Periodos, Terceros, CxC, CxP, etc.
@@ -126,7 +128,8 @@ superozono-erp/
 │   │   ├── backup_db.py             # Backup diario cifrado de la BD SQLite (tarea programada Windows)
 │   │   ├── restore_db.py            # Descifra y restaura un backup (con copia .bak previa)
 │   │   ├── generate_tls_cert.py     # Genera la CA local + certificado de servidor para HTTPS
-│   │   └── migrate_rol_constraint.py  # Agrega el CHECK constraint de rol a una BD ya existente
+│   │   ├── migrate_rol_constraint.py      # Agrega el CHECK constraint de rol a una BD ya existente
+│   │   └── migrate_cliente_retenciones.py # Agrega las columnas de perfil tributario a `clientes` (BD existente)
 │   ├── .env                         # Variables de entorno (desarrollo local)
 │   ├── .env.servidor                # Plantilla para el PC servidor (copiar a .env)
 │   ├── requirements.txt
@@ -141,7 +144,10 @@ superozono-erp/
 │   │   ├── components/
 │   │   │   ├── Sidebar.tsx
 │   │   │   ├── HeaderBar.tsx
-│   │   │   └── StatusBar.tsx
+│   │   │   ├── StatusBar.tsx
+│   │   │   ├── Modal.tsx            # Modal accesible compartido (focus-trap, Escape, aria-modal)
+│   │   │   ├── Toast.tsx            # Notificación accesible compartida (role=status, aria-live)
+│   │   │   └── Skeleton.tsx         # Placeholder shimmer para estados de carga
 │   │   ├── contexts/
 │   │   │   └── AuthContext.tsx      # Estado global de autenticación
 │   │   ├── services/
@@ -208,6 +214,14 @@ CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 EMPRESA_NIT=901841798-5
 EMPRESA_RAZON_SOCIAL=TECNOLOGIA E INNOVACION SUPER OZONO S.A.S.
 EMPRESA_CIUDAD=Armenia, Quindio
+
+# Usuario admin del seed (se crea al iniciar si no existe)
+SEED_ADMIN_EMAIL=admin@superozonoglobal.com
+SEED_ADMIN_PASSWORD=Admin2026!          # cambiar en producción (hay warning si sigue el de fábrica)
+
+# Retenciones — parámetros tributarios
+UVT_VALOR=49799                          # UVT vigente (placeholder — confirmar con el contador por año)
+RETEFUENTE_BASE_UVT=27                   # tope en UVT para retefuente de compras generales
 
 # Alegra (opcional — facturación electrónica)
 ALEGRA_EMAIL=
@@ -420,9 +434,9 @@ certutil -addstore -f "ROOT" "C:\ruta\al\proyecto\certs\superozono-ca.crt"
 
 | Tabla | Descripción |
 |---|---|
-| `productos` | Catálogo con SKU, marca, precio, IVA, stock, registro ICA |
-| `clientes` | Clientes B2B con NIT, régimen, contacto, cupo de crédito |
-| `ventas_documentos` | Cabecera de factura interna (SOG-V-XXXX) con totales y retenciones |
+| `productos` | Catálogo con SKU, marca, precio, IVA, stock, registro ICA. `stock_actual` es `Numeric(12,3)` (soporta cantidades fraccionarias) |
+| `clientes` | Clientes B2B con NIT, régimen, contacto, cupo de crédito. **Perfil tributario:** `retiene_fuente`/`retiene_iva`/`retiene_ica` (flags de agente retenedor) y `tarifa_reteica` (por mil) para el cálculo de retenciones en ventas |
+| `ventas_documentos` | Cabecera de factura interna (SOG-V-XXXX) con totales y retenciones (calculadas según el perfil tributario del cliente, con override manual por factura) |
 | `ventas_detalles` | Líneas de producto con cálculo de descuento e IVA |
 
 ### Módulo Compras (`compras/models.py`)
@@ -437,7 +451,7 @@ certutil -addstore -f "ROOT" "C:\ruta\al\proyecto\certs\superozono-ca.crt"
 
 | Tabla | Descripción |
 |---|---|
-| `movimientos_inventario` | Kardex: un registro por cada movimiento de stock (`tipo`: Entrada/Salida/Ajuste positivo/Ajuste negativo; `origen`: Compra/Venta/Ajuste manual/Reverso). Guarda `stock_antes`/`stock_despues` (snapshot), FK lógicas a `compra_id`/`venta_id` y `usuario_id` |
+| `movimientos_inventario` | Kardex: un registro por cada movimiento de stock (`tipo`: Entrada/Salida/Ajuste positivo/Ajuste negativo; `origen`: Compra/Venta/Ajuste manual/Reverso). Guarda `stock_antes`/`stock_despues` (snapshot `Numeric(12,3)`, sin redondeo), FK lógicas a `compra_id`/`venta_id` y `usuario_id` |
 
 ### Módulo Usuarios (`usuarios/models.py`)
 
@@ -531,8 +545,8 @@ Base URL: `http://[host]:8000/api`
 | DELETE | `/v1/ventas/clientes/{id}` | Desactivar cliente (soft delete) |
 | GET | `/v1/ventas/` | Listar documentos de venta |
 | GET | `/v1/ventas/{id}` | Obtener venta con detalles |
-| POST | `/v1/ventas/` | Crear venta (calcula retenciones automáticamente) |
-| POST | `/v1/ventas/{id}/confirmar` | Confirmar venta (Borrador → Confirmada) — genera `MovimientoInventario` tipo Salida por cada línea |
+| POST | `/v1/ventas/` | Crear venta — sugiere retenciones (ReteFuente/ReteIVA/ReteICA) según el perfil tributario del cliente y las tarifas de `ParametroTributario`, con tope en UVT; admite override manual por factura. Valida stock, cantidades y % |
+| POST | `/v1/ventas/{id}/confirmar` | Confirmar venta (Borrador → Confirmada) — valida stock disponible (bloquea sobreventa con `400`), genera `MovimientoInventario` tipo Salida por cada línea y una `CuentaPorCobrar` automática vinculada por `numero_factura` (idempotente) |
 | POST | `/v1/ventas/{id}/anular` | Anular venta — si estaba Confirmada/Facturada, revierte las salidas de inventario con un movimiento Entrada (Reverso de venta) |
 
 ### Compras & Proveedores
@@ -604,6 +618,14 @@ Solo lectura, sin tablas propias — agregan sobre `contabilidad` (CxC/CxP), `co
 | RRHH | `rrhh` | Fase 2 — 🚧 | Sin implementar |
 | Plataformas | `plataformas` | Fase 2 — 🚧 | Sin implementar |
 | Reportes | `reportes` | Completa | 3 pestañas: Aging de Cartera, Compras y Ventas por Período (selector de fechas), Retenciones Acumuladas |
+
+### Componentes compartidos y accesibilidad
+
+- **`Modal.tsx`** — modal accesible reutilizable (focus-trap, cierre con `Escape`, `role="dialog"` + `aria-modal`, restauración de foco). Adoptado en las 10 vistas y en los modales de formulario (CentrosCosto, Nómina, PUC, Tributarios).
+- **`Toast.tsx`** — notificación accesible (`role="status"`, `aria-live`).
+- **`Skeleton.tsx`** — placeholder con animación shimmer para estados de carga (Dashboard y las 5 vistas de lista de contabilidad).
+- **Accesibilidad global** (`index.css`): `:focus-visible` y `@media (prefers-reduced-motion: reduce)`.
+- **Responsive** (`index.css`): breakpoints 1024/768/480 — sidebar colapsable, grids apilados, tablas con scroll horizontal, botones full-width en móvil.
 
 ### Servicios API del frontend
 
@@ -691,6 +713,18 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | 15 | HTTPS con CA local autofirmada (uvicorn + Vite), pendiente instalar en los 4 PCs cliente | ✅ Completado 2026-06-19 |
 | 16 | Reset de contraseña por Admin para usuarios sin acceso | ✅ Completado 2026-06-19 |
 | 17 | CHECK constraint en `usuarios.rol` (BD nuevas y migración para la existente) | ✅ Completado 2026-06-19 |
+| 18 | Validación de entradas en schemas (abonos/precios/%/cantidades) + guard de sobreventa | ✅ Completado 2026-07-01 |
+| 19 | Eliminación de N+1 en listados de ventas (`selectinload`) + numeración robusta unificada | ✅ Completado 2026-07-01 |
+| 20 | Stock fraccionario (`Numeric(12,3)` en producto y kardex, sin redondeo) | ✅ Completado 2026-07-01 |
+| 21 | Auto-CxC al confirmar venta (espejo de compras→CxP, idempotente) | ✅ Completado 2026-07-01 |
+| 22 | Motor de retenciones híbrido (perfil tributario del cliente + tarifas + tope UVT + override manual) | ✅ Completado 2026-07-01 |
+| 23 | Componentes compartidos accesibles (Modal/Toast/Skeleton), responsive y `prefers-reduced-motion` | ✅ Completado 2026-07-01 |
+
+### Deuda técnica / mejoras pendientes (ver BITACORA.md, sesión 2026-07-01)
+
+- **Antes de producción:** limpieza de refresh tokens expirados; `int(token_data.sub)` puede dar 500 en vez de 401; guard de "último admin"; enumeración de usuarios en el login; paginación en listados.
+- **Al desplegar a PostgreSQL:** inicializar Alembic para aplicar en Postgres los cambios de columnas/tipos hechos en SQLite; locks de concurrencia (`with_for_update`) en abonos y stock; `datetime` tz-aware.
+- **Config/negocio:** confirmar `UVT_VALOR` con el contador y activar los flags `retiene_*` en los clientes que sean agentes retenedores.
 
 ### Fase 2 — Módulos futuros
 
