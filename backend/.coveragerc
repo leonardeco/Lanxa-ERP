@@ -1,0 +1,9 @@
+[run]
+; SQLAlchemy async ejecuta el ORM dentro de greenlets — sin esto, coverage
+; no traza el cuerpo de los endpoints y reporta cifras falsamente bajas.
+concurrency = greenlet,thread
+source = app
+
+[report]
+show_missing = False
+skip_covered = False
