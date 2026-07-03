@@ -1,6 +1,6 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **2 de julio de 2026**.
+Backlog vivo del proyecto. Actualizado: **2 de julio de 2026** (2ª revisión — auditoría multi-rol completa).
 Estado general: 198 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde, 0 CVEs.
 
 ---
@@ -21,6 +21,8 @@ Estado general: 198 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde
 | 5 | **Copiar backups fuera del PC servidor** (NAS/nube/otro PC) + guardar `BACKUP_ENCRYPTION_KEY` en un gestor de contraseñas | Riesgo #1: hoy BD, backups y clave viven en el mismo disco. El restore ya está verificado con simulacro (2026-07-02) |
 | 6 | Desplegar la actualización al servidor siguiendo [`DESPLIEGUE.md`](./DESPLIEGUE.md) | Incluye: `pip install`, rename `ACCESS_TOKEN_EXPIRE_HOURS`→`ACCESS_TOKEN_EXPIRE_MINUTES=15`, `alembic stamp` (una vez), instalar CA en PCs cliente nuevos |
 | 7 | Entregar [`MANUAL-DE-USUARIO.md`](./MANUAL-DE-USUARIO.md) a los 4 usuarios y que cambien su contraseña inicial | |
+| 7a | **Drill de restore trimestral** (calendarizarlo) | El procedimiento se verificó una vez (2026-07-02); un backup solo es confiable si se prueba periódicamente |
+| 7b | Documentar la vigencia del certificado TLS local y cuándo regenerarlo | `scripts/generate_tls_cert.py` — nadie sabe hoy la fecha de expiración |
 
 ## 🟡 Técnico — deuda puntual (dev)
 
@@ -33,11 +35,20 @@ Estado general: 198 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde
 | 12 | Locks de concurrencia (`with_for_update`) en abonos y stock | **Solo si** el despliegue pasa a multi-worker; con uvicorn single-worker en LAN no aplica |
 | 13 | Extraer servicios de dominio (`confirmar_venta` orquesta stock+CxC+asiento inline en el router) | Refactor de mantenibilidad, sin urgencia |
 | 14 | Manejo de errores consistente en frontend (varios `.catch(() => {})` silenciosos) | El usuario no se entera si un panel falló al cargar |
+| 14a | Unificar Cliente/Proveedor/Tercero a nivel de modelo | CxC guarda `cliente_nit` como texto sin FK; la materialización por NIT (2026-07-02) es el puente, falta la FK real |
+| 14b | Logs persistentes con rotación en el servidor | structlog va solo a consola: un fallo nocturno no deja rastro. Archivo rotado (logging.handlers o structlog a JSON file) |
+| 14c | Revocación de sesiones por Admin | Poder cerrar la sesión remota de un usuario (borrar sus refresh tokens) — hoy solo desactivándolo |
+| 14d | Playwright en el CI (job opcional) | El smoke E2E corre solo local |
+| 14e | Validación del dígito de verificación del NIT | El campo `dv` se guarda sin validar (algoritmo DIAN es 10 líneas) |
 
 ## 🟢 Funcional — siguientes features (por prioridad de negocio)
 
 | # | Feature | Alcance |
 |---|---|---|
+| 15a | **Corrección/reverso de abonos** (Pago mal digitado) | Hoy un abono equivocado no se puede deshacer desde la UI — solo se anula la CxC/CxP completa. Necesita anular el Pago + reverso del asiento + recalcular saldo |
+| 15b | **Períodos cerrados que bloqueen** | `PeriodoContable` en "Cerrado" no impide confirmar documentos ni generar asientos en ese mes — el cierre contable hoy es decorativo |
+| 15c | **Fecha local en comprobantes RC/CE** | `Pago.fecha` se guarda UTC: un abono a las 8pm (Colombia, UTC-5) queda fechado al día siguiente. Corregir a hora local del negocio |
+| 15d | **Auxiliar por tercero** (estado de cuenta) | `tercero_id` ya se llena en los asientos; falta el reporte que lo explota |
 | 15 | **Devoluciones** (notas crédito/débito) | Devolución parcial sin anular la factura completa; reverso parcial de inventario, cartera y asientos |
 | 16 | **Cotizaciones** | Flujo cotización → aprobación → conversión a venta (típico B2B) |
 | 17 | Confirmación al cerrar formularios con datos sin guardar | UX: el modal de Nueva Compra pierde 10 líneas digitadas sin preguntar |
@@ -45,6 +56,14 @@ Estado general: 198 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde
 | 19 | **Auditoría de cambios** (audit log) | Quién modificó qué en productos/clientes/parámetros (los asientos ya guardan usuario) |
 | 20 | Activación Alegra con facturación electrónica DIAN | La integración está construida y testeada con mocks; falta cuenta/token real y rotación documentada (SEC-002) |
 | 21 | Empaquetado Electron (Fase 4) | App de escritorio .exe |
+
+## ⚖️ Cumplimiento Colombia (activar junto con la facturación electrónica)
+
+| # | Pendiente | Notas |
+|---|---|---|
+| 22 | Requisitos DIAN en la factura impresa | Verificar razón social, régimen, y **resolución de numeración autorizada** (el consecutivo SOG-V-#### es interno) |
+| 23 | Habeas Data (Ley 1581 de 2012) | Clientes persona natural: aviso de privacidad y política de tratamiento de datos |
+| 24 | Política de redondeo de retenciones validada con la contadora | Hoy `round()` half-even de Python; confirmar contra la práctica DIAN |
 
 ## 🔵 Nice-to-have
 
