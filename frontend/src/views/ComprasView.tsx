@@ -339,6 +339,80 @@ function ProveedoresTab({ onToast }: { onToast: (msg: string, type: 'success' | 
 // COMPRAS LIST TAB
 // ══════════════════════════════════════════════════════════
 
+
+// ── Modal Devolución a proveedor (ND-####) ────────────────
+
+function DevolucionCompraModal({ compra, onClose, onDone }: {
+  compra: Compra; onClose: () => void; onDone: () => void;
+}) {
+  const [cantidades, setCantidades] = useState<Record<number, string>>({});
+  const [motivo, setMotivo] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async () => {
+    const detalles = Object.entries(cantidades)
+      .filter(([, cant]) => Number(cant) > 0)
+      .map(([id, cant]) => ({ compra_detalle_id: Number(id), cantidad: cant }));
+    if (detalles.length === 0) { setError('Indica la cantidad a devolver en al menos una línea'); return; }
+    if (motivo.trim().length < 3) { setError('Escribe el motivo de la devolución'); return; }
+    setSaving(true);
+    setError('');
+    try {
+      const nd = await comprasApi.crearDevolucion(compra.id, { motivo: motivo.trim(), detalles });
+      alert(`Devolución ${nd.numero} registrada por $${Number(nd.total).toLocaleString('es-CO')}.\nInventario, cuenta por pagar y contabilidad actualizados.`);
+      onDone();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'No se pudo registrar la devolución');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal title={`Devolución a proveedor — ${compra.numero}`} onClose={onClose} wide>
+      <p style={{ fontSize: '0.85rem', color: 'var(--neutral-400)', marginBottom: 12 }}>
+        La mercancía sale del inventario (requiere stock disponible), la cuenta por pagar se reduce y se genera el asiento contable.
+      </p>
+      {error && <div className="login-error" style={{ marginBottom: 12 }}>{error}</div>}
+      <table className="data-table" style={{ marginBottom: 16 }}>
+        <thead>
+          <tr><th>Ítem</th><th>Compradas</th><th>Precio</th><th style={{ width: 130 }}>Devolver</th></tr>
+        </thead>
+        <tbody>
+          {compra.detalles.map(d => (
+            <tr key={d.id}>
+              <td>{d.descripcion}</td>
+              <td>{Number(d.cantidad)}</td>
+              <td>${Number(d.precio_unitario).toLocaleString('es-CO')}</td>
+              <td>
+                <input
+                  type="number" min="0" max={Number(d.cantidad)} step="0.001"
+                  value={cantidades[d.id] ?? ''}
+                  placeholder="0"
+                  onChange={e => setCantidades(c => ({ ...c, [d.id]: e.target.value }))}
+                  style={{ width: 110 }}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="form-group">
+        <label>Motivo *</label>
+        <input value={motivo} onChange={e => setMotivo(e.target.value)}
+          placeholder="Ej: lote defectuoso" maxLength={300} />
+      </div>
+      <div className="form-actions">
+        <button className="btn-secondary" onClick={onClose} disabled={saving}>Cancelar</button>
+        <button className="btn-primary" onClick={handleSubmit} disabled={saving}>
+          {saving ? 'Registrando…' : 'Registrar devolución'}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
 function ComprasListTab({
   onToast,
   onNueva,
@@ -373,6 +447,8 @@ function ComprasListTab({
       onToast('Error confirmando compra', 'error');
     }
   };
+
+  const [devolucionDe, setDevolucionDe] = useState<Compra | null>(null);
 
   const handleAnular = async (c: Compra) => {
     if (!confirm(`¿Anular compra ${c.numero}? Esta acción no se puede deshacer.`)) return;
@@ -446,6 +522,9 @@ function ComprasListTab({
                     {c.estado === 'Borrador' && (
                       <button className="btn-icon" style={{ color: '#2563eb' }} onClick={() => handleConfirmar(c)} title="Confirmar">✔️</button>
                     )}
+                    {c.estado === 'Confirmada' && (
+                      <button className="btn-icon" style={{ color: '#d97706' }} onClick={() => setDevolucionDe(c)} title="Devolución a proveedor">↩️</button>
+                    )}
                     {c.estado !== 'Anulada' && (
                       <button className="btn-icon" style={{ color: '#ef4444' }} onClick={() => handleAnular(c)} title="Anular">🚫</button>
                     )}
@@ -457,6 +536,13 @@ function ComprasListTab({
         )}
       </div>
 
+      {devolucionDe && (
+        <DevolucionCompraModal
+          compra={devolucionDe}
+          onClose={() => setDevolucionDe(null)}
+          onDone={() => { setDevolucionDe(null); load(); }}
+        />
+      )}
       {selected && (
         <Modal title={`Compra ${selected.numero}`} onClose={() => setSelected(null)} wide>
           <div style={{ marginBottom: 16 }}>

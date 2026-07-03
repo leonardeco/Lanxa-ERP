@@ -45,7 +45,6 @@ Estado general: 198 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde
 
 | # | Feature | Alcance |
 |---|---|---|
-| 15-ui | Botón de devolución en la vista de Compras | El backend de devolución a proveedor (ND-####) está completo y testeado; ventas ya tiene su modal — falta replicarlo en ComprasView |
 | 16 | **Cotizaciones** | Flujo cotización → aprobación → conversión a venta (típico B2B) |
 | 17 | Confirmación al cerrar formularios con datos sin guardar | UX: el modal de Nueva Compra pierde 10 líneas digitadas sin preguntar |
 | 18 | **RRHH y nómina** (Fase 2) | Empleados, contratos, liquidación — requiere definiciones de negocio propias |
