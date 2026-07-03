@@ -664,3 +664,40 @@ baaf165  feat(frontend): UI de estados financieros, libro diario y alertas de ve
 4. Backups fuera del PC servidor (riesgo operativo #1).
 5. Funcional de fases: devoluciones (notas crédito/débito), cotizaciones, RRHH/nómina, Electron, audit log.
 6. Al desplegar al servidor: seguir `DESPLIEGUE.md` (incluye rename de `ACCESS_TOKEN_EXPIRE_*` y `alembic stamp`).
+
+---
+
+## Sesión — 3 de julio 2026 — Sprints 1-3 y Devoluciones (Claude Fable 5)
+
+### Resumen
+
+Ejecución del backlog en 4 bloques, cada uno commiteado, pusheado y con CI verde: **Sprint 1** (cartera a prueba de errores: anulación de abonos, cierre real de períodos, hora local Colombia), **Sprint 2** (auxiliar por tercero + logs persistentes), **Sprint 3** (passlib→bcrypt 5, DV del NIT, deuda de UI) y el feature **Devoluciones** (nota crédito full-stack + devolución a proveedor por API). Tests: 210 → **215 API + 25 componentes + 5 E2E**.
+
+### Lo que se hizo
+
+**Sprint 1 (`d29cb93`)** — 15a: `POST /cartera/pagos/{id}/anular` restaura saldo/estado de CxC/CxP, re-sincroniza la compra y reversa el asiento; comprobante queda `[ANULADO]` visible; botón ⛔ en el historial de pagos; migración `8a1c2f0d4b21`. 15b: `validar_periodo_abierto()` en el punto único del motor — período CERRADO bloquea confirmar/anular/abonar con rollback completo. 15c: `bogota_now()` para fechas de negocio (Pago, kardex); `tzdata` pineado (Windows no trae la base IANA).
+
+**Sprint 2 (`9b18f80`)** — 15d: `GET /terceros/{id}/auxiliar` (estado de cuenta con saldo corrido, filtros por fecha/cuenta; cuadra contra la CxC por test) + pestaña "Auxiliar por Tercero" en Reportes con export. 14b: `core/logging_config.py` — RotatingFileHandler 5MB×5 en `backend/logs/` + structlog enrutado por stdlib (los errores de uvicorn también quedan en archivo).
+
+**Sprint 3 (`a0d90b5`)** — 9: `security.py` migrado de passlib (sin mantenimiento) a bcrypt directo, **bcrypt 5.0.0**; compat con hashes existentes blindada por test con hash real pre-migración; truncado explícito a 72 bytes. 14e: `core/nit.py` con el algoritmo DIAN del dígito de verificación, validado en cliente/proveedor (verificado con el NIT real de la empresa: 901841798-5). 13c/13d: stock fraccionario en el form de producto y badges de retenciones en la lista de clientes.
+
+**Devoluciones (`7e99aca`)** — NC-#### ventas full-stack: devolución parcial con tope acumulado por línea, reingreso a inventario, CxC reducida, asiento con cuenta nueva **417501 Devoluciones en ventas** (contra-ingreso: el P&L resta las NC automáticamente — test) y modal ↩️ en Facturas. ND-#### compras por API: valida stock (lo ya vendido no se puede devolver), reduce CxP, asiento espejo, balance sigue cuadrado (test). Migración `c3e9a17f5d02` (4 tablas). Limitación documentada: retenciones de la factura original no se ajustan en la NC.
+
+### Incidencia de herramientas
+
+Los heredocs de bash colapsan `\n` literales — corrompieron un string de Python 2 veces. Solución adoptada: bloques con caracteres especiales se escriben vía tool Write a scratchpad y se concatenan.
+
+### Commits (todos con CI verde)
+
+```
+d29cb93  feat(cartera): Sprint 1 — anulacion de abonos, cierre de periodos real y hora local
+a7f7b4a  docs: marcar Sprint 1 completado
+9b18f80  feat(contabilidad): Sprint 2 — auxiliar por tercero y logs persistentes
+3067278  docs: marcar Sprint 2 completado
+a0d90b5  feat: Sprint 3 — bcrypt directo, validacion DV del NIT y deuda rapida de UI
+7e99aca  feat: devoluciones — nota credito (ventas) y devolucion a proveedor (compras)
+```
+
+### Pendientes tras esta sesión
+
+Ver `PENDIENTES.md` (7ª revisión). Próximos de código: botón de devolución en ComprasView (15-ui), cotizaciones (#16), audit log (#19). Bloqueados por la contadora: mapeo PUC, costeo (→ costo de venta #8), datos maestros.
