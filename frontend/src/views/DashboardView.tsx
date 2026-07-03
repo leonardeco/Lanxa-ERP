@@ -1,6 +1,29 @@
 import { useState, useEffect } from 'react';
 import { dashboardApi, type ContabilidadStats, type VentasStats } from '../services/dashboardApi';
+import { reportesApi, type AgingCarteraResponse, type AgingDetalle } from '../services/reportesApi';
 import Skeleton from '../components/Skeleton';
+
+interface AlertaVencimiento extends AgingDetalle {
+  tipo: 'CxC' | 'CxP';
+  diasParaVencer: number | null; // null si ya está vencido
+}
+
+/** Vencidos + los que vencen en los próximos 7 días, ordenados por urgencia. */
+function calcularAlertas(aging: AgingCarteraResponse): AlertaVencimiento[] {
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+
+  const procesar = (detalle: AgingDetalle[], tipo: 'CxC' | 'CxP'): AlertaVencimiento[] =>
+    detalle.flatMap((d): AlertaVencimiento[] => {
+      if (d.dias_vencido > 0) return [{ ...d, tipo, diasParaVencer: null }];
+      if (!d.fecha_vencimiento) return [];
+      const dias = Math.ceil((new Date(d.fecha_vencimiento).getTime() - hoy.getTime()) / 86400000);
+      return dias >= 0 && dias <= 7 ? [{ ...d, tipo, diasParaVencer: dias }] : [];
+    });
+
+  return [...procesar(aging.cxc.detalle, 'CxC'), ...procesar(aging.cxp.detalle, 'CxP')]
+    .sort((a, b) => (b.dias_vencido - a.dias_vencido) || ((a.diasParaVencer ?? 99) - (b.diasParaVencer ?? 99)));
+}
 
 const PHASES = [
   { fase: 'Fase 1', desc: 'Setup, RBAC, Contabilidad, Ventas, Inventario', estado: 'En progreso', color: 'green' },
@@ -34,6 +57,7 @@ function StatCard({ icon, label, value, color, delay }: {
 export default function DashboardView() {
   const [contab, setContab] = useState<ContabilidadStats | null>(null);
   const [ventas, setVentas] = useState<VentasStats | null>(null);
+  const [alertas, setAlertas] = useState<AlertaVencimiento[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,6 +69,11 @@ export default function DashboardView() {
       .then(([c, v]) => { setContab(c); setVentas(v); })
       .catch(() => setError('No se pudo conectar con el servidor. Verifica que el backend esté corriendo.'))
       .finally(() => setLoading(false));
+
+    // Las alertas cargan aparte: si fallan, el dashboard sigue funcionando
+    reportesApi.getAgingCartera()
+      .then(aging => setAlertas(calcularAlertas(aging)))
+      .catch(() => {});
   }, []);
 
   if (loading) {
@@ -87,6 +116,52 @@ export default function DashboardView() {
 
   return (
     <div>
+      {/* ── Alertas de vencimiento de cartera ────────── */}
+      {alertas.length > 0 && (
+        <div className="chart-card fade-in" style={{ marginBottom: 24, borderLeft: '3px solid #f59e0b' }}>
+          <div className="chart-card-title">
+            🔔 Alertas de cartera — {alertas.filter(a => a.diasParaVencer === null).length} vencida(s),{' '}
+            {alertas.filter(a => a.diasParaVencer !== null).length} por vencer esta semana
+          </div>
+          <div className="table-container" style={{ border: 'none' }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Tipo</th><th>Documento</th><th>Tercero</th>
+                  <th style={{ textAlign: 'right' }}>Saldo</th><th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {alertas.slice(0, 8).map(a => (
+                  <tr key={`${a.tipo}-${a.id}`}>
+                    <td>
+                      <span className={`badge ${a.tipo === 'CxC' ? 'green' : 'amber'}`}>{a.tipo}</span>
+                    </td>
+                    <td style={{ fontFamily: 'monospace', fontSize: 11 }}>{a.numero}</td>
+                    <td>{a.tercero}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatCOP(a.saldo_pendiente)}</td>
+                    <td>
+                      {a.diasParaVencer === null ? (
+                        <span className="badge red">Vencida hace {a.dias_vencido} día{a.dias_vencido === 1 ? '' : 's'}</span>
+                      ) : a.diasParaVencer === 0 ? (
+                        <span className="badge amber">Vence HOY</span>
+                      ) : (
+                        <span className="badge amber">Vence en {a.diasParaVencer} día{a.diasParaVencer === 1 ? '' : 's'}</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {alertas.length > 8 && (
+              <div style={{ padding: '8px 12px', fontSize: '0.78rem', color: 'var(--neutral-400)' }}>
+                … y {alertas.length - 8} más — ver el detalle completo en Reportes → Aging de Cartera
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Sección Contabilidad ──────────────────────── */}
       <div className="section-label">
         Módulo Contabilidad

@@ -80,3 +80,46 @@ export const reportesApi = {
   getRetencionesPeriodo: (fecha_desde?: string, fecha_hasta?: string) =>
     api.get<RetencionesPeriodoResponse>(`${BASE}/retenciones-periodo`, { params: { fecha_desde, fecha_hasta } }).then(r => r.data),
 };
+
+// ── Estados financieros (motor de asientos) ─────────────
+
+export interface CuentaSaldo {
+  codigo_puc: string;
+  nombre: string;
+  saldo: number;
+}
+
+export interface GrupoEstadoFinanciero {
+  clase: string;
+  total: number;
+  cuentas: CuentaSaldo[];
+}
+
+export interface EstadoResultadosResponse {
+  fecha_desde: string;
+  fecha_hasta: string;
+  ingresos: GrupoEstadoFinanciero;
+  costos: GrupoEstadoFinanciero;
+  gastos: GrupoEstadoFinanciero;
+  utilidad_bruta: number;
+  utilidad_neta: number;
+}
+
+export interface BalanceGeneralResponse {
+  fecha_corte: string;
+  activo: GrupoEstadoFinanciero;
+  pasivo: GrupoEstadoFinanciero;
+  patrimonio: GrupoEstadoFinanciero;
+  resultado_del_ejercicio: number;
+  total_activo: number;
+  total_pasivo_patrimonio: number;
+  cuadrado: boolean;
+}
+
+export const estadosFinancierosApi = {
+  getEstadoResultados: (fecha_desde?: string, fecha_hasta?: string) =>
+    api.get<EstadoResultadosResponse>(`${BASE}/estado-resultados`, { params: { fecha_desde, fecha_hasta } }).then(r => r.data),
+
+  getBalanceGeneral: (fecha_corte?: string) =>
+    api.get<BalanceGeneralResponse>(`${BASE}/balance-general`, { params: { fecha_corte } }).then(r => r.data),
+};

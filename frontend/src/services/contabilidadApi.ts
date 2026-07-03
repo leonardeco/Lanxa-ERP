@@ -81,3 +81,39 @@ export const contabilidadApi = {
   updateNomina: (id: number, data: Partial<ParametroNomina>) => api.put<ParametroNomina>(`${BASE}/parametros-nomina/${id}`, data).then(r => r.data),
   toggleNomina: (id: number) => api.patch<ParametroNomina>(`${BASE}/parametros-nomina/${id}/toggle`).then(r => r.data),
 };
+
+// ── Libro diario (asientos contables) ────────────────────
+
+export interface MovimientoAsiento {
+  id: number;
+  cuenta_id: number;
+  cuenta_codigo?: string;
+  cuenta_nombre?: string;
+  centro_costo_id?: number;
+  debito: number;
+  credito: number;
+  descripcion?: string;
+}
+
+export interface Asiento {
+  id: number;
+  fecha: string;
+  descripcion: string;
+  tipo_documento?: string;
+  modulo_origen?: string;
+  documento_ref?: string;
+  usuario_id?: number;
+  periodo_id?: number;
+  anulado: boolean;
+  reversado: boolean;
+  created_at?: string;
+  movimientos: MovimientoAsiento[];
+  total_debito: number;
+  total_credito: number;
+}
+
+export const asientosApi = {
+  getAsientos: (params?: { modulo_origen?: string; documento_ref?: string }) =>
+    api.get<Asiento[]>(`${BASE}/asientos`, { params }).then(r => r.data),
+  getAsiento: (id: number) => api.get<Asiento>(`${BASE}/asientos/${id}`).then(r => r.data),
+};
