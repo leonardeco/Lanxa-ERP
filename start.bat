@@ -25,14 +25,14 @@ echo  [2/4] Arrancando backend (FastAPI, HTTPS)...
 start "Backend — FastAPI :8000" cmd /k "cd /d "%~dp0backend" && venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --ssl-keyfile "%~dp0certs\server.key" --ssl-certfile "%~dp0certs\server.crt""
 
 :: Esperar que el backend levante
-timeout /t 4 /nobreak > /dev/null
+timeout /t 4 /nobreak > nul
 
 :: ── Frontend (Vite) ────────────────────────
 echo  [3/4] Arrancando frontend (Vite, HTTPS)...
 start "Frontend — Vite :5173" cmd /k "cd /d "%~dp0frontend" && node node_modules\vite\bin\vite.js --host 0.0.0.0 --port 5173"
 
 :: Esperar que el frontend levante
-timeout /t 4 /nobreak > /dev/null
+timeout /t 4 /nobreak > nul
 
 :: ── Navegador ─────────────────────────────
 :: Usamos el mismo host que VITE_API_URL (frontend\.env), no "localhost":

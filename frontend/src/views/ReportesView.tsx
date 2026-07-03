@@ -12,6 +12,7 @@ import {
   type GrupoEstadoFinanciero,
 } from '../services/reportesApi';
 import { asientosApi, type Asiento } from '../services/contabilidadApi';
+import { descargarCsv } from '../utils/exportCsv';
 
 type ReportesTab = 'aging' | 'periodo' | 'retenciones' | 'pyg' | 'balance' | 'diario';
 
@@ -36,10 +37,25 @@ const primerDiaMesISO = () => {
 // AGING DE CARTERA
 // ══════════════════════════════════════════════════════════
 
+function exportarAging(titulo: string, reporte: AgingReporte) {
+  descargarCsv(
+    `aging-${titulo.toLowerCase().replace(/[^a-z]+/g, '-')}`,
+    ['Número', 'Tercero', 'NIT', 'Saldo pendiente', 'Días vencido', 'Bucket', 'Fecha vencimiento'],
+    reporte.detalle.map(d => [
+      d.numero, d.tercero, d.nit, d.saldo_pendiente, d.dias_vencido, d.bucket, d.fecha_vencimiento,
+    ]),
+  );
+}
+
 function AgingTabla({ titulo, reporte }: { titulo: string; reporte: AgingReporte }) {
   return (
     <div className="fade-in" style={{ marginBottom: 32 }}>
-      <h3 style={{ marginBottom: 12 }}>{titulo} — Total pendiente: {COP(reporte.total_pendiente)}</h3>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <h3 style={{ margin: 0 }}>{titulo} — Total pendiente: {COP(reporte.total_pendiente)}</h3>
+        <button className="btn-secondary" onClick={() => exportarAging(titulo, reporte)}>
+          ⬇ Exportar Excel
+        </button>
+      </div>
       <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 16 }}>
         {reporte.buckets.map(b => (
           <div className="kpi-card" key={b.bucket}>
@@ -364,6 +380,24 @@ function EstadoResultadosTab() {
           <input className="form-input" type="date" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} />
         </div>
         <button className="btn-primary" onClick={cargar} disabled={loading}>{loading ? 'Cargando...' : 'Aplicar'}</button>
+        {data && (
+          <button
+            className="btn-secondary"
+            onClick={() => descargarCsv(
+              `estado-resultados-${data.fecha_desde}-a-${data.fecha_hasta}`,
+              ['Clase', 'Cuenta PUC', 'Nombre', 'Saldo'],
+              [
+                ...data.ingresos.cuentas.map(c => ['Ingreso', c.codigo_puc, c.nombre, c.saldo]),
+                ...data.costos.cuentas.map(c => ['Costo', c.codigo_puc, c.nombre, c.saldo]),
+                ...data.gastos.cuentas.map(c => ['Gasto', c.codigo_puc, c.nombre, c.saldo]),
+                ['', '', 'UTILIDAD BRUTA', data.utilidad_bruta],
+                ['', '', 'UTILIDAD NETA', data.utilidad_neta],
+              ],
+            )}
+          >
+            ⬇ Exportar Excel
+          </button>
+        )}
       </div>
 
       {loading ? <div className="loading-spinner" style={{ margin: '60px auto' }} /> : data && (
@@ -414,6 +448,25 @@ function BalanceGeneralTab() {
           <input className="form-input" type="date" value={fechaCorte} onChange={e => setFechaCorte(e.target.value)} />
         </div>
         <button className="btn-primary" onClick={cargar} disabled={loading}>{loading ? 'Cargando...' : 'Aplicar'}</button>
+        {data && (
+          <button
+            className="btn-secondary"
+            onClick={() => descargarCsv(
+              `balance-general-${data.fecha_corte}`,
+              ['Clase', 'Cuenta PUC', 'Nombre', 'Saldo'],
+              [
+                ...data.activo.cuentas.map(c => ['Activo', c.codigo_puc, c.nombre, c.saldo]),
+                ...data.pasivo.cuentas.map(c => ['Pasivo', c.codigo_puc, c.nombre, c.saldo]),
+                ...data.patrimonio.cuentas.map(c => ['Patrimonio', c.codigo_puc, c.nombre, c.saldo]),
+                ['', '', 'RESULTADO DEL EJERCICIO', data.resultado_del_ejercicio],
+                ['', '', 'TOTAL ACTIVO', data.total_activo],
+                ['', '', 'TOTAL PASIVO + PATRIMONIO', data.total_pasivo_patrimonio],
+              ],
+            )}
+          >
+            ⬇ Exportar Excel
+          </button>
+        )}
       </div>
 
       {loading ? <div className="loading-spinner" style={{ margin: '60px auto' }} /> : data && (
@@ -493,6 +546,21 @@ function LibroDiarioTab() {
           <input className="form-input" value={documento} onChange={e => setDocumento(e.target.value)} placeholder="Todos" />
         </div>
         <button className="btn-primary" onClick={cargar} disabled={loading}>{loading ? 'Cargando...' : 'Aplicar'}</button>
+        {asientos.length > 0 && (
+          <button
+            className="btn-secondary"
+            onClick={() => descargarCsv(
+              'libro-diario',
+              ['Asiento', 'Fecha', 'Descripción', 'Documento', 'Cuenta PUC', 'Nombre cuenta', 'Débito', 'Crédito'],
+              asientos.flatMap(a => a.movimientos.map(m => [
+                a.id, a.fecha, a.descripcion, a.documento_ref,
+                m.cuenta_codigo, m.cuenta_nombre, m.debito, m.credito,
+              ])),
+            )}
+          >
+            ⬇ Exportar Excel
+          </button>
+        )}
       </div>
 
       {loading ? <div className="loading-spinner" style={{ margin: '60px auto' }} /> : (
