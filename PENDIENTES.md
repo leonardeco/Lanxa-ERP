@@ -1,6 +1,6 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **2 de julio de 2026** (4ª revisión — Sprint 1 completado: ✅ 15a anulación de abonos, ✅ 15b cierre de períodos real, ✅ 15c hora local Colombia — commit d29cb93). **Este archivo es la fuente única de pendientes.**.
+Backlog vivo del proyecto. Actualizado: **2 de julio de 2026** (5ª revisión — Sprints 1 y 2 completados: ✅ 15a/15b/15c anulación de abonos, cierre real de períodos y hora local; ✅ 15d auxiliar por tercero, ✅ 14b logs rotados). **Este archivo es la fuente única de pendientes.**.
 Estado general: 198 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde, 0 CVEs.
 
 ---
@@ -41,7 +41,6 @@ Estado general: 198 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde
 | 13d | La lista/detalle de cliente no muestra los flags de retención | Solo se ven en el formulario de edición (bitácora 2026-07-01 #10) |
 | 14 | Manejo de errores consistente en frontend (varios `.catch(() => {})` silenciosos) | El usuario no se entera si un panel falló al cargar |
 | 14a | Unificar Cliente/Proveedor/Tercero a nivel de modelo | CxC guarda `cliente_nit` como texto sin FK; la materialización por NIT (2026-07-02) es el puente, falta la FK real |
-| 14b | Logs persistentes con rotación en el servidor | structlog va solo a consola: un fallo nocturno no deja rastro. Archivo rotado (logging.handlers o structlog a JSON file) |
 | 14c | Revocación de sesiones por Admin | Poder cerrar la sesión remota de un usuario (borrar sus refresh tokens) — hoy solo desactivándolo |
 | 14d | Playwright en el CI (job opcional) | El smoke E2E corre solo local |
 | 14e | Validación del dígito de verificación del NIT | El campo `dv` se guarda sin validar (algoritmo DIAN es 10 líneas) |
@@ -50,7 +49,6 @@ Estado general: 198 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde
 
 | # | Feature | Alcance |
 |---|---|---|
-| 15d | **Auxiliar por tercero** (estado de cuenta) | `tercero_id` ya se llena en los asientos; falta el reporte que lo explota |
 | 15 | **Devoluciones** (notas crédito/débito) | Devolución parcial sin anular la factura completa; reverso parcial de inventario, cartera y asientos |
 | 16 | **Cotizaciones** | Flujo cotización → aprobación → conversión a venta (típico B2B) |
 | 17 | Confirmación al cerrar formularios con datos sin guardar | UX: el modal de Nueva Compra pierde 10 líneas digitadas sin preguntar |
