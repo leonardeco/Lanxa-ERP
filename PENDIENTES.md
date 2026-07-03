@@ -1,6 +1,6 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **2 de julio de 2026** (2ª revisión — auditoría multi-rol completa).
+Backlog vivo del proyecto. Actualizado: **2 de julio de 2026** (3ª revisión — incluye barrido de REPORTE_BUGS.md y opcionales de bitácoras previas). **Este archivo es la fuente única de pendientes.**.
 Estado general: 198 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde, 0 CVEs.
 
 ---
@@ -33,7 +33,12 @@ Estado general: 198 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde
 | 10 | Migración Alembic de **nulabilidad legacy** (BD creadas pre-tipado vs modelos 2.0) | Drift documentado en `alembic/versions/72f7b9fae762`. Requiere backfill revisado contra la BD real del servidor |
 | 11 | Quitar `create_all` del lifespan en producción (dejar solo `alembic upgrade head`) | Hoy conviven; el día que discrepen gana el que corra primero |
 | 12 | Locks de concurrencia (`with_for_update`) en abonos y stock | **Solo si** el despliegue pasa a multi-worker; con uvicorn single-worker en LAN no aplica |
-| 13 | Extraer servicios de dominio (`confirmar_venta` orquesta stock+CxC+asiento inline en el router) | Refactor de mantenibilidad, sin urgencia |
+| 12a | Race en numeración de documentos (BUG-004/005: `MAX+1` sin lock en SOG-V/SOG-CP/RC/CE) | Mismo escenario que #12: solo aplica multi-worker. Resolver junto con #12 (lock o secuencia de BD) |
+| 13 | Extraer servicios de dominio (`confirmar_venta` orquesta stock+CxC+asiento inline en el router) | Incluye unificar el patrón commit/flush entre módulos (BUG-006) y `estado` Enum vs String (ventas usa SAEnum, compras string) |
+| 13a | `EmailStr` en schemas de cliente/proveedor + validaciones de formato | Hoy el email es texto libre (bitácora 2026-07-01 #7) |
+| 13b | `_enrich_cxc/cxp` usan `{**obj.__dict__}` | Frágil ante cambios de modelo; pasar a construcción explícita (bitácora 2026-07-01 #8) |
+| 13c | Form de producto usa `parseInt` para stock inicial | El stock es fraccionario (Numeric 12,3) desde el 1 de julio, pero la UI no deja digitar decimales al crear |
+| 13d | La lista/detalle de cliente no muestra los flags de retención | Solo se ven en el formulario de edición (bitácora 2026-07-01 #10) |
 | 14 | Manejo de errores consistente en frontend (varios `.catch(() => {})` silenciosos) | El usuario no se entera si un panel falló al cargar |
 | 14a | Unificar Cliente/Proveedor/Tercero a nivel de modelo | CxC guarda `cliente_nit` como texto sin FK; la materialización por NIT (2026-07-02) es el puente, falta la FK real |
 | 14b | Logs persistentes con rotación en el servidor | structlog va solo a consola: un fallo nocturno no deja rastro. Archivo rotado (logging.handlers o structlog a JSON file) |
@@ -56,6 +61,8 @@ Estado general: 198 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde
 | 19 | **Auditoría de cambios** (audit log) | Quién modificó qué en productos/clientes/parámetros (los asientos ya guardan usuario) |
 | 20 | Activación Alegra con facturación electrónica DIAN | La integración está construida y testeada con mocks; falta cuenta/token real y rotación documentada (SEC-002) |
 | 21 | Empaquetado Electron (Fase 4) | App de escritorio .exe |
+| 21a | Entorno de staging (aunque sea una carpeta paralela con BD copia en el mismo servidor) | Hoy todo cambio va directo a producción — riesgo de proceso, no de código |
+| 21b | ¿Multi-bodega? — **pregunta de negocio** | El inventario es global; si Super Ozono maneja planta + punto de venta separados, el kardex actual no lo distingue. Confirmar con la empresa antes de diseñar |
 
 ## ⚖️ Cumplimiento Colombia (activar junto con la facturación electrónica)
 
@@ -72,6 +79,9 @@ Estado general: 198 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde
 - Tags de release (`v0.3.0`) y `APP_VERSION` desde el tag
 - Reemplazar el panel "Plan de Desarrollo por Fases" del Dashboard por un KPI de negocio (margen del mes / top morosos)
 - Ocultar del menú los módulos "🚧 en desarrollo" (RRHH, Plataformas) hasta que existan
+- Búsqueda por texto también en tablas de Cartera e Inventario (productos/clientes/proveedores ya la tienen)
+- Política de contraseñas (complejidad/expiración) — hoy solo mínimo 8 caracteres; aceptable en LAN
+- Blacklist de JTI en Redis para revocación inmediata de access tokens — innecesario con vida de 15 min (REPORTE_SEGURIDAD)
 
 ---
 
