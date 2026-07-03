@@ -583,6 +583,17 @@ Solo lectura, sin tablas propias — agregan sobre `contabilidad` (CxC/CxP), `co
 | GET | `/v1/reportes/compras-periodo` | Total y cantidad de compras en un rango (`fecha_desde`/`fecha_hasta`, default mes actual), agrupado por proveedor |
 | GET | `/v1/reportes/ventas-periodo` | Total y cantidad de ventas en un rango, agrupado por cliente y por marca |
 | GET | `/v1/reportes/retenciones-periodo` | ReteFuente/ReteIVA/ReteICA acumulados de compras y ventas en un rango, con totales combinados |
+| GET | `/v1/reportes/estado-resultados` | P&L del período: ingresos/costos/gastos por cuenta PUC, utilidad bruta y neta (desde el libro diario) |
+| GET | `/v1/reportes/balance-general` | Activo/Pasivo/Patrimonio a fecha de corte, con saldos iniciales, resultado del ejercicio y flag `cuadrado` |
+
+### Asientos contables (partida doble — motor en `contabilidad/asientos.py`)
+
+| Método | Endpoint | Descripción |
+|---|---|---|
+| GET | `/v1/contabilidad/asientos` | Libro diario con movimientos y totales; filtros `modulo_origen` y `documento_ref` |
+| GET | `/v1/contabilidad/asientos/{id}` | Detalle de un asiento |
+
+Los asientos se generan automáticamente al confirmar ventas/compras y abonar CxC/CxP, con reverso espejo al anular. Terceros vinculados por NIT en cada movimiento. Mapeo PUC: ver `MAPEO-PUC-PARA-CONTADOR.md`.
 
 ### Alegra (Facturación Electrónica)
 
@@ -719,16 +730,26 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | 21 | Auto-CxC al confirmar venta (espejo de compras→CxP, idempotente) | ✅ Completado 2026-07-01 |
 | 22 | Motor de retenciones híbrido (perfil tributario del cliente + tarifas + tope UVT + override manual) | ✅ Completado 2026-07-01 |
 | 23 | Componentes compartidos accesibles (Modal/Toast/Skeleton), responsive y `prefers-reduced-motion` | ✅ Completado 2026-07-01 |
+| 24 | Overhaul de calidad: SQLAlchemy 2.0 tipado (mypy 161→0), CI GitHub Actions, Alembic, pre-commit, line endings | ✅ Completado 2026-07-02 |
+| 25 | Seguridad: 14 CVEs → 0 (fastapi 0.139/starlette 1.3.1), docs ocultos en prod, token 15 min, rate limits, headers, CORS validator | ✅ Completado 2026-07-02 |
+| 26 | Cobertura de tests 95% (198 API) + 25 componentes (Vitest) + 5 E2E (Playwright) | ✅ Completado 2026-07-02 |
+| 27 | Motor de asientos (partida doble) + P&L/Balance General/Libro Diario con export a Excel | ✅ Completado 2026-07-02 |
+| 28 | Alertas de vencimiento en Dashboard, búsqueda en catálogo, terceros materializados | ✅ Completado 2026-07-02 |
+| 29 | Ops: DESPLIEGUE.md, MANUAL-DE-USUARIO.md, fix start/stop.bat, restore de backups **verificado con simulacro** | ✅ Completado 2026-07-02 |
+| 30 | GitHub: push inicial, CI verde, Dependabot activo (7 PRs fusionados, bcrypt 5 rechazado con causa) | ✅ Completado 2026-07-02 |
 
-### Deuda técnica / mejoras pendientes (ver BITACORA.md, sesión 2026-07-01)
+### Deuda técnica / mejoras pendientes
 
-- **Antes de producción:** limpieza de refresh tokens expirados; `int(token_data.sub)` puede dar 500 en vez de 401; guard de "último admin"; enumeración de usuarios en el login; paginación en listados.
-- **Al desplegar a PostgreSQL:** inicializar Alembic para aplicar en Postgres los cambios de columnas/tipos hechos en SQLite; locks de concurrencia (`with_for_update`) en abonos y stock; `datetime` tz-aware.
-- **Config/negocio:** confirmar `UVT_VALOR` con el contador y activar los flags `retiene_*` en los clientes que sean agentes retenedores.
+- ~~Limpieza de refresh tokens expirados; `int(sub)` 500; guard de "último admin"; enumeración en login; paginación~~ → ✅ **todos resueltos el 2026-07-02** (ver BITACORA.md).
+- ~~Alembic~~ → ✅ configurado (async) con migración baseline el 2026-07-02; ~~datetime tz-aware~~ → ✅ helper `utcnow()` en `core/time.py`.
+- **Pendiente real:** locks de concurrencia (`with_for_update`) en abonos y stock — solo aplica si el despliegue pasa a multi-worker; migración de nulabilidad legacy (documentada en `alembic/versions/72f7b9fae762`); migrar `security.py` de passlib a bcrypt directo (passlib 1.7.4 bloquea bcrypt ≥ 4.1 — PR #7 de Dependabot rechazado con evidencia de CI).
+- **Config/negocio:** confirmar `UVT_VALOR` con la contadora, activar flags `retiene_*` en clientes retenedores y **validar `MAPEO-PUC-PARA-CONTADOR.md`**.
 
 ### Fase 2 — Módulos futuros
 
 - RRHH / Talento Humano
 - Plataformas & Marketing
 - Nómina electrónica
-- P&L y Balance General — requieren motor de asientos contables automáticos (partida doble al confirmar venta/compra/abono), que hoy no existe. Proyecto separado, pendiente de planear
+- ~~P&L y Balance General~~ → ✅ **Completado 2026-07-02**: motor de asientos contables (`contabilidad/asientos.py`, partida doble automática con reverso al anular y terceros vinculados por NIT) + `GET /reportes/estado-resultados` y `/reportes/balance-general` + UI (pestañas P&L, Balance con "✓ Cuadrado" y Libro Diario) + export a Excel. **Mapeo PUC en borrador — validar con la contadora.** Falta el asiento de costo de venta (6135/1435, requiere definir costeo).
+- Devoluciones (notas crédito/débito) y cotizaciones — siguientes features funcionales
+- Auditoría de cambios (audit log) y Electron — Fase 4
