@@ -112,6 +112,7 @@ function ProductosTab() {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroMarca, setFiltroMarca] = useState('');
+  const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Producto | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
@@ -154,6 +155,13 @@ function ProductosTab() {
     }
   };
 
+  const q = search.toLowerCase();
+  const productosFiltrados = productos.filter(p =>
+    p.sku.toLowerCase().includes(q) ||
+    p.nombre.toLowerCase().includes(q) ||
+    p.marca.toLowerCase().includes(q)
+  );
+
   return (
     <div className="fade-in">
       {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
@@ -162,6 +170,14 @@ function ProductosTab() {
         <div className="table-header">
           <div className="table-title">📦 Catálogo de Productos</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              className="form-search"
+              type="search"
+              placeholder="Buscar por SKU, nombre o marca…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              aria-label="Buscar producto"
+            />
             <select
               className="form-select-sm"
               value={filtroMarca}
@@ -196,7 +212,7 @@ function ProductosTab() {
                 </tr>
               </thead>
               <tbody>
-                {productos.map(p => (
+                {productosFiltrados.map(p => (
                   <tr key={p.id} style={{ opacity: p.activo ? 1 : 0.5 }}>
                     <td className="code">{p.sku}</td>
                     <td>

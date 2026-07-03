@@ -31,6 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.contabilidad.models import (
     AsientoContable, MovimientoAsiento, PlanCuentas, PeriodoContable,
+    Tercero, TipoTercero,
     ClaseCuenta, NaturalezaCuenta, NivelCuenta,
 )
 
@@ -72,6 +73,28 @@ async def _get_or_create_cuenta(db: AsyncSession, codigo: str) -> PlanCuentas:
     return cuenta
 
 
+async def _get_or_create_tercero(
+    db: AsyncSession, nit: str | None, razon_social: str | None, tipo: TipoTercero
+) -> int | None:
+    """
+    Materializa progresivamente el registro único de terceros: cada cliente o
+    proveedor que participa en un asiento queda creado/vinculado en `terceros`
+    por su NIT — habilita el auxiliar contable por tercero.
+    """
+    if not nit:
+        return None
+    tercero = await db.scalar(select(Tercero).where(Tercero.nit_cc == nit))
+    if tercero:
+        # Un NIT que ya era Cliente y ahora aparece como Proveedor (o viceversa) es Mixto
+        if tercero.tipo != tipo and tercero.tipo != TipoTercero.MIXTO:
+            tercero.tipo = TipoTercero.MIXTO
+        return tercero.id
+    tercero = Tercero(nit_cc=nit, razon_social=razon_social or nit, tipo=tipo)
+    db.add(tercero)
+    await db.flush()
+    return tercero.id
+
+
 async def _periodo_para(db: AsyncSession, fecha) -> int | None:
     periodo = await db.scalar(
         select(PeriodoContable).where(
@@ -92,6 +115,7 @@ async def registrar_asiento(
     usuario_id: int | None,
     lineas: list[tuple[str, Decimal, Decimal]],
     centro_costo_id: int | None = None,
+    tercero_id: int | None = None,
 ) -> AsientoContable:
     """
     Crea el asiento con sus movimientos. `lineas` = [(codigo_puc, debito, credito)].
@@ -124,6 +148,7 @@ async def registrar_asiento(
         db.add(MovimientoAsiento(
             asiento_id=asiento.id,
             cuenta_id=cuenta.id,
+            tercero_id=tercero_id,
             centro_costo_id=centro_costo_id,
             debito=debito,
             credito=credito,
@@ -188,6 +213,16 @@ async def reversar_asientos(
 
 async def asiento_venta_confirmada(db: AsyncSession, venta, usuario_id: int | None) -> AsientoContable:
     """DB Clientes + retenciones sufridas / CR Ingresos + IVA generado."""
+    # Import local para no acoplar el módulo a nivel de import circular
+    from app.modules.ventas.models import Cliente
+
+    cliente = await db.get(Cliente, venta.cliente_id)
+    tercero_id = await _get_or_create_tercero(
+        db,
+        cliente.nit_cc if cliente else None,
+        cliente.razon_social if cliente else None,
+        TipoTercero.CLIENTE,
+    )
     return await registrar_asiento(
         db,
         fecha=venta.fecha,
@@ -197,6 +232,7 @@ async def asiento_venta_confirmada(db: AsyncSession, venta, usuario_id: int | No
         documento_ref=venta.numero,
         usuario_id=usuario_id,
         centro_costo_id=venta.centro_costo_id,
+        tercero_id=tercero_id,
         lineas=[
             ("130505", venta.total or CERO, CERO),
             ("135515", venta.retefuente or CERO, CERO),
@@ -210,6 +246,9 @@ async def asiento_venta_confirmada(db: AsyncSession, venta, usuario_id: int | No
 
 async def asiento_compra_confirmada(db: AsyncSession, compra, usuario_id: int | None) -> AsientoContable:
     """DB Inventario + IVA descontable / CR Proveedores + retenciones practicadas."""
+    tercero_id = await _get_or_create_tercero(
+        db, compra.proveedor_nit, compra.proveedor_razon_social, TipoTercero.PROVEEDOR
+    )
     return await registrar_asiento(
         db,
         fecha=compra.fecha,
@@ -218,6 +257,7 @@ async def asiento_compra_confirmada(db: AsyncSession, compra, usuario_id: int | 
         modulo_origen="compras",
         documento_ref=compra.numero,
         usuario_id=usuario_id,
+        tercero_id=tercero_id,
         lineas=[
             ("143501", compra.base_gravable or CERO, CERO),
             ("240802", compra.iva_total or CERO, CERO),
@@ -231,6 +271,9 @@ async def asiento_compra_confirmada(db: AsyncSession, compra, usuario_id: int | 
 
 async def asiento_abono_cxc(db: AsyncSession, pago, cxc, usuario_id: int | None) -> AsientoContable:
     """Recibo de Caja: DB Caja / CR Clientes."""
+    tercero_id = await _get_or_create_tercero(
+        db, cxc.cliente_nit, cxc.nombre_cliente, TipoTercero.CLIENTE
+    )
     return await registrar_asiento(
         db,
         fecha=pago.fecha.date() if hasattr(pago.fecha, "date") else pago.fecha,
@@ -239,6 +282,7 @@ async def asiento_abono_cxc(db: AsyncSession, pago, cxc, usuario_id: int | None)
         modulo_origen="cartera",
         documento_ref=pago.numero_comprobante,
         usuario_id=usuario_id,
+        tercero_id=tercero_id,
         lineas=[
             ("110505", pago.valor, CERO),
             ("130505", CERO, pago.valor),
@@ -248,6 +292,9 @@ async def asiento_abono_cxc(db: AsyncSession, pago, cxc, usuario_id: int | None)
 
 async def asiento_abono_cxp(db: AsyncSession, pago, cxp, usuario_id: int | None) -> AsientoContable:
     """Comprobante de Egreso: DB Proveedores / CR Caja."""
+    tercero_id = await _get_or_create_tercero(
+        db, cxp.proveedor_nit, cxp.razon_social, TipoTercero.PROVEEDOR
+    )
     return await registrar_asiento(
         db,
         fecha=pago.fecha.date() if hasattr(pago.fecha, "date") else pago.fecha,
@@ -256,6 +303,7 @@ async def asiento_abono_cxp(db: AsyncSession, pago, cxp, usuario_id: int | None)
         modulo_origen="cartera",
         documento_ref=pago.numero_comprobante,
         usuario_id=usuario_id,
+        tercero_id=tercero_id,
         lineas=[
             ("220501", pago.valor, CERO),
             ("110505", CERO, pago.valor),

@@ -225,3 +225,60 @@ async def test_motor_crea_cuentas_puc_faltantes(client: AsyncClient, auth_header
     assert resp.status_code == 200
     assert resp.json()["nombre"] == "Clientes nacionales"
     assert resp.json()["clase"] == "Activo"
+
+
+@pytest.mark.asyncio
+async def test_asientos_materializan_terceros(client: AsyncClient, auth_headers: dict):
+    """Cada cliente/proveedor que participa en un asiento queda en el registro de terceros."""
+    await _setup_venta(client, auth_headers)     # cliente NIT 900100200
+    await _setup_compra(client, auth_headers)    # proveedor NIT 800100200
+
+    resp = await client.get("/api/v1/contabilidad/terceros", headers=auth_headers)
+    terceros = {t["nit_cc"]: t["tipo"] for t in resp.json()}
+    assert terceros.get("900100200") == "Cliente"
+    assert terceros.get("800100200") == "Proveedor"
+
+    # Los movimientos del asiento llevan el tercero vinculado
+    asientos = (await client.get(f"{ASIENTOS}?modulo_origen=ventas", headers=auth_headers)).json()
+    assert all(m["cuenta_codigo"] for m in asientos[0]["movimientos"])
+
+
+@pytest.mark.asyncio
+async def test_tercero_cliente_y_proveedor_queda_mixto(client: AsyncClient, auth_headers: dict):
+    """Un NIT que compra Y vende pasa a tipo Mixto."""
+    # Cliente y proveedor con el MISMO NIT
+    await client.post(
+        "/api/v1/ventas/clientes",
+        json={"nit_cc": "900555000", "razon_social": "Empresa Mixta SAS"},
+        headers=auth_headers,
+    )
+    prod = (await client.post(
+        "/api/v1/ventas/productos",
+        json={"sku": "MIX-1", "nombre": "P", "marca": "M", "precio_venta": "1000", "stock_actual": 10},
+        headers=auth_headers,
+    )).json()
+    cliente_id = (await client.get("/api/v1/ventas/clientes", headers=auth_headers)).json()[0]["id"]
+    venta = (await client.post(
+        "/api/v1/ventas/",
+        json={"fecha": "2026-07-01", "cliente_id": cliente_id,
+              "detalles": [{"producto_id": prod["id"], "cantidad": "1", "precio_unitario": "1000"}]},
+        headers=auth_headers,
+    )).json()
+    await client.post(f"/api/v1/ventas/{venta['id']}/confirmar", headers=auth_headers)
+
+    prov = (await client.post(
+        "/api/v1/compras/proveedores",
+        json={"nit_cc": "900555000", "razon_social": "Empresa Mixta SAS"},
+        headers=auth_headers,
+    )).json()
+    compra = (await client.post(
+        "/api/v1/compras/",
+        json={"fecha": "2026-07-01", "proveedor_id": prov["id"],
+              "detalles": [{"descripcion": "X", "cantidad": "1", "precio_unitario": "500"}]},
+        headers=auth_headers,
+    )).json()
+    await client.post(f"/api/v1/compras/{compra['id']}/confirmar", headers=auth_headers)
+
+    resp = await client.get("/api/v1/contabilidad/terceros", headers=auth_headers)
+    tercero = next(t for t in resp.json() if t["nit_cc"] == "900555000")
+    assert tercero["tipo"] == "Mixto"
