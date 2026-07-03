@@ -1,6 +1,6 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **2 de julio de 2026** (3ª revisión — incluye barrido de REPORTE_BUGS.md y opcionales de bitácoras previas). **Este archivo es la fuente única de pendientes.**.
+Backlog vivo del proyecto. Actualizado: **2 de julio de 2026** (4ª revisión — Sprint 1 completado: ✅ 15a anulación de abonos, ✅ 15b cierre de períodos real, ✅ 15c hora local Colombia — commit d29cb93). **Este archivo es la fuente única de pendientes.**.
 Estado general: 198 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde, 0 CVEs.
 
 ---
@@ -50,9 +50,6 @@ Estado general: 198 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde
 
 | # | Feature | Alcance |
 |---|---|---|
-| 15a | **Corrección/reverso de abonos** (Pago mal digitado) | Hoy un abono equivocado no se puede deshacer desde la UI — solo se anula la CxC/CxP completa. Necesita anular el Pago + reverso del asiento + recalcular saldo |
-| 15b | **Períodos cerrados que bloqueen** | `PeriodoContable` en "Cerrado" no impide confirmar documentos ni generar asientos en ese mes — el cierre contable hoy es decorativo |
-| 15c | **Fecha local en comprobantes RC/CE** | `Pago.fecha` se guarda UTC: un abono a las 8pm (Colombia, UTC-5) queda fechado al día siguiente. Corregir a hora local del negocio |
 | 15d | **Auxiliar por tercero** (estado de cuenta) | `tercero_id` ya se llena en los asientos; falta el reporte que lo explota |
 | 15 | **Devoluciones** (notas crédito/débito) | Devolución parcial sin anular la factura completa; reverso parcial de inventario, cartera y asientos |
 | 16 | **Cotizaciones** | Flujo cotización → aprobación → conversión a venta (típico B2B) |
