@@ -7,12 +7,23 @@ import secrets
 from datetime import datetime, timedelta
 from app.core.time import utcnow
 from typing import Any, Union
+
+import bcrypt
 from jose import jwt
-from passlib.context import CryptContext
+
 from app.core.config import get_settings
 
 settings = get_settings()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# bcrypt solo usa los primeros 72 bytes de la contraseña. passlib (usado hasta
+# julio 2026) truncaba en silencio; se conserva ese comportamiento explícito
+# para que TODOS los hashes existentes sigan verificando igual (bcrypt >= 5
+# lanzaría ValueError en vez de truncar).
+_BCRYPT_MAX_BYTES = 72
+
+
+def _preparar_password(password: str) -> bytes:
+    return password.encode("utf-8")[:_BCRYPT_MAX_BYTES]
 
 
 def create_access_token(
@@ -47,10 +58,15 @@ def refresh_token_expiry() -> datetime:
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verifica si la contraseña en texto plano coincide con el hash."""
-    return pwd_context.verify(plain_password, hashed_password)
+    """Verifica la contraseña contra el hash bcrypt (compatible con los
+    hashes $2b$ generados por passlib antes de la migración de julio 2026)."""
+    try:
+        return bcrypt.checkpw(_preparar_password(plain_password), hashed_password.encode("utf-8"))
+    except ValueError:
+        # Hash malformado/no-bcrypt en BD: credencial inválida, nunca 500
+        return False
 
 
 def get_password_hash(password: str) -> str:
-    """Genera un hash bcrypt seguro a partir de una contraseña."""
-    return pwd_context.hash(password)
+    """Genera un hash bcrypt (cost 12, mismo factor que usaba passlib)."""
+    return bcrypt.hashpw(_preparar_password(password), bcrypt.gensalt(rounds=12)).decode("utf-8")

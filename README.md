@@ -121,7 +121,7 @@ modules/<nombre>/
 | SQLAlchemy | 2.0 | ORM async — PostgreSQL y SQLite |
 | Pydantic | 2.13 | Validación y serialización |
 | python-jose | 3.5 | Generación y verificación JWT |
-| passlib + bcrypt | 1.7 / 4.0.1 | Hash de contraseñas (bcrypt pineado: passlib es incompatible con ≥4.1) |
+| bcrypt | 5.0 | Hash de contraseñas — uso directo (passlib eliminado jul-2026, compat con hashes existentes verificada por test) |
 | httpx | 0.28 | Cliente HTTP async (Alegra API) |
 | structlog | 26.1 | Logging estructurado JSON |
 | aiosqlite | 0.22 | Driver SQLite async (desarrollo local) |

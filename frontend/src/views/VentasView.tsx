@@ -295,7 +295,7 @@ function ProductoFormModal({ producto, onSave, onClose }: {
       precio_venta: parseFloat(form.precio_venta) || 0,
       precio_costo: parseFloat(form.precio_costo) || 0,
       tarifa_iva: parseFloat(form.tarifa_iva) || 19,
-      stock_actual: parseInt(form.stock_actual) || 0,
+      stock_actual: parseFloat(form.stock_actual) || 0,  // fraccionario (litros/galones)
       stock_minimo: parseInt(form.stock_minimo) || 5,
     });
   };
@@ -369,7 +369,7 @@ function ProductoFormModal({ producto, onSave, onClose }: {
         <div className="form-row">
           <div className="form-group">
             <label>Stock Actual</label>
-            <input type="number" value={form.stock_actual} onChange={set('stock_actual')} min="0" />
+            <input type="number" value={form.stock_actual} onChange={set('stock_actual')} min="0" step="0.001" />
           </div>
           <div className="form-group">
             <label>Stock Mínimo</label>
@@ -485,6 +485,7 @@ function ClientesTab() {
                   <th>Ciudad</th>
                   <th>Contacto</th>
                   <th>Lista</th>
+                  <th>Retenciones</th>
                   <th>Cupo Crédito</th>
                   <th>Estado</th>
                   <th>Acciones</th>
@@ -510,6 +511,17 @@ function ClientesTab() {
                       <span className={`badge ${c.lista_precios === 'Distribuidor' ? 'green' : c.lista_precios === 'Mayorista' ? 'blue' : 'neutral'}`}>
                         {c.lista_precios}
                       </span>
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      {(c.retiene_fuente || c.retiene_iva || c.retiene_ica) ? (
+                        <>
+                          {c.retiene_fuente && <span className="badge amber" title="Practica retención en la fuente" style={{ marginRight: 3, fontSize: 10 }}>RteF</span>}
+                          {c.retiene_iva && <span className="badge amber" title="Practica ReteIVA" style={{ marginRight: 3, fontSize: 10 }}>RteIVA</span>}
+                          {c.retiene_ica && <span className="badge amber" title={`Practica ReteICA${c.tarifa_reteica ? ` (${c.tarifa_reteica}‰)` : ''}`} style={{ fontSize: 10 }}>RteICA</span>}
+                        </>
+                      ) : (
+                        <span style={{ color: 'var(--neutral-500)', fontSize: '0.75rem' }}>—</span>
+                      )}
                     </td>
                     <td className="code" style={{ color: 'var(--blue-400)' }}>
                       ${Number(c.cupo_credito).toLocaleString('es-CO')}

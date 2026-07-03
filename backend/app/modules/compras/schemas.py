@@ -1,4 +1,6 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+from app.core.nit import validar_dv
 from typing import Optional, List
 from decimal import Decimal
 from datetime import date, datetime
@@ -25,7 +27,12 @@ class ProveedorBase(BaseModel):
 
 
 class ProveedorCreate(ProveedorBase):
-    pass
+    @model_validator(mode="after")
+    def _dv_correcto(self):
+        error = validar_dv(self.nit_cc, self.dv)
+        if error:
+            raise ValueError(error)
+        return self
 
 
 class ProveedorUpdate(BaseModel):

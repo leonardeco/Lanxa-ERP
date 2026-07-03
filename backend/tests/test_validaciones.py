@@ -255,3 +255,49 @@ async def test_override_manual_de_retenciones_se_respeta(client: AsyncClient, au
     assert Decimal(str(v["reteica"])) == Decimal("500.00")
     # total = 100.000 + 19.000 - 1.000 - 0 - 500 = 117.500
     assert Decimal(str(v["total"])) == Decimal("117500.00")
+
+
+def test_calculo_dv_nit_algoritmo_dian():
+    """14e: el DV calculado coincide con NITs reales conocidos."""
+    from app.core.nit import calcular_dv
+
+    # NIT de la propia empresa: 901841798-5 (ver .env.example / README)
+    assert calcular_dv("901841798") == 5
+    # NIT no numérico (cédula de extranjería) → no aplica
+    assert calcular_dv("E-12345") is None
+
+
+@pytest.mark.asyncio
+async def test_dv_incorrecto_rechaza_cliente_y_proveedor(client, auth_headers):
+    # DV equivocado → 422 con mensaje que dice el correcto
+    resp = await client.post(
+        "/api/v1/ventas/clientes",
+        json={"nit_cc": "901841798", "dv": "9", "razon_social": "DV Malo SAS"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 422
+    assert "DV correcto es 5" in str(resp.json())
+
+    # DV correcto → 201
+    resp = await client.post(
+        "/api/v1/ventas/clientes",
+        json={"nit_cc": "901841798", "dv": "5", "razon_social": "DV Bueno SAS"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201
+
+    # Proveedor con DV equivocado → 422
+    resp = await client.post(
+        "/api/v1/compras/proveedores",
+        json={"nit_cc": "901841798", "dv": "0", "razon_social": "Prov DV Malo"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 422
+
+    # Sin DV → se acepta (campo opcional)
+    resp = await client.post(
+        "/api/v1/compras/proveedores",
+        json={"nit_cc": "800123456", "razon_social": "Prov Sin DV"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201

@@ -1,6 +1,6 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **2 de julio de 2026** (5ª revisión — Sprints 1 y 2 completados: ✅ 15a/15b/15c anulación de abonos, cierre real de períodos y hora local; ✅ 15d auxiliar por tercero, ✅ 14b logs rotados). **Este archivo es la fuente única de pendientes.**.
+Backlog vivo del proyecto. Actualizado: **2 de julio de 2026** (6ª revisión — Sprints 1-3 completados: ✅ 15a/b/c/d cartera+períodos+hora local+auxiliar; ✅ 14b logs; ✅ 9 passlib→bcrypt 5; ✅ 13c/13d/14e stock decimal, flags visibles, DV del NIT). **Este archivo es la fuente única de pendientes.**.
 Estado general: 198 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde, 0 CVEs.
 
 ---
@@ -29,7 +29,6 @@ Estado general: 198 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde
 | # | Pendiente | Notas |
 |---|---|---|
 | 8 | **Asiento de costo de venta** (DB 6135 / CR 1435 al confirmar venta) | Depende del ítem 3. Sin esto el P&L muestra ingresos, no margen |
-| 9 | **Migrar `security.py` de passlib a bcrypt directo** | passlib 1.7.4 (sin mantenimiento) bloquea bcrypt ≥ 4.1 — PR #7 de Dependabot rechazado con evidencia de CI. Probar login con hashes existentes al migrar |
 | 10 | Migración Alembic de **nulabilidad legacy** (BD creadas pre-tipado vs modelos 2.0) | Drift documentado en `alembic/versions/72f7b9fae762`. Requiere backfill revisado contra la BD real del servidor |
 | 11 | Quitar `create_all` del lifespan en producción (dejar solo `alembic upgrade head`) | Hoy conviven; el día que discrepen gana el que corra primero |
 | 12 | Locks de concurrencia (`with_for_update`) en abonos y stock | **Solo si** el despliegue pasa a multi-worker; con uvicorn single-worker en LAN no aplica |
@@ -37,13 +36,10 @@ Estado general: 198 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde
 | 13 | Extraer servicios de dominio (`confirmar_venta` orquesta stock+CxC+asiento inline en el router) | Incluye unificar el patrón commit/flush entre módulos (BUG-006) y `estado` Enum vs String (ventas usa SAEnum, compras string) |
 | 13a | `EmailStr` en schemas de cliente/proveedor + validaciones de formato | Hoy el email es texto libre (bitácora 2026-07-01 #7) |
 | 13b | `_enrich_cxc/cxp` usan `{**obj.__dict__}` | Frágil ante cambios de modelo; pasar a construcción explícita (bitácora 2026-07-01 #8) |
-| 13c | Form de producto usa `parseInt` para stock inicial | El stock es fraccionario (Numeric 12,3) desde el 1 de julio, pero la UI no deja digitar decimales al crear |
-| 13d | La lista/detalle de cliente no muestra los flags de retención | Solo se ven en el formulario de edición (bitácora 2026-07-01 #10) |
 | 14 | Manejo de errores consistente en frontend (varios `.catch(() => {})` silenciosos) | El usuario no se entera si un panel falló al cargar |
 | 14a | Unificar Cliente/Proveedor/Tercero a nivel de modelo | CxC guarda `cliente_nit` como texto sin FK; la materialización por NIT (2026-07-02) es el puente, falta la FK real |
 | 14c | Revocación de sesiones por Admin | Poder cerrar la sesión remota de un usuario (borrar sus refresh tokens) — hoy solo desactivándolo |
 | 14d | Playwright en el CI (job opcional) | El smoke E2E corre solo local |
-| 14e | Validación del dígito de verificación del NIT | El campo `dv` se guarda sin validar (algoritmo DIAN es 10 líneas) |
 
 ## 🟢 Funcional — siguientes features (por prioridad de negocio)
 
