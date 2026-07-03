@@ -7,7 +7,8 @@ import path from 'node:path'
 const certsDir = path.resolve(__dirname, '../certs')
 const keyPath = path.join(certsDir, 'server.key')
 const certPath = path.join(certsDir, 'server.crt')
-const hasCerts = fs.existsSync(keyPath) && fs.existsSync(certPath)
+// E2E=1: Playwright corre todo en http local (evita mixed-content y certificados)
+const hasCerts = !process.env.E2E && fs.existsSync(keyPath) && fs.existsSync(certPath)
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -19,5 +20,6 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.ts',
+    exclude: ['node_modules/**', 'e2e/**'],
   },
 })
