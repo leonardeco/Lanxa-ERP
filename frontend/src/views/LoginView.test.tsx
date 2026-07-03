@@ -1,0 +1,89 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import type { ReactNode } from 'react';
+import LoginView from './LoginView';
+import { AuthContext, type AuthContextType } from '../contexts/auth';
+
+vi.mock('../services/api', () => ({
+  api: { post: vi.fn() },
+  setOnSessionExpired: vi.fn(),
+}));
+
+import { api } from '../services/api';
+
+const mockLogin = vi.fn();
+
+const contexto: AuthContextType = {
+  user: null,
+  token: null,
+  login: mockLogin,
+  logout: vi.fn().mockResolvedValue(undefined),
+  isLoading: false,
+};
+
+function renderLogin() {
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <AuthContext.Provider value={contexto}>{children}</AuthContext.Provider>
+  );
+  return render(<LoginView />, { wrapper });
+}
+
+describe('LoginView', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renderiza el formulario con email, contraseña y botón', () => {
+    renderLogin();
+    expect(screen.getByText('Correo Electrónico')).toBeInTheDocument();
+    expect(screen.getByText('Contraseña')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Acceder al Sistema' })).toBeInTheDocument();
+  });
+
+  it('login exitoso: envía credenciales como form-urlencoded y llama login() con el token', async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { access_token: 'jwt-de-prueba' } });
+    const user = userEvent.setup();
+    renderLogin();
+
+    await user.type(screen.getByPlaceholderText('usuario@superozonoglobal.com'), 'admin@test.com');
+    await user.type(screen.getByPlaceholderText('••••••••'), 'clave123');
+    await user.click(screen.getByRole('button', { name: 'Acceder al Sistema' }));
+
+    await waitFor(() => expect(mockLogin).toHaveBeenCalledWith('jwt-de-prueba'));
+
+    const [url, body, config] = vi.mocked(api.post).mock.calls[0];
+    expect(url).toBe('/login/access-token');
+    expect(String(body)).toBe('username=admin%40test.com&password=clave123');
+    expect(config?.headers?.['Content-Type']).toBe('application/x-www-form-urlencoded');
+  });
+
+  it('login fallido: muestra el detail del backend y no llama login()', async () => {
+    vi.mocked(api.post).mockRejectedValueOnce({
+      response: { data: { detail: 'Correo o contraseña incorrectos' } },
+    });
+    const user = userEvent.setup();
+    renderLogin();
+
+    await user.type(screen.getByPlaceholderText('usuario@superozonoglobal.com'), 'x@test.com');
+    await user.type(screen.getByPlaceholderText('••••••••'), 'mala');
+    await user.click(screen.getByRole('button', { name: 'Acceder al Sistema' }));
+
+    expect(await screen.findByText('Correo o contraseña incorrectos')).toBeInTheDocument();
+    expect(mockLogin).not.toHaveBeenCalled();
+  });
+
+  it('error de red sin response: muestra el mensaje genérico', async () => {
+    vi.mocked(api.post).mockRejectedValueOnce(new Error('Network Error'));
+    const user = userEvent.setup();
+    renderLogin();
+
+    await user.type(screen.getByPlaceholderText('usuario@superozonoglobal.com'), 'x@test.com');
+    await user.type(screen.getByPlaceholderText('••••••••'), 'clave123');
+    await user.click(screen.getByRole('button', { name: 'Acceder al Sistema' }));
+
+    expect(
+      await screen.findByText('Error al iniciar sesión. Verifica tus credenciales.'),
+    ).toBeInTheDocument();
+  });
+});
