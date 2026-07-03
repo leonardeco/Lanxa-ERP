@@ -10,13 +10,20 @@ from app.core.database import get_db
 from app.core.numbering import next_sequential_numero
 from app.api.deps import CurrentUser, AdminOrAdministradoraDep
 
-from .models import Proveedor, CompraDocumento, CompraDetalle
+from .models import (
+    Proveedor, CompraDocumento, CompraDetalle,
+    DevolucionCompra, DevolucionCompraDetalle,
+)
+from app.modules.ventas.models import Producto
 from .schemas import (
     ProveedorCreate, ProveedorUpdate, ProveedorResponse,
     CompraInput, CompraResponse, ComprasDashboard, TopProveedor,
+    DevolucionCompraCreate, DevolucionCompraResponse,
 )
 from app.modules.contabilidad.models import CuentaPorPagar, EstadoDocumento
-from app.modules.contabilidad.asientos import asiento_compra_confirmada, reversar_asientos
+from app.modules.contabilidad.asientos import (
+    asiento_compra_confirmada, asiento_devolucion_compra, reversar_asientos,
+)
 from app.modules.inventario.models import TipoMovimientoInventario, OrigenMovimiento
 from app.modules.inventario.service import registrar_movimiento
 
@@ -396,3 +403,155 @@ async def anular_compra(
     await session.commit()
     await session.refresh(c)
     return c
+
+
+# ══════════════════════════════════════════════════════════
+# DEVOLUCIONES A PROVEEDOR (ND-####)
+# ══════════════════════════════════════════════════════════
+
+@router.get("/{id}/devoluciones", response_model=list[DevolucionCompraResponse])
+async def list_devoluciones_compra(id: int, _: CurrentUser, session: AsyncSession = Depends(get_db)):
+    rows = (await session.execute(
+        select(DevolucionCompra)
+        .options(selectinload(DevolucionCompra.detalles))
+        .where(DevolucionCompra.compra_id == id)
+        .order_by(DevolucionCompra.id)
+    )).scalars().all()
+    return rows
+
+
+@router.post("/{id}/devoluciones", response_model=DevolucionCompraResponse, status_code=201)
+async def crear_devolucion_compra(
+    id: int,
+    data: DevolucionCompraCreate,
+    current: AdminOrAdministradoraDep,
+    session: AsyncSession = Depends(get_db),
+):
+    """
+    Devolución a proveedor sobre una compra confirmada: saca la mercancía del
+    inventario (valida stock), reduce la CxP y genera el asiento contable
+    (DB 220501 Proveedores / CR 143501 Inventario + 240802 IVA descontable).
+    """
+    compra = await session.scalar(
+        select(CompraDocumento)
+        .options(selectinload(CompraDocumento.detalles))
+        .where(CompraDocumento.id == id)
+    )
+    if not compra:
+        raise HTTPException(404, "Compra no encontrada")
+    if compra.estado != "Confirmada":
+        raise HTTPException(400, "Solo se pueden devolver compras Confirmadas")
+
+    detalles_compra = {d.id: d for d in compra.detalles}
+
+    ya_devueltas: dict[int, Decimal] = {}
+    previas = (await session.execute(
+        select(DevolucionCompraDetalle.compra_detalle_id, func.sum(DevolucionCompraDetalle.cantidad))
+        .join(DevolucionCompra, DevolucionCompra.id == DevolucionCompraDetalle.devolucion_id)
+        .where(DevolucionCompra.compra_id == id)
+        .group_by(DevolucionCompraDetalle.compra_detalle_id)
+    )).all()
+    for det_id, cant in previas:
+        ya_devueltas[det_id] = Decimal(str(cant))
+
+    numero = await next_sequential_numero(session, DevolucionCompra.numero, "ND")
+    devolucion = DevolucionCompra(
+        numero=numero,
+        compra_id=compra.id,
+        fecha=data.fecha or date.today(),
+        motivo=data.motivo,
+        usuario_id=current.id,
+    )
+    session.add(devolucion)
+    await session.flush()
+
+    subtotal = Decimal("0.00")
+    iva_total = Decimal("0.00")
+    for item in data.detalles:
+        det = detalles_compra.get(item.compra_detalle_id)
+        if not det:
+            raise HTTPException(404, f"La línea {item.compra_detalle_id} no pertenece a esta compra")
+        disponible = det.cantidad - ya_devueltas.get(det.id, Decimal("0"))
+        if item.cantidad > disponible:
+            raise HTTPException(
+                400,
+                f"No se puede devolver {item.cantidad} de la línea {det.id}: "
+                f"compradas {det.cantidad}, ya devueltas {ya_devueltas.get(det.id, 0)} "
+                f"(máximo {disponible})",
+            )
+
+        base = (item.cantidad * det.precio_unitario
+                * (Decimal("1") - det.descuento_porcentaje / Decimal("100")))
+        base = base.quantize(Decimal("0.01"))
+        iva = (base * det.iva_porcentaje / Decimal("100")).quantize(Decimal("0.01"))
+        subtotal += base
+        iva_total += iva
+
+        session.add(DevolucionCompraDetalle(
+            devolucion_id=devolucion.id,
+            compra_detalle_id=det.id,
+            producto_id=det.producto_id,
+            descripcion=det.descripcion,
+            cantidad=item.cantidad,
+            precio_unitario=det.precio_unitario,
+            subtotal_linea=base,
+            iva_valor=iva,
+            total_linea=base + iva,
+        ))
+
+        # La mercancía devuelta sale del inventario (si la línea tiene producto)
+        if det.producto_id:
+            producto = await session.get(Producto, det.producto_id)
+            stock = producto.stock_actual if producto else Decimal("0")
+            if stock < item.cantidad:
+                nombre = producto.nombre if producto else det.descripcion
+                raise HTTPException(
+                    400,
+                    f"Stock insuficiente para devolver {item.cantidad} de "
+                    f"{nombre} (disponible: {stock})",
+                )
+            await registrar_movimiento(
+                session,
+                producto_id=det.producto_id,
+                tipo=TipoMovimientoInventario.SALIDA,
+                origen=OrigenMovimiento.DEVOLUCION_COMPRA,
+                cantidad=item.cantidad,
+                motivo=f"Devolución {numero} de compra {compra.numero}: {data.motivo}",
+                usuario_id=current.id,
+                compra_id=compra.id,
+                compra_detalle_id=det.id,
+            )
+
+    devolucion.subtotal = subtotal
+    devolucion.iva_total = iva_total
+    devolucion.total = subtotal + iva_total
+
+    # Reducir la CxP de la compra. Si ya se había pagado más de lo que queda,
+    # la CxP pasa a Pagado y el saldo a favor se gestiona manualmente.
+    cxp = await session.scalar(
+        select(CuentaPorPagar).where(CuentaPorPagar.compra_id == compra.id)
+    )
+    if cxp and cxp.estado != EstadoDocumento.ANULADO:
+        cxp.valor = max(cxp.valor - devolucion.total, Decimal("0"))
+        saldo = cxp.valor - (cxp.abonos or Decimal("0"))
+        if saldo <= 0:
+            cxp.estado = EstadoDocumento.PAGADO
+            compra.estado_pago = "Pagado"
+        elif (cxp.abonos or Decimal("0")) > 0:
+            cxp.estado = EstadoDocumento.PARCIAL
+        else:
+            cxp.estado = EstadoDocumento.PENDIENTE
+        nota_nd = f"[ND] {numero}: -{devolucion.total}"
+        cxp.notas = ((cxp.notas or "") + "\n" + nota_nd).strip()
+
+    # Asiento contable (valida período abierto)
+    await asiento_devolucion_compra(session, devolucion, compra, usuario_id=current.id)
+
+    await session.commit()
+
+    result = await session.scalar(
+        select(DevolucionCompra)
+        .options(selectinload(DevolucionCompra.detalles))
+        .where(DevolucionCompra.id == devolucion.id)
+    )
+    return result

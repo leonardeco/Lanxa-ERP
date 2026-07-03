@@ -26,6 +26,8 @@ class OrigenMovimiento(str, enum.Enum):
     AJUSTE_MANUAL = "Ajuste manual"
     REVERSO_COMPRA = "Reverso de compra"
     REVERSO_VENTA = "Reverso de venta"
+    DEVOLUCION_VENTA = "Devolución venta"
+    DEVOLUCION_COMPRA = "Devolución compra"
 
 
 class MovimientoInventario(Base):

@@ -139,3 +139,45 @@ class ComprasDashboard(BaseModel):
     total_proveedores_activos: int
     cxp_pendiente: Decimal
     top_proveedores: List[TopProveedor]
+
+
+# ── Devoluciones a proveedor (ND-####) ───────────────────
+
+class DevolucionCompraDetalleInput(BaseModel):
+    compra_detalle_id: int
+    cantidad: Decimal = Field(gt=0)
+
+
+class DevolucionCompraCreate(BaseModel):
+    fecha: Optional[date] = None
+    motivo: str = Field(min_length=3, max_length=300)
+    detalles: List[DevolucionCompraDetalleInput] = Field(min_length=1)
+
+
+class DevolucionCompraDetalleResponse(BaseModel):
+    id: int
+    compra_detalle_id: int
+    producto_id: Optional[int] = None
+    descripcion: str
+    cantidad: Decimal
+    precio_unitario: Decimal
+    subtotal_linea: Decimal
+    iva_valor: Decimal
+    total_linea: Decimal
+
+    model_config = {"from_attributes": True}
+
+
+class DevolucionCompraResponse(BaseModel):
+    id: int
+    numero: str
+    compra_id: int
+    fecha: date
+    motivo: str
+    subtotal: Decimal
+    iva_total: Decimal
+    total: Decimal
+    created_at: Optional[datetime] = None
+    detalles: List[DevolucionCompraDetalleResponse] = []
+
+    model_config = {"from_attributes": True}

@@ -17,6 +17,7 @@ from app.core.numbering import next_sequential_numero
 from app.api.deps import CurrentUser, AdminOrAdministradoraDep
 from app.modules.ventas.models import (
     Producto, Cliente, VentaDocumento, VentaDetalle,
+    DevolucionVenta, DevolucionVentaDetalle,
     EstadoVenta, EstadoPago,
 )
 from app.modules.ventas.schemas import (
@@ -24,11 +25,14 @@ from app.modules.ventas.schemas import (
     ClienteCreate, ClienteUpdate, ClienteResponse,
     VentaCreate, VentaResponse, VentaDetalleResponse,
     VentaDashboardStats,
+    DevolucionCreate, DevolucionResponse,
 )
 from app.modules.inventario.models import TipoMovimientoInventario, OrigenMovimiento
 from app.modules.inventario.service import registrar_movimiento
 from app.modules.contabilidad.models import CuentaPorCobrar, EstadoDocumento, ParametroTributario
-from app.modules.contabilidad.asientos import asiento_venta_confirmada, reversar_asientos
+from app.modules.contabilidad.asientos import (
+    asiento_venta_confirmada, asiento_devolucion_venta, reversar_asientos,
+)
 
 router = APIRouter(prefix="/api/v1/ventas", tags=["Ventas & Comercial"])
 settings = get_settings()
@@ -673,3 +677,145 @@ async def anular_venta(venta_id: int, current: AdminOrAdministradoraDep, db: Asy
 
     await db.flush()
     return {"detail": f"Venta {venta.numero} anulada correctamente"}
+
+
+# ══════════════════════════════════════════════════════════
+# DEVOLUCIONES — Nota crédito (NC-####)
+# ══════════════════════════════════════════════════════════
+
+@router.get("/{venta_id}/devoluciones", response_model=List[DevolucionResponse])
+async def list_devoluciones_venta(venta_id: int, _: CurrentUser, db: AsyncSession = Depends(get_db)):
+    rows = (await db.execute(
+        select(DevolucionVenta)
+        .options(selectinload(DevolucionVenta.detalles))
+        .where(DevolucionVenta.venta_id == venta_id)
+        .order_by(DevolucionVenta.id)
+    )).scalars().all()
+    return rows
+
+
+@router.post("/{venta_id}/devoluciones", response_model=DevolucionResponse, status_code=201)
+async def crear_devolucion_venta(
+    venta_id: int,
+    data: DevolucionCreate,
+    current: AdminOrAdministradoraDep,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Nota crédito: devolución parcial o total de una venta confirmada/facturada.
+    Reingresa el inventario, reduce la CxC y genera el asiento contable
+    (DB 417501 Devoluciones + 240801 IVA / CR 130505 Clientes).
+    """
+    venta = await db.scalar(
+        select(VentaDocumento)
+        .options(selectinload(VentaDocumento.detalles))
+        .where(VentaDocumento.id == venta_id)
+    )
+    if not venta:
+        raise HTTPException(404, "Venta no encontrada")
+    if venta.estado not in (EstadoVenta.CONFIRMADA, EstadoVenta.FACTURADA):
+        raise HTTPException(400, "Solo se pueden devolver ventas Confirmadas o Facturadas")
+
+    detalles_venta = {d.id: d for d in venta.detalles}
+
+    # Cantidades ya devueltas por línea (devoluciones previas)
+    ya_devueltas: dict[int, Decimal] = {}
+    previas = (await db.execute(
+        select(DevolucionVentaDetalle.venta_detalle_id, func.sum(DevolucionVentaDetalle.cantidad))
+        .join(DevolucionVenta, DevolucionVenta.id == DevolucionVentaDetalle.devolucion_id)
+        .where(DevolucionVenta.venta_id == venta_id)
+        .group_by(DevolucionVentaDetalle.venta_detalle_id)
+    )).all()
+    for det_id, cant in previas:
+        ya_devueltas[det_id] = Decimal(str(cant))
+
+    numero = await next_sequential_numero(db, DevolucionVenta.numero, "NC")
+    devolucion = DevolucionVenta(
+        numero=numero,
+        venta_id=venta.id,
+        fecha=data.fecha or date.today(),
+        motivo=data.motivo,
+        usuario_id=current.id,
+    )
+    db.add(devolucion)
+    await db.flush()
+
+    subtotal = Decimal("0.00")
+    iva_total = Decimal("0.00")
+    for item in data.detalles:
+        det = detalles_venta.get(item.venta_detalle_id)
+        if not det:
+            raise HTTPException(404, f"La línea {item.venta_detalle_id} no pertenece a esta venta")
+        disponible = det.cantidad - ya_devueltas.get(det.id, Decimal("0"))
+        if item.cantidad > disponible:
+            raise HTTPException(
+                400,
+                f"No se puede devolver {item.cantidad} de la línea {det.id}: "
+                f"vendidas {det.cantidad}, ya devueltas {ya_devueltas.get(det.id, 0)} "
+                f"(máximo {disponible})",
+            )
+
+        # Montos con el precio, descuento e IVA de la línea original
+        base = (item.cantidad * det.precio_unitario
+                * (Decimal("1") - det.descuento_porcentaje / Decimal("100")))
+        base = base.quantize(Decimal("0.01"))
+        iva = (base * det.iva_porcentaje / Decimal("100")).quantize(Decimal("0.01"))
+        subtotal += base
+        iva_total += iva
+
+        db.add(DevolucionVentaDetalle(
+            devolucion_id=devolucion.id,
+            venta_detalle_id=det.id,
+            producto_id=det.producto_id,
+            cantidad=item.cantidad,
+            precio_unitario=det.precio_unitario,
+            subtotal_linea=base,
+            iva_valor=iva,
+            total_linea=base + iva,
+        ))
+
+        # La mercancía devuelta reingresa al inventario
+        await registrar_movimiento(
+            db,
+            producto_id=det.producto_id,
+            tipo=TipoMovimientoInventario.ENTRADA,
+            origen=OrigenMovimiento.DEVOLUCION_VENTA,
+            cantidad=item.cantidad,
+            motivo=f"Devolución {numero} de venta {venta.numero}: {data.motivo}",
+            usuario_id=current.id,
+            venta_id=venta.id,
+            venta_detalle_id=det.id,
+        )
+
+    devolucion.subtotal = subtotal
+    devolucion.iva_total = iva_total
+    devolucion.total = subtotal + iva_total
+
+    # Reducir la CxC de la factura. Si el cliente ya había pagado más de lo
+    # que queda tras la devolución, la CxC queda Pagada y el saldo a favor
+    # se gestiona manualmente (limitación documentada).
+    cxc = await db.scalar(
+        select(CuentaPorCobrar).where(CuentaPorCobrar.numero_factura == venta.numero)
+    )
+    if cxc and cxc.estado != EstadoDocumento.ANULADO:
+        cxc.valor_factura = max(cxc.valor_factura - devolucion.total, Decimal("0"))
+        saldo = cxc.valor_factura - (cxc.abonos or Decimal("0"))
+        if saldo <= 0:
+            cxc.estado = EstadoDocumento.PAGADO
+        elif (cxc.abonos or Decimal("0")) > 0:
+            cxc.estado = EstadoDocumento.PARCIAL
+        else:
+            cxc.estado = EstadoDocumento.PENDIENTE
+        cxc.notas = ((cxc.notas or "") + f"\n[NC] {numero}: -{devolucion.total}").strip()
+
+    # Asiento contable de la nota crédito (valida período abierto)
+    await asiento_devolucion_venta(db, devolucion, venta, usuario_id=current.id)
+
+    await db.flush()
+
+    result = await db.scalar(
+        select(DevolucionVenta)
+        .options(selectinload(DevolucionVenta.detalles))
+        .where(DevolucionVenta.id == devolucion.id)
+    )
+    return result

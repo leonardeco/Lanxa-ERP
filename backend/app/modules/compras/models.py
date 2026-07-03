@@ -80,3 +80,40 @@ class CompraDetalle(Base):
     created_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow)
 
     compra = relationship("CompraDocumento", back_populates="detalles")
+
+
+class DevolucionCompra(Base):
+    """Devolución a proveedor — nota débito sobre una compra confirmada."""
+    __tablename__ = "devoluciones_compra"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    numero: Mapped[str] = mapped_column(String(20), unique=True, index=True)  # ND-0001
+    compra_id: Mapped[int] = mapped_column(ForeignKey("compras_documentos.id"), index=True)
+    fecha: Mapped[date] = mapped_column(Date, default=date.today)
+    motivo: Mapped[str] = mapped_column(String(300))
+    subtotal: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    iva_total: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    total: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow)
+
+    compra = relationship("CompraDocumento")
+    detalles = relationship(
+        "DevolucionCompraDetalle", back_populates="devolucion", cascade="all, delete-orphan")
+
+
+class DevolucionCompraDetalle(Base):
+    __tablename__ = "devoluciones_compra_detalles"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    devolucion_id: Mapped[int] = mapped_column(ForeignKey("devoluciones_compra.id"))
+    compra_detalle_id: Mapped[int] = mapped_column(ForeignKey("compras_detalles.id"))
+    producto_id: Mapped[int | None] = mapped_column(ForeignKey("productos.id"))
+    descripcion: Mapped[str] = mapped_column(String(300))
+    cantidad: Mapped[Decimal] = mapped_column(Numeric(12, 3))
+    precio_unitario: Mapped[Decimal] = mapped_column(Numeric(18, 2))
+    subtotal_linea: Mapped[Decimal] = mapped_column(Numeric(18, 2))
+    iva_valor: Mapped[Decimal] = mapped_column(Numeric(18, 2))
+    total_linea: Mapped[Decimal] = mapped_column(Numeric(18, 2))
+
+    devolucion = relationship("DevolucionCompra", back_populates="detalles")
