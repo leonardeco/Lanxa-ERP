@@ -111,4 +111,25 @@ export const comprasApi = {
   createCompra: (data: CompraInput) => api.post<Compra>(`${BASE}/`, data),
   confirmarCompra: (id: number) => api.post<Compra>(`${BASE}/${id}/confirmar`),
   anularCompra: (id: number) => api.post<Compra>(`${BASE}/${id}/anular`),
+  crearDevolucion: (compraId: number, data: DevolucionCompraInput) =>
+    api.post<DevolucionCompra>(`${BASE}/${compraId}/devoluciones`, data).then(r => r.data),
+
 };
+
+// ── Devoluciones a proveedor (ND-####) ────────────────────
+
+export interface DevolucionCompraInput {
+  motivo: string;
+  detalles: { compra_detalle_id: number; cantidad: string }[];
+}
+
+export interface DevolucionCompra {
+  id: number;
+  numero: string;
+  compra_id: number;
+  fecha: string;
+  motivo: string;
+  subtotal: number;
+  iva_total: number;
+  total: number;
+}
