@@ -236,3 +236,46 @@ class VentaDashboardStats(BaseModel):
     ticket_promedio: Decimal = Decimal("0.00")
     productos_stock_bajo: int = 0
     ventas_por_marca: List[dict] = []
+
+
+# ══════════════════════════════════════════════════════════
+# Devoluciones (Nota crédito)
+# ══════════════════════════════════════════════════════════
+
+class DevolucionDetalleInput(BaseModel):
+    venta_detalle_id: int
+    cantidad: Decimal = Field(gt=0)
+
+
+class DevolucionCreate(BaseModel):
+    fecha: Optional[date] = None  # default: hoy
+    motivo: str = Field(min_length=3, max_length=300)
+    detalles: List[DevolucionDetalleInput] = Field(min_length=1)
+
+
+class DevolucionDetalleResponse(BaseModel):
+    id: int
+    venta_detalle_id: int
+    producto_id: int
+    cantidad: Decimal
+    precio_unitario: Decimal
+    subtotal_linea: Decimal
+    iva_valor: Decimal
+    total_linea: Decimal
+
+    model_config = {"from_attributes": True}
+
+
+class DevolucionResponse(BaseModel):
+    id: int
+    numero: str
+    venta_id: int
+    fecha: date
+    motivo: str
+    subtotal: Decimal
+    iva_total: Decimal
+    total: Decimal
+    created_at: datetime | None = None
+    detalles: List[DevolucionDetalleResponse] = []
+
+    model_config = {"from_attributes": True}

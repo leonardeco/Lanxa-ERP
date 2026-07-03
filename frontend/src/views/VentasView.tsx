@@ -747,11 +747,86 @@ function ClienteFormModal({ cliente, onSave, onClose }: {
 // FACTURAS TAB
 // ══════════════════════════════════════════════════════════
 
+
+// ── Modal Devolución (Nota crédito) ───────────────────────
+
+function DevolucionModal({ venta, onClose, onDone }: {
+  venta: Venta; onClose: () => void; onDone: () => void;
+}) {
+  const [cantidades, setCantidades] = useState<Record<number, string>>({});
+  const [motivo, setMotivo] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async () => {
+    const detalles = Object.entries(cantidades)
+      .filter(([, cant]) => Number(cant) > 0)
+      .map(([id, cant]) => ({ venta_detalle_id: Number(id), cantidad: cant }));
+    if (detalles.length === 0) { setError('Indica la cantidad a devolver en al menos una línea'); return; }
+    if (motivo.trim().length < 3) { setError('Escribe el motivo de la devolución'); return; }
+    setSaving(true);
+    setError('');
+    try {
+      const nc = await ventasApi.crearDevolucion(venta.id, { motivo: motivo.trim(), detalles });
+      alert(`Nota crédito ${nc.numero} creada por $${Number(nc.total).toLocaleString('es-CO')}.\nInventario, cartera y contabilidad actualizados.`);
+      onDone();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'No se pudo registrar la devolución');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal title={`Devolución — ${venta.numero}`} onClose={onClose} wide>
+      <p style={{ fontSize: '0.85rem', color: 'var(--neutral-400)', marginBottom: 12 }}>
+        La mercancía reingresa al inventario, el saldo por cobrar se reduce y se genera la nota crédito contable.
+      </p>
+      {error && <div className="login-error" style={{ marginBottom: 12 }}>{error}</div>}
+      <table className="data-table" style={{ marginBottom: 16 }}>
+        <thead>
+          <tr><th>Producto</th><th>Vendidas</th><th>Precio</th><th style={{ width: 130 }}>Devolver</th></tr>
+        </thead>
+        <tbody>
+          {venta.detalles.map(d => (
+            <tr key={d.id}>
+              <td>{d.producto_nombre || `Producto ${d.producto_id}`}</td>
+              <td>{Number(d.cantidad)}</td>
+              <td>${Number(d.precio_unitario).toLocaleString('es-CO')}</td>
+              <td>
+                <input
+                  type="number" min="0" max={Number(d.cantidad)} step="0.001"
+                  value={cantidades[d.id] ?? ''}
+                  placeholder="0"
+                  onChange={e => setCantidades(c => ({ ...c, [d.id]: e.target.value }))}
+                  style={{ width: 110 }}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="form-group">
+        <label>Motivo *</label>
+        <input value={motivo} onChange={e => setMotivo(e.target.value)}
+          placeholder="Ej: producto averiado en transporte" maxLength={300} />
+      </div>
+      <div className="form-actions">
+        <button className="btn-secondary" onClick={onClose} disabled={saving}>Cancelar</button>
+        <button className="btn-primary" onClick={handleSubmit} disabled={saving}>
+          {saving ? 'Registrando…' : 'Registrar devolución'}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
 function FacturasTab() {
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNueva, setShowNueva] = useState(false);
   const [showDetalle, setShowDetalle] = useState<Venta | null>(null);
+  const [showDevolucion, setShowDevolucion] = useState<Venta | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   const fetchVentas = useCallback(() => {
@@ -866,6 +941,9 @@ function FacturasTab() {
                         {v.estado === 'Borrador' && (
                           <button className="btn-icon" title="Confirmar" onClick={() => handleConfirmar(v)}>✅</button>
                         )}
+                        {(v.estado === 'Confirmada' || v.estado === 'Facturada') && (
+                          <button className="btn-icon" title="Devolución (nota crédito)" onClick={() => setShowDevolucion(v)}>↩️</button>
+                        )}
                         {v.estado !== 'Anulada' && (
                           <button className="btn-icon" title="Anular" onClick={() => handleAnular(v)}>❌</button>
                         )}
@@ -886,6 +964,13 @@ function FacturasTab() {
         />
       )}
 
+      {showDevolucion && (
+        <DevolucionModal
+          venta={showDevolucion}
+          onClose={() => setShowDevolucion(null)}
+          onDone={() => { setShowDevolucion(null); fetchVentas(); }}
+        />
+      )}
       {showDetalle && (
         <Modal title={`Detalle — ${showDetalle.numero}`} onClose={() => setShowDetalle(null)} wide>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>

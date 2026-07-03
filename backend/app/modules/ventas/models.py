@@ -198,3 +198,39 @@ class VentaDetalle(Base):
 
     def __repr__(self):
         return f"<VentaDetalle Prod:{self.producto_id} Cant:{self.cantidad} Total:{self.total_linea}>"
+
+
+class DevolucionVenta(Base):
+    """Nota crédito — devolución parcial o total de una venta confirmada."""
+    __tablename__ = "devoluciones_venta"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    numero: Mapped[str] = mapped_column(String(20), unique=True, index=True)  # NC-0001
+    venta_id: Mapped[int] = mapped_column(ForeignKey("ventas_documentos.id"), index=True)
+    fecha: Mapped[date] = mapped_column(Date, default=date.today)
+    motivo: Mapped[str] = mapped_column(String(300))
+    subtotal: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    iva_total: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    total: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow)
+
+    venta = relationship("VentaDocumento")
+    detalles = relationship(
+        "DevolucionVentaDetalle", back_populates="devolucion", cascade="all, delete-orphan")
+
+
+class DevolucionVentaDetalle(Base):
+    __tablename__ = "devoluciones_venta_detalles"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    devolucion_id: Mapped[int] = mapped_column(ForeignKey("devoluciones_venta.id"))
+    venta_detalle_id: Mapped[int] = mapped_column(ForeignKey("ventas_detalles.id"))
+    producto_id: Mapped[int] = mapped_column(ForeignKey("productos.id"))
+    cantidad: Mapped[Decimal] = mapped_column(Numeric(12, 3))
+    precio_unitario: Mapped[Decimal] = mapped_column(Numeric(18, 2))
+    subtotal_linea: Mapped[Decimal] = mapped_column(Numeric(18, 2))
+    iva_valor: Mapped[Decimal] = mapped_column(Numeric(18, 2))
+    total_linea: Mapped[Decimal] = mapped_column(Numeric(18, 2))
+
+    devolucion = relationship("DevolucionVenta", back_populates="detalles")

@@ -52,6 +52,8 @@ CUENTAS_MOTOR: dict[str, tuple[str, ClaseCuenta, NaturalezaCuenta]] = {
     "240801": ("IVA generado en ventas", ClaseCuenta.PASIVO, NaturalezaCuenta.CREDITO),
     "240802": ("IVA descontable en compras", ClaseCuenta.PASIVO, NaturalezaCuenta.CREDITO),
     "413595": ("Ingresos por ventas de productos", ClaseCuenta.INGRESO, NaturalezaCuenta.CREDITO),
+    # Contra-ingreso: naturaleza debito dentro de la clase Ingreso — resta del P&L
+    "417501": ("Devoluciones en ventas", ClaseCuenta.INGRESO, NaturalezaCuenta.DEBITO),
 }
 
 CERO = Decimal("0.00")
@@ -336,5 +338,65 @@ async def asiento_abono_cxp(db: AsyncSession, pago, cxp, usuario_id: int | None)
         lineas=[
             ("220501", pago.valor, CERO),
             ("110505", CERO, pago.valor),
+        ],
+    )
+
+
+async def asiento_devolucion_venta(
+    db: AsyncSession, devolucion, venta, usuario_id: int | None
+) -> AsientoContable:
+    """Nota crédito: DB Devoluciones en ventas + IVA generado / CR Clientes.
+
+    Limitación documentada: las retenciones de la factura original no se
+    ajustan (la NC se emite por base + IVA); si el cliente ya practicó
+    retenciones sobre lo devuelto, el ajuste es manual con el contador.
+    """
+    from app.modules.ventas.models import Cliente
+
+    cliente = await db.get(Cliente, venta.cliente_id)
+    tercero_id = await _get_or_create_tercero(
+        db,
+        cliente.nit_cc if cliente else None,
+        cliente.razon_social if cliente else None,
+        TipoTercero.CLIENTE,
+    )
+    return await registrar_asiento(
+        db,
+        fecha=devolucion.fecha,
+        descripcion=f"Nota crédito {devolucion.numero} — devolución de venta {venta.numero}",
+        tipo_documento="Nota crédito",
+        modulo_origen="ventas",
+        documento_ref=devolucion.numero,
+        usuario_id=usuario_id,
+        centro_costo_id=venta.centro_costo_id,
+        tercero_id=tercero_id,
+        lineas=[
+            ("417501", devolucion.subtotal or CERO, CERO),
+            ("240801", devolucion.iva_total or CERO, CERO),
+            ("130505", CERO, devolucion.total or CERO),
+        ],
+    )
+
+
+async def asiento_devolucion_compra(
+    db: AsyncSession, devolucion, compra, usuario_id: int | None
+) -> AsientoContable:
+    """Devolución a proveedor: DB Proveedores / CR Inventario + IVA descontable."""
+    tercero_id = await _get_or_create_tercero(
+        db, compra.proveedor_nit, compra.proveedor_razon_social, TipoTercero.PROVEEDOR
+    )
+    return await registrar_asiento(
+        db,
+        fecha=devolucion.fecha,
+        descripcion=f"Devolución {devolucion.numero} — compra {compra.numero}",
+        tipo_documento="Devolución a proveedor",
+        modulo_origen="compras",
+        documento_ref=devolucion.numero,
+        usuario_id=usuario_id,
+        tercero_id=tercero_id,
+        lineas=[
+            ("220501", devolucion.total or CERO, CERO),
+            ("143501", CERO, devolucion.subtotal or CERO),
+            ("240802", CERO, devolucion.iva_total or CERO),
         ],
     )

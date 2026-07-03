@@ -172,4 +172,27 @@ export const ventasApi = {
   createVenta: (data: VentaInput) => api.post<Venta>(`${BASE}/`, data),
   confirmarVenta: (id: number) => api.post<Venta>(`${BASE}/${id}/confirmar`),
   anularVenta: (id: number) => api.post(`${BASE}/${id}/anular`),
+  crearDevolucion: (ventaId: number, data: DevolucionInput) =>
+    api.post<Devolucion>(`${BASE}/${ventaId}/devoluciones`, data).then(r => r.data),
+  getDevoluciones: (ventaId: number) =>
+    api.get<Devolucion[]>(`${BASE}/${ventaId}/devoluciones`).then(r => r.data),
+
 };
+
+// ── Devoluciones (Nota crédito) ───────────────────────────
+
+export interface DevolucionInput {
+  motivo: string;
+  detalles: { venta_detalle_id: number; cantidad: string }[];
+}
+
+export interface Devolucion {
+  id: number;
+  numero: string;
+  venta_id: number;
+  fecha: string;
+  motivo: string;
+  subtotal: number;
+  iva_total: number;
+  total: number;
+}
