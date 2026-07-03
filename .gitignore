@@ -8,6 +8,9 @@ backend/venv/
 
 # Testing / QA
 .coverage
+frontend/test-results/
+frontend/playwright-report/
+backend/e2e.db
 coverage.xml
 htmlcov/
 .pytest_cache/
