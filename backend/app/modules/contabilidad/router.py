@@ -371,9 +371,16 @@ async def cartera_stats(_: CurrentUser, db: AsyncSession = Depends(get_db)):
 async def list_cxc(
     _: CurrentUser,
     estado: Optional[str] = Query(None),
+    limit: int = Query(500, ge=1, le=2000),
+    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
 ):
-    q = select(CuentaPorCobrar).order_by(CuentaPorCobrar.fecha_vencimiento)
+    q = (
+        select(CuentaPorCobrar)
+        .order_by(CuentaPorCobrar.fecha_vencimiento)
+        .limit(limit)
+        .offset(offset)
+    )
     if estado:
         q = q.where(CuentaPorCobrar.estado == estado)
     rows = (await db.execute(q)).scalars().all()
@@ -465,9 +472,16 @@ async def anular_cxc(cxc_id: int, _: AdminOrAdministradoraDep, db: AsyncSession 
 async def list_cxp(
     _: CurrentUser,
     estado: Optional[str] = Query(None),
+    limit: int = Query(500, ge=1, le=2000),
+    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
 ):
-    q = select(CuentaPorPagar).order_by(CuentaPorPagar.fecha_vencimiento)
+    q = (
+        select(CuentaPorPagar)
+        .order_by(CuentaPorPagar.fecha_vencimiento)
+        .limit(limit)
+        .offset(offset)
+    )
     if estado:
         q = q.where(CuentaPorPagar.estado == estado)
     rows = (await db.execute(q)).scalars().all()

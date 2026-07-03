@@ -452,3 +452,112 @@ async def test_sec_headers_de_seguridad_presentes(client: AsyncClient):
     assert resp.headers["x-frame-options"] == "DENY"
     assert resp.headers["referrer-policy"] == "same-origin"
     assert "max-age=" in resp.headers["strict-transport-security"]
+
+
+# ══════════════════════════════════════════════════════════
+# Robustez de auth (pendientes #1-5 de la sesión 2026-07-01)
+# ══════════════════════════════════════════════════════════
+
+@pytest.mark.asyncio
+async def test_sec_token_con_sub_no_numerico_da_401(client: AsyncClient):
+    """Un JWT firmado pero con sub no numérico debe dar 401, nunca 500."""
+    from app.core.security import create_access_token
+
+    token = create_access_token("no-soy-un-id")
+    resp = await client.get("/api/users/me", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_sec_login_no_revela_usuario_inactivo(client: AsyncClient, auth_headers: dict):
+    """El login de un usuario inactivo responde igual que credenciales malas."""
+    await client.post(
+        "/api/v1/usuarios",
+        json={"email": "inactivo3@test.com", "nombre_completo": "Inactivo", "rol": "Auxiliar",
+              "is_active": True, "password": "password123"},
+        headers=auth_headers,
+    )
+    usuarios = await client.get("/api/v1/usuarios", headers=auth_headers)
+    uid = next(u["id"] for u in usuarios.json() if u["email"] == "inactivo3@test.com")
+    await client.patch(f"/api/v1/usuarios/{uid}/toggle", headers=auth_headers)
+
+    # Credenciales correctas pero cuenta inactiva
+    r_inactivo = await client.post(
+        "/api/login/access-token",
+        data={"username": "inactivo3@test.com", "password": "password123"},
+    )
+    # Cuenta inexistente
+    r_inexistente = await client.post(
+        "/api/login/access-token",
+        data={"username": "fantasma@test.com", "password": "password123"},
+    )
+    assert r_inactivo.status_code == r_inexistente.status_code == 400
+    assert r_inactivo.json()["detail"] == r_inexistente.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_sec_login_limpia_refresh_tokens_expirados(client: AsyncClient, db_session):
+    """Los refresh tokens vencidos se purgan en cada login (la tabla no crece)."""
+    from datetime import timedelta
+    from sqlalchemy import select, func
+    from app.core.time import utcnow
+    from app.modules.usuarios.models import RefreshToken, Usuario
+
+    admin_id = await db_session.scalar(select(Usuario.id).where(Usuario.email == "admin@test.com"))
+    db_session.add(RefreshToken(
+        usuario_id=admin_id,
+        token_hash="hash-vencido-de-prueba",
+        expires_at=utcnow() - timedelta(days=1),
+    ))
+    await db_session.commit()
+
+    resp = await client.post(
+        "/api/login/access-token",
+        data={"username": "admin@test.com", "password": "testpassword"},
+    )
+    assert resp.status_code == 200
+
+    vencidos = await db_session.scalar(
+        select(func.count(RefreshToken.id)).where(RefreshToken.token_hash == "hash-vencido-de-prueba")
+    )
+    assert vencidos == 0
+
+
+@pytest.mark.asyncio
+async def test_sec_guard_ultimo_admin(client: AsyncClient, auth_headers: dict):
+    """No se puede degradar ni desactivar al único Admin activo del sistema."""
+    me = (await client.get("/api/users/me", headers=auth_headers)).json()
+
+    # Degradar el rol del único admin → 400
+    resp = await client.put(
+        f"/api/v1/usuarios/{me['id']}", json={"rol": "Auxiliar"}, headers=auth_headers
+    )
+    assert resp.status_code == 400
+    assert "último Admin" in resp.json()["detail"]
+
+    # Con un segundo Admin activo, sí se permite
+    await client.post(
+        "/api/v1/usuarios",
+        json={"email": "admin2@test.com", "nombre_completo": "Admin Dos", "rol": "Admin",
+              "is_active": True, "password": "password123"},
+        headers=auth_headers,
+    )
+    resp = await client.put(
+        f"/api/v1/usuarios/{me['id']}", json={"rol": "Administradora"}, headers=auth_headers
+    )
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_sec_listados_paginados(client: AsyncClient, auth_headers: dict):
+    """limit/offset funcionan en los listados grandes."""
+    for i in range(3):
+        await client.post(
+            "/api/v1/ventas/productos",
+            json={"sku": f"PAG-{i}", "nombre": f"Prod {i}", "marca": "M", "precio_venta": "1"},
+            headers=auth_headers,
+        )
+    resp = await client.get("/api/v1/ventas/productos?limit=2", headers=auth_headers)
+    assert len(resp.json()) == 2
+    resp = await client.get("/api/v1/ventas/productos?limit=2&offset=2", headers=auth_headers)
+    assert len(resp.json()) == 1

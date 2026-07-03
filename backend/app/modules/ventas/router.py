@@ -257,10 +257,12 @@ async def list_productos(
     _: CurrentUser,
     marca: Optional[str] = Query(None, description="Filtrar por marca"),
     activo: Optional[bool] = Query(None, description="Filtrar por estado activo"),
+    limit: int = Query(500, ge=1, le=2000),
+    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
 ):
-    """Listar productos con filtros opcionales."""
-    query = select(Producto).order_by(Producto.marca, Producto.nombre)
+    """Listar productos con filtros opcionales (paginado: limit/offset)."""
+    query = select(Producto).order_by(Producto.marca, Producto.nombre).limit(limit).offset(offset)
     if marca:
         query = query.where(Producto.marca == marca)
     if activo is not None:
@@ -331,10 +333,12 @@ async def delete_producto(producto_id: int, _: AdminOrAdministradoraDep, db: Asy
 async def list_clientes(
     _: CurrentUser,
     activo: Optional[bool] = Query(None),
+    limit: int = Query(500, ge=1, le=2000),
+    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
 ):
-    """Listar clientes comerciales."""
-    query = select(Cliente).order_by(Cliente.razon_social)
+    """Listar clientes comerciales (paginado: limit/offset)."""
+    query = select(Cliente).order_by(Cliente.razon_social).limit(limit).offset(offset)
     if activo is not None:
         query = query.where(Cliente.activo == activo)
     result = await db.execute(query)
@@ -402,13 +406,17 @@ async def delete_cliente(cliente_id: int, _: AdminOrAdministradoraDep, db: Async
 async def list_ventas(
     _: CurrentUser,
     estado: Optional[str] = Query(None),
+    limit: int = Query(500, ge=1, le=2000),
+    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
 ):
-    """Listar documentos de venta."""
+    """Listar documentos de venta (paginado: limit/offset, más recientes primero)."""
     query = (
         select(VentaDocumento)
         .options(*_VENTA_EAGER)
         .order_by(desc(VentaDocumento.fecha), desc(VentaDocumento.id))
+        .limit(limit)
+        .offset(offset)
     )
     if estado:
         query = query.where(VentaDocumento.estado == estado)

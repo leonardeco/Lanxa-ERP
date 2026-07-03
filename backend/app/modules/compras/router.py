@@ -1,7 +1,7 @@
 from decimal import Decimal
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func, extract
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -204,12 +204,17 @@ def _calc_lineas(detalles_input):
 @router.get("/", response_model=list[CompraResponse])
 async def list_compras(
     _: CurrentUser,
+    limit: int = Query(500, ge=1, le=2000),
+    offset: int = Query(0, ge=0),
     session: AsyncSession = Depends(get_db),
 ):
+    """Listar compras (paginado: limit/offset, más recientes primero)."""
     result = await session.execute(
         select(CompraDocumento)
         .options(selectinload(CompraDocumento.detalles))
         .order_by(CompraDocumento.id.desc())
+        .limit(limit)
+        .offset(offset)
     )
     return result.scalars().all()
 

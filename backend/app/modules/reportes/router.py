@@ -8,7 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.api.deps import CurrentUser
-from app.modules.contabilidad.models import CuentaPorCobrar, CuentaPorPagar
+from app.modules.contabilidad.models import (
+    CuentaPorCobrar, CuentaPorPagar,
+    AsientoContable, MovimientoAsiento, PlanCuentas, SaldoInicial, ClaseCuenta,
+)
 from app.modules.compras.models import CompraDocumento
 from app.modules.ventas.models import VentaDocumento, VentaDetalle, Producto, Cliente, EstadoVenta
 
@@ -16,6 +19,7 @@ from .schemas import (
     AgingBucket, AgingDetalle, AgingReporte, AgingCarteraResponse,
     TotalPorGrupo, ComprasPeriodoResponse, VentasPeriodoResponse,
     RetencionesPeriodoResponse,
+    CuentaSaldo, GrupoEstadoFinanciero, EstadoResultadosResponse, BalanceGeneralResponse,
 )
 
 router = APIRouter(prefix="/api/v1/reportes", tags=["Reportes"])
@@ -267,4 +271,167 @@ async def retenciones_periodo(
         total_retefuente=_D(c_rf) + _D(v_rf),
         total_reteiva=_D(c_ri) + _D(v_ri),
         total_reteica=_D(c_rc) + _D(v_rc),
+    )
+
+
+# ══════════════════════════════════════════════════════════
+# Estados financieros — construidos sobre el motor de asientos
+# ══════════════════════════════════════════════════════════
+
+_SALDO_CREDITO = (ClaseCuenta.PASIVO, ClaseCuenta.PATRIMONIO, ClaseCuenta.INGRESO)
+
+
+def _saldo(clase: ClaseCuenta, debitos: Decimal, creditos: Decimal) -> Decimal:
+    """Saldo según la naturaleza de la clase: crédito para P/PT/I, débito para A/G/C."""
+    if clase in _SALDO_CREDITO:
+        return creditos - debitos
+    return debitos - creditos
+
+
+async def _saldos_por_clase(
+    db: AsyncSession,
+    clases: tuple[ClaseCuenta, ...],
+    fecha_desde: Optional[date] = None,
+    fecha_hasta: Optional[date] = None,
+    incluir_saldos_iniciales: bool = False,
+) -> dict[ClaseCuenta, list[CuentaSaldo]]:
+    """Débitos/créditos acumulados por cuenta desde el libro diario (asientos activos)."""
+    q = (
+        select(
+            PlanCuentas.codigo_puc,
+            PlanCuentas.nombre,
+            PlanCuentas.clase,
+            func.coalesce(func.sum(MovimientoAsiento.debito), 0).label("debitos"),
+            func.coalesce(func.sum(MovimientoAsiento.credito), 0).label("creditos"),
+        )
+        .join(MovimientoAsiento, MovimientoAsiento.cuenta_id == PlanCuentas.id)
+        .join(AsientoContable, AsientoContable.id == MovimientoAsiento.asiento_id)
+        .where(PlanCuentas.clase.in_(clases), AsientoContable.anulado.is_(False))
+        .group_by(PlanCuentas.id)
+        .order_by(PlanCuentas.codigo_puc)
+    )
+    if fecha_desde:
+        q = q.where(AsientoContable.fecha >= fecha_desde)
+    if fecha_hasta:
+        q = q.where(AsientoContable.fecha <= fecha_hasta)
+
+    acumulado: dict[str, dict] = {}
+    for codigo, nombre, clase, debitos, creditos in (await db.execute(q)).all():
+        acumulado[codigo] = {
+            "nombre": nombre, "clase": clase,
+            "debitos": Decimal(str(debitos)), "creditos": Decimal(str(creditos)),
+        }
+
+    if incluir_saldos_iniciales:
+        q_ini = (
+            select(
+                PlanCuentas.codigo_puc,
+                PlanCuentas.nombre,
+                PlanCuentas.clase,
+                func.coalesce(func.sum(SaldoInicial.debito), 0),
+                func.coalesce(func.sum(SaldoInicial.credito), 0),
+            )
+            .join(SaldoInicial, SaldoInicial.cuenta_id == PlanCuentas.id)
+            .where(PlanCuentas.clase.in_(clases))
+            .group_by(PlanCuentas.id)
+        )
+        for codigo, nombre, clase, debitos, creditos in (await db.execute(q_ini)).all():
+            item = acumulado.setdefault(
+                codigo,
+                {"nombre": nombre, "clase": clase, "debitos": Decimal("0"), "creditos": Decimal("0")},
+            )
+            item["debitos"] += Decimal(str(debitos))
+            item["creditos"] += Decimal(str(creditos))
+
+    por_clase: dict[ClaseCuenta, list[CuentaSaldo]] = {c: [] for c in clases}
+    for codigo in sorted(acumulado):
+        item = acumulado[codigo]
+        saldo = _saldo(item["clase"], item["debitos"], item["creditos"])
+        if saldo != 0:
+            por_clase[item["clase"]].append(
+                CuentaSaldo(codigo_puc=codigo, nombre=item["nombre"], saldo=saldo)
+            )
+    return por_clase
+
+
+def _grupo(clase: ClaseCuenta, cuentas: list[CuentaSaldo]) -> GrupoEstadoFinanciero:
+    return GrupoEstadoFinanciero(
+        clase=clase.value,
+        total=sum((c.saldo for c in cuentas), Decimal("0.00")),
+        cuentas=cuentas,
+    )
+
+
+@router.get("/estado-resultados", response_model=EstadoResultadosResponse)
+async def estado_resultados(
+    _: CurrentUser,
+    fecha_desde: Optional[date] = Query(None),
+    fecha_hasta: Optional[date] = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """P&L del período (default: mes actual), desde el libro diario."""
+    hoy = date.today()
+    desde = fecha_desde or hoy.replace(day=1)
+    hasta = fecha_hasta or hoy
+
+    saldos = await _saldos_por_clase(
+        db, (ClaseCuenta.INGRESO, ClaseCuenta.COSTO, ClaseCuenta.GASTO),
+        fecha_desde=desde, fecha_hasta=hasta,
+    )
+    ingresos = _grupo(ClaseCuenta.INGRESO, saldos[ClaseCuenta.INGRESO])
+    costos = _grupo(ClaseCuenta.COSTO, saldos[ClaseCuenta.COSTO])
+    gastos = _grupo(ClaseCuenta.GASTO, saldos[ClaseCuenta.GASTO])
+
+    return EstadoResultadosResponse(
+        fecha_desde=desde,
+        fecha_hasta=hasta,
+        ingresos=ingresos,
+        costos=costos,
+        gastos=gastos,
+        utilidad_bruta=ingresos.total - costos.total,
+        utilidad_neta=ingresos.total - costos.total - gastos.total,
+    )
+
+
+@router.get("/balance-general", response_model=BalanceGeneralResponse)
+async def balance_general(
+    _: CurrentUser,
+    fecha_corte: Optional[date] = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Balance General a la fecha de corte (default: hoy), con resultado del ejercicio."""
+    corte = fecha_corte or date.today()
+
+    saldos = await _saldos_por_clase(
+        db, (ClaseCuenta.ACTIVO, ClaseCuenta.PASIVO, ClaseCuenta.PATRIMONIO),
+        fecha_hasta=corte, incluir_saldos_iniciales=True,
+    )
+    activo = _grupo(ClaseCuenta.ACTIVO, saldos[ClaseCuenta.ACTIVO])
+    pasivo = _grupo(ClaseCuenta.PASIVO, saldos[ClaseCuenta.PASIVO])
+    patrimonio = _grupo(ClaseCuenta.PATRIMONIO, saldos[ClaseCuenta.PATRIMONIO])
+
+    # Resultado acumulado (ingresos - costos - gastos) hasta el corte:
+    # cierra contra patrimonio para que el balance cuadre.
+    resultado_saldos = await _saldos_por_clase(
+        db, (ClaseCuenta.INGRESO, ClaseCuenta.COSTO, ClaseCuenta.GASTO),
+        fecha_hasta=corte, incluir_saldos_iniciales=True,
+    )
+    resultado = (
+        sum((c.saldo for c in resultado_saldos[ClaseCuenta.INGRESO]), Decimal("0.00"))
+        - sum((c.saldo for c in resultado_saldos[ClaseCuenta.COSTO]), Decimal("0.00"))
+        - sum((c.saldo for c in resultado_saldos[ClaseCuenta.GASTO]), Decimal("0.00"))
+    )
+
+    total_activo = activo.total
+    total_pp = pasivo.total + patrimonio.total + resultado
+
+    return BalanceGeneralResponse(
+        fecha_corte=corte,
+        activo=activo,
+        pasivo=pasivo,
+        patrimonio=patrimonio,
+        resultado_del_ejercicio=resultado,
+        total_activo=total_activo,
+        total_pasivo_patrimonio=total_pp,
+        cuadrado=total_activo == total_pp,
     )

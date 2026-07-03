@@ -67,3 +67,40 @@ class RetencionesPeriodoResponse(BaseModel):
     total_retefuente: Decimal
     total_reteiva: Decimal
     total_reteica: Decimal
+
+
+# ══════════════════════════════════════════════════════════
+# Estados financieros — P&L y Balance General
+# ══════════════════════════════════════════════════════════
+
+class CuentaSaldo(BaseModel):
+    codigo_puc: str
+    nombre: str
+    saldo: Decimal
+
+
+class GrupoEstadoFinanciero(BaseModel):
+    clase: str
+    total: Decimal
+    cuentas: List[CuentaSaldo]
+
+
+class EstadoResultadosResponse(BaseModel):
+    fecha_desde: date
+    fecha_hasta: date
+    ingresos: GrupoEstadoFinanciero
+    costos: GrupoEstadoFinanciero
+    gastos: GrupoEstadoFinanciero
+    utilidad_bruta: Decimal      # ingresos - costos
+    utilidad_neta: Decimal       # ingresos - costos - gastos
+
+
+class BalanceGeneralResponse(BaseModel):
+    fecha_corte: date
+    activo: GrupoEstadoFinanciero
+    pasivo: GrupoEstadoFinanciero
+    patrimonio: GrupoEstadoFinanciero
+    resultado_del_ejercicio: Decimal   # utilidad acumulada (va al patrimonio)
+    total_activo: Decimal
+    total_pasivo_patrimonio: Decimal   # pasivo + patrimonio + resultado
+    cuadrado: bool                     # total_activo == total_pasivo_patrimonio

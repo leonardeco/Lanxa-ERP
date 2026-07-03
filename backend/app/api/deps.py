@@ -31,10 +31,13 @@ async def get_current_user(session: SessionDep, token: TokenDep) -> Usuario:
         token_data = TokenPayload(**payload)
         if token_data.sub is None:
             raise credentials_exception
-    except JWTError:
+        user_id = int(token_data.sub)
+    except (JWTError, ValueError):
+        # ValueError: sub no numérico en un token firmado con otra estructura —
+        # debe ser 401, no un 500 por int() fallido
         raise credentials_exception
 
-    user = await session.scalar(select(Usuario).where(Usuario.id == int(token_data.sub)))
+    user = await session.scalar(select(Usuario).where(Usuario.id == user_id))
     if user is None:
         raise credentials_exception
     if not user.is_active:

@@ -2,7 +2,7 @@ from app.core.time import utcnow
 from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
 
 from app.api.deps import SessionDep, CurrentUser, AdminDep
 from app.core.config import get_settings
@@ -46,12 +46,18 @@ async def login_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> Token:
     user = await session.scalar(select(Usuario).where(Usuario.email == form_data.username))
-    if not user or not verify_password(form_data.password, user.hashed_password):
+    # Mensaje único para credenciales malas Y usuario inactivo — evita enumerar
+    # cuentas válidas o revelar su estado a un atacante (el Admin ve el estado
+    # real en el módulo de Usuarios).
+    if not user or not verify_password(form_data.password, user.hashed_password) or not user.is_active:
         raise HTTPException(status_code=400, detail="Correo o contraseña incorrectos")
-    if not user.is_active:
-        raise HTTPException(status_code=400, detail="Usuario inactivo")
 
     user_id = user.id  # capturado antes del commit: la sesion expira atributos al commitear
+
+    # Limpieza oportunista: los refresh tokens vencidos no sirven para nada
+    # y sin esto la tabla crece indefinidamente.
+    await session.execute(delete(RefreshToken).where(RefreshToken.expires_at < utcnow()))
+
     raw_refresh = generate_refresh_token()
     session.add(RefreshToken(
         usuario_id=user_id,
@@ -82,6 +88,9 @@ async def refresh_access_token(request: Request, response: Response, session: Se
     user = await session.scalar(select(Usuario).where(Usuario.id == stored.usuario_id))
     if not user or not user.is_active:
         await session.delete(stored)
+        # commit ANTES del raise: si no, el rollback del manejador de la sesión
+        # revierte el delete y el token del usuario inactivo queda vivo en BD
+        await session.commit()
         raise invalid
 
     user_id = user.id  # capturado antes del commit: la sesion expira atributos al commitear
@@ -119,6 +128,20 @@ async def read_users_me(current_user: CurrentUser) -> UsuarioResponse:
     return UsuarioResponse.model_validate(current_user)
 
 
+async def _es_ultimo_admin_activo(session, user: Usuario) -> bool:
+    """True si `user` es Admin activo y no queda ningún otro Admin activo."""
+    if user.rol != "Admin" or not user.is_active:
+        return False
+    otros = await session.scalar(
+        select(func.count(Usuario.id)).where(
+            Usuario.rol == "Admin",
+            Usuario.is_active.is_(True),
+            Usuario.id != user.id,
+        )
+    )
+    return (otros or 0) == 0
+
+
 # ── CRUD Usuarios (solo Superadmin) ──────────────────────
 
 @router.get("/v1/usuarios", response_model=List[UsuarioResponse])
@@ -154,6 +177,10 @@ async def update_usuario(user_id: int, body: UsuarioUpdate, session: SessionDep,
         raise HTTPException(404, "Usuario no encontrado")
     if body.rol is not None and body.rol not in ROLES_VALIDOS:
         raise HTTPException(400, f"Rol inválido. Opciones: {', '.join(sorted(ROLES_VALIDOS))}")
+    # Guard de último admin: no permitir dejar el sistema sin ningún Admin activo
+    pierde_admin = (body.rol is not None and body.rol != "Admin") or body.is_active is False
+    if pierde_admin and await _es_ultimo_admin_activo(session, user):
+        raise HTTPException(400, "No se puede quitar el rol o desactivar al último Admin activo del sistema")
     if body.nombre_completo is not None:
         user.nombre_completo = body.nombre_completo
     if body.rol is not None:
@@ -172,6 +199,8 @@ async def toggle_usuario(user_id: int, session: SessionDep, current_user: Curren
         raise HTTPException(404, "Usuario no encontrado")
     if user.id == current_user.id:
         raise HTTPException(400, "No puedes desactivarte a ti mismo")
+    if user.is_active and await _es_ultimo_admin_activo(session, user):
+        raise HTTPException(400, "No se puede desactivar al último Admin activo del sistema")
     user.is_active = not user.is_active
     await session.commit()
     await session.refresh(user)
