@@ -5,6 +5,7 @@ Super Ozono Global — API Routes (Contabilidad Núcleo)
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from datetime import date
 from decimal import Decimal
@@ -20,6 +21,8 @@ from app.modules.contabilidad.models import (
     Pago, TipoPago, EstadoPeriodo,
 )
 from app.modules.compras.models import CompraDocumento
+from app.modules.contabilidad.models import AsientoContable, MovimientoAsiento
+from app.modules.contabilidad.asientos import asiento_abono_cxc, asiento_abono_cxp
 from app.modules.contabilidad.schemas import (
     PlanCuentasCreate, PlanCuentasUpdate, PlanCuentasResponse,
     CentroCostoCreate, CentroCostoUpdate, CentroCostoResponse,
@@ -31,6 +34,7 @@ from app.modules.contabilidad.schemas import (
     CxCCreate, CxCUpdate, CxCResponse, AbonoCreate,
     CxPCreate, CxPUpdate, CxPResponse, CarteraStats,
     PagoResponse, AbonoCxCResultado, AbonoCxPResultado,
+    AsientoResponse, MovimientoAsientoResponse,
 )
 
 router = APIRouter(prefix="/api/v1/contabilidad", tags=["Contabilidad"])
@@ -430,6 +434,10 @@ async def abonar_cxc(
         usuario_id=current.id,
     )
     db.add(pago)
+    await db.flush()
+
+    # Asiento contable automático: DB Caja / CR Clientes
+    await asiento_abono_cxc(db, pago, cxc, usuario_id=current.id)
 
     await db.commit()
     await db.refresh(cxc)
@@ -525,6 +533,10 @@ async def abonar_cxp(
         usuario_id=current.id,
     )
     db.add(pago)
+    await db.flush()
+
+    # Asiento contable automático: DB Proveedores / CR Caja
+    await asiento_abono_cxp(db, pago, cxp, usuario_id=current.id)
 
     await db.commit()
     await db.refresh(cxp)
@@ -566,3 +578,72 @@ async def list_pagos(
         q = q.where(Pago.cxp_id == cxp_id)
     rows = (await db.execute(q)).scalars().all()
     return rows
+
+
+# ════════════════════════════════════════════════════════════
+# ASIENTOS CONTABLES — consulta (partida doble)
+# ════════════════════════════════════════════════════════════
+
+def _asiento_response(a: AsientoContable, movimientos) -> AsientoResponse:
+    movs = [
+        MovimientoAsientoResponse(
+            id=m.id,
+            cuenta_id=m.cuenta_id,
+            cuenta_codigo=m.cuenta.codigo_puc if m.cuenta else None,
+            cuenta_nombre=m.cuenta.nombre if m.cuenta else None,
+            centro_costo_id=m.centro_costo_id,
+            debito=m.debito,
+            credito=m.credito,
+            descripcion=m.descripcion,
+        )
+        for m in movimientos
+    ]
+    return AsientoResponse(
+        id=a.id,
+        fecha=a.fecha,
+        descripcion=a.descripcion,
+        tipo_documento=a.tipo_documento,
+        modulo_origen=a.modulo_origen,
+        documento_ref=a.documento_ref,
+        usuario_id=a.usuario_id,
+        periodo_id=a.periodo_id,
+        anulado=a.anulado,
+        reversado=a.reversado,
+        created_at=a.created_at,
+        movimientos=movs,
+        total_debito=sum((m.debito for m in movimientos), Decimal("0.00")),
+        total_credito=sum((m.credito for m in movimientos), Decimal("0.00")),
+    )
+
+
+@router.get("/asientos", response_model=List[AsientoResponse])
+async def list_asientos(
+    _: AdminOrAdministradoraDep,
+    modulo_origen: Optional[str] = Query(None),
+    documento_ref: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Libro diario: asientos con sus movimientos (filtros por módulo y documento)."""
+    q = (
+        select(AsientoContable)
+        .options(selectinload(AsientoContable.movimientos).selectinload(MovimientoAsiento.cuenta))
+        .order_by(AsientoContable.fecha.desc(), AsientoContable.id.desc())
+    )
+    if modulo_origen:
+        q = q.where(AsientoContable.modulo_origen == modulo_origen)
+    if documento_ref:
+        q = q.where(AsientoContable.documento_ref == documento_ref)
+    asientos = (await db.execute(q)).scalars().all()
+    return [_asiento_response(a, a.movimientos) for a in asientos]
+
+
+@router.get("/asientos/{asiento_id}", response_model=AsientoResponse)
+async def get_asiento(asiento_id: int, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+    asiento = await db.scalar(
+        select(AsientoContable)
+        .options(selectinload(AsientoContable.movimientos).selectinload(MovimientoAsiento.cuenta))
+        .where(AsientoContable.id == asiento_id)
+    )
+    if not asiento:
+        raise HTTPException(404, "Asiento no encontrado")
+    return _asiento_response(asiento, asiento.movimientos)

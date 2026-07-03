@@ -184,10 +184,14 @@ class AsientoContable(Base):
     fecha: Mapped[date] = mapped_column(Date)
     descripcion: Mapped[str] = mapped_column(String(500))
     tipo_documento: Mapped[str | None] = mapped_column(String(50))  # Factura, Recibo, Nota, etc.
-    modulo_origen: Mapped[str | None] = mapped_column(String(50))  # ventas, compras, nomina, etc.
+    modulo_origen: Mapped[str | None] = mapped_column(String(50))  # ventas, compras, cartera, etc.
+    # Referencia al documento de negocio (SOG-V-0001, SOG-CP-0001, RC-0001, CE-0001)
+    documento_ref: Mapped[str | None] = mapped_column(String(50), index=True)
     usuario_id: Mapped[int | None] = mapped_column()  # FK a usuarios (futuro)
     periodo_id: Mapped[int | None] = mapped_column(ForeignKey("periodos_contables.id"))
     anulado: Mapped[bool] = mapped_column(default=False)
+    # True cuando ya se generó su asiento de reverso (el par se netea a cero)
+    reversado: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 

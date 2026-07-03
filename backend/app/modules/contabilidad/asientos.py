@@ -1,0 +1,263 @@
+"""
+Motor de asientos contables — partida doble automática.
+
+Genera un AsientoContable (cabecera) + MovimientoAsiento (débitos/créditos)
+al confirmar ventas y compras y al registrar abonos de cartera, y el asiento
+de reverso al anular.
+
+⚠️ MAPEO PUC BORRADOR — validar con el contador antes de usar los asientos
+para reportes oficiales. Los códigos siguen el estándar del Decreto 2650:
+
+    Ventas:   DB 130505 Clientes         (total a cobrar)
+              DB 135515/17/18 Retenciones que nos practicaron
+              CR 413595 Ingresos por ventas (base gravable)
+              CR 240801 IVA generado
+
+    Compras:  DB 143501 Inventario de mercancías (base gravable)
+              DB 240802 IVA descontable
+              CR 220501 Proveedores nacionales (total a pagar)
+              CR 236540/236701/236801 Retenciones que practicamos
+
+    Abono CxC (Recibo de Caja):        DB 110505 Caja  / CR 130505 Clientes
+    Abono CxP (Comprobante de Egreso): DB 220501 Proveedores / CR 110505 Caja
+
+Si una cuenta del mapeo no existe en el PUC, el motor la crea automáticamente
+(la empresa puede renombrarla después) — así el asiento nunca queda a medias.
+"""
+from decimal import Decimal
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.modules.contabilidad.models import (
+    AsientoContable, MovimientoAsiento, PlanCuentas, PeriodoContable,
+    ClaseCuenta, NaturalezaCuenta, NivelCuenta,
+)
+
+# ── Catálogo de cuentas usadas por el motor ───────────────
+# codigo → (nombre, clase, naturaleza)
+CUENTAS_MOTOR: dict[str, tuple[str, ClaseCuenta, NaturalezaCuenta]] = {
+    "110505": ("Caja general", ClaseCuenta.ACTIVO, NaturalezaCuenta.DEBITO),
+    "130505": ("Clientes nacionales", ClaseCuenta.ACTIVO, NaturalezaCuenta.DEBITO),
+    "135515": ("Retención en la fuente a favor", ClaseCuenta.ACTIVO, NaturalezaCuenta.DEBITO),
+    "135517": ("ReteIVA a favor", ClaseCuenta.ACTIVO, NaturalezaCuenta.DEBITO),
+    "135518": ("ReteICA a favor", ClaseCuenta.ACTIVO, NaturalezaCuenta.DEBITO),
+    "143501": ("Inventario de mercancías", ClaseCuenta.ACTIVO, NaturalezaCuenta.DEBITO),
+    "220501": ("Proveedores nacionales", ClaseCuenta.PASIVO, NaturalezaCuenta.CREDITO),
+    "236540": ("Retención en la fuente practicada", ClaseCuenta.PASIVO, NaturalezaCuenta.CREDITO),
+    "236701": ("ReteIVA practicado", ClaseCuenta.PASIVO, NaturalezaCuenta.CREDITO),
+    "236801": ("ReteICA practicado", ClaseCuenta.PASIVO, NaturalezaCuenta.CREDITO),
+    "240801": ("IVA generado en ventas", ClaseCuenta.PASIVO, NaturalezaCuenta.CREDITO),
+    "240802": ("IVA descontable en compras", ClaseCuenta.PASIVO, NaturalezaCuenta.CREDITO),
+    "413595": ("Ingresos por ventas de productos", ClaseCuenta.INGRESO, NaturalezaCuenta.CREDITO),
+}
+
+CERO = Decimal("0.00")
+
+
+async def _get_or_create_cuenta(db: AsyncSession, codigo: str) -> PlanCuentas:
+    cuenta = await db.scalar(select(PlanCuentas).where(PlanCuentas.codigo_puc == codigo))
+    if cuenta:
+        return cuenta
+    nombre, clase, naturaleza = CUENTAS_MOTOR[codigo]
+    cuenta = PlanCuentas(
+        codigo_puc=codigo,
+        nombre=nombre,
+        clase=clase,
+        naturaleza=naturaleza,
+        nivel=NivelCuenta.AUXILIAR,
+    )
+    db.add(cuenta)
+    await db.flush()
+    return cuenta
+
+
+async def _periodo_para(db: AsyncSession, fecha) -> int | None:
+    periodo = await db.scalar(
+        select(PeriodoContable).where(
+            PeriodoContable.anio == fecha.year, PeriodoContable.mes == fecha.month
+        )
+    )
+    return periodo.id if periodo else None
+
+
+async def registrar_asiento(
+    db: AsyncSession,
+    *,
+    fecha,
+    descripcion: str,
+    tipo_documento: str,
+    modulo_origen: str,
+    documento_ref: str,
+    usuario_id: int | None,
+    lineas: list[tuple[str, Decimal, Decimal]],
+    centro_costo_id: int | None = None,
+) -> AsientoContable:
+    """
+    Crea el asiento con sus movimientos. `lineas` = [(codigo_puc, debito, credito)].
+    Valida partida doble: la suma de débitos debe igualar la de créditos.
+    Las líneas en cero se omiten.
+    """
+    lineas = [(c, d, cr) for c, d, cr in lineas if d > CERO or cr > CERO]
+    total_debito = sum(d for _, d, _ in lineas)
+    total_credito = sum(c for _, _, c in lineas)
+    if total_debito != total_credito:
+        raise ValueError(
+            f"Asiento descuadrado para {documento_ref}: "
+            f"débitos {total_debito} != créditos {total_credito}"
+        )
+
+    asiento = AsientoContable(
+        fecha=fecha,
+        descripcion=descripcion,
+        tipo_documento=tipo_documento,
+        modulo_origen=modulo_origen,
+        documento_ref=documento_ref,
+        usuario_id=usuario_id,
+        periodo_id=await _periodo_para(db, fecha),
+    )
+    db.add(asiento)
+    await db.flush()
+
+    for codigo, debito, credito in lineas:
+        cuenta = await _get_or_create_cuenta(db, codigo)
+        db.add(MovimientoAsiento(
+            asiento_id=asiento.id,
+            cuenta_id=cuenta.id,
+            centro_costo_id=centro_costo_id,
+            debito=debito,
+            credito=credito,
+        ))
+    await db.flush()
+    return asiento
+
+
+async def reversar_asientos(
+    db: AsyncSession, *, documento_ref: str, usuario_id: int | None, motivo: str
+) -> list[AsientoContable]:
+    """
+    Reverso por anulación: por cada asiento del documento crea un asiento
+    espejo (débitos ↔ créditos). Ambos quedan ACTIVOS y se netean a cero en
+    cualquier agregación — nunca se ocultan movimientos (traza de auditoría).
+    El flag `reversado` en el original evita generar el reverso dos veces.
+    """
+    asientos = (await db.execute(
+        select(AsientoContable).where(
+            AsientoContable.documento_ref == documento_ref,
+            AsientoContable.reversado.is_(False),
+            AsientoContable.descripcion.notlike("REVERSO%"),
+        )
+    )).scalars().all()
+
+    reversos = []
+    for original in asientos:
+        movimientos = (await db.execute(
+            select(MovimientoAsiento).where(MovimientoAsiento.asiento_id == original.id)
+        )).scalars().all()
+
+        reverso = AsientoContable(
+            fecha=original.fecha,
+            descripcion=f"REVERSO — {motivo}",
+            tipo_documento=original.tipo_documento,
+            modulo_origen=original.modulo_origen,
+            documento_ref=documento_ref,
+            usuario_id=usuario_id,
+            periodo_id=original.periodo_id,
+        )
+        db.add(reverso)
+        await db.flush()
+        for m in movimientos:
+            db.add(MovimientoAsiento(
+                asiento_id=reverso.id,
+                cuenta_id=m.cuenta_id,
+                tercero_id=m.tercero_id,
+                centro_costo_id=m.centro_costo_id,
+                debito=m.credito,   # espejo
+                credito=m.debito,
+            ))
+        original.reversado = True
+        reversos.append(reverso)
+
+    await db.flush()
+    return reversos
+
+
+# ══════════════════════════════════════════════════════════
+# Asientos por operación de negocio
+# ══════════════════════════════════════════════════════════
+
+async def asiento_venta_confirmada(db: AsyncSession, venta, usuario_id: int | None) -> AsientoContable:
+    """DB Clientes + retenciones sufridas / CR Ingresos + IVA generado."""
+    return await registrar_asiento(
+        db,
+        fecha=venta.fecha,
+        descripcion=f"Venta {venta.numero}",
+        tipo_documento="Factura de venta",
+        modulo_origen="ventas",
+        documento_ref=venta.numero,
+        usuario_id=usuario_id,
+        centro_costo_id=venta.centro_costo_id,
+        lineas=[
+            ("130505", venta.total or CERO, CERO),
+            ("135515", venta.retefuente or CERO, CERO),
+            ("135517", venta.reteiva or CERO, CERO),
+            ("135518", venta.reteica or CERO, CERO),
+            ("413595", CERO, venta.base_gravable or CERO),
+            ("240801", CERO, venta.iva_total or CERO),
+        ],
+    )
+
+
+async def asiento_compra_confirmada(db: AsyncSession, compra, usuario_id: int | None) -> AsientoContable:
+    """DB Inventario + IVA descontable / CR Proveedores + retenciones practicadas."""
+    return await registrar_asiento(
+        db,
+        fecha=compra.fecha,
+        descripcion=f"Compra {compra.numero} — {compra.proveedor_razon_social or ''}".strip(" —"),
+        tipo_documento="Factura de compra",
+        modulo_origen="compras",
+        documento_ref=compra.numero,
+        usuario_id=usuario_id,
+        lineas=[
+            ("143501", compra.base_gravable or CERO, CERO),
+            ("240802", compra.iva_total or CERO, CERO),
+            ("220501", CERO, compra.total or CERO),
+            ("236540", CERO, compra.retefuente or CERO),
+            ("236701", CERO, compra.reteiva or CERO),
+            ("236801", CERO, compra.reteica or CERO),
+        ],
+    )
+
+
+async def asiento_abono_cxc(db: AsyncSession, pago, cxc, usuario_id: int | None) -> AsientoContable:
+    """Recibo de Caja: DB Caja / CR Clientes."""
+    return await registrar_asiento(
+        db,
+        fecha=pago.fecha.date() if hasattr(pago.fecha, "date") else pago.fecha,
+        descripcion=f"Recibo de Caja {pago.numero_comprobante} — factura {cxc.numero_factura}",
+        tipo_documento="Recibo de Caja",
+        modulo_origen="cartera",
+        documento_ref=pago.numero_comprobante,
+        usuario_id=usuario_id,
+        lineas=[
+            ("110505", pago.valor, CERO),
+            ("130505", CERO, pago.valor),
+        ],
+    )
+
+
+async def asiento_abono_cxp(db: AsyncSession, pago, cxp, usuario_id: int | None) -> AsientoContable:
+    """Comprobante de Egreso: DB Proveedores / CR Caja."""
+    return await registrar_asiento(
+        db,
+        fecha=pago.fecha.date() if hasattr(pago.fecha, "date") else pago.fecha,
+        descripcion=f"Comprobante de Egreso {pago.numero_comprobante} — doc {cxp.numero_documento}",
+        tipo_documento="Comprobante de Egreso",
+        modulo_origen="cartera",
+        documento_ref=pago.numero_comprobante,
+        usuario_id=usuario_id,
+        lineas=[
+            ("220501", pago.valor, CERO),
+            ("110505", CERO, pago.valor),
+        ],
+    )

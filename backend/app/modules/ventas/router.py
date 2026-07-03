@@ -28,6 +28,7 @@ from app.modules.ventas.schemas import (
 from app.modules.inventario.models import TipoMovimientoInventario, OrigenMovimiento
 from app.modules.inventario.service import registrar_movimiento
 from app.modules.contabilidad.models import CuentaPorCobrar, EstadoDocumento, ParametroTributario
+from app.modules.contabilidad.asientos import asiento_venta_confirmada, reversar_asientos
 
 router = APIRouter(prefix="/api/v1/ventas", tags=["Ventas & Comercial"])
 settings = get_settings()
@@ -618,6 +619,9 @@ async def confirmar_venta(venta_id: int, current: CurrentUser, db: AsyncSession 
             notas=f"Generada automáticamente por venta {venta.numero}",
         ))
 
+    # Asiento contable automático (partida doble)
+    await asiento_venta_confirmada(db, venta, usuario_id=current.id)
+
     await db.flush()
     await db.refresh(venta)
 
@@ -652,6 +656,12 @@ async def anular_venta(venta_id: int, current: AdminOrAdministradoraDep, db: Asy
                 venta_id=venta.id,
                 venta_detalle_id=d.id,
             )
+
+    # Reverso del asiento contable si la venta ya lo había generado
+    await reversar_asientos(
+        db, documento_ref=venta.numero, usuario_id=current.id,
+        motivo=f"Anulación de venta {venta.numero}",
+    )
 
     await db.flush()
     return {"detail": f"Venta {venta.numero} anulada correctamente"}

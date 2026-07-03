@@ -16,6 +16,7 @@ from .schemas import (
     CompraInput, CompraResponse, ComprasDashboard, TopProveedor,
 )
 from app.modules.contabilidad.models import CuentaPorPagar, EstadoDocumento
+from app.modules.contabilidad.asientos import asiento_compra_confirmada, reversar_asientos
 from app.modules.inventario.models import TipoMovimientoInventario, OrigenMovimiento
 from app.modules.inventario.service import registrar_movimiento
 
@@ -338,6 +339,9 @@ async def confirmar_compra(
                 costo_unitario=d.precio_unitario,
             )
 
+    # Asiento contable automático (partida doble)
+    await asiento_compra_confirmada(session, c, usuario_id=current.id)
+
     await session.commit()
     await session.refresh(c)
     return c
@@ -377,6 +381,12 @@ async def anular_compra(
                     compra_id=c.id,
                     compra_detalle_id=d.id,
                 )
+
+    # Reverso del asiento contable si la compra ya lo había generado
+    await reversar_asientos(
+        session, documento_ref=c.numero, usuario_id=current.id,
+        motivo=f"Anulación de compra {c.numero}",
+    )
 
     await session.commit()
     await session.refresh(c)

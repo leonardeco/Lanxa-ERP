@@ -39,7 +39,8 @@ Sistema de gestión empresarial (ERP) desarrollado a medida para **TECNOLOGÍA E
 | **Usuarios** | ✅ Producción | CRUD de usuarios, gestión de roles, cambio de contraseña |
 | **Alegra** | ✅ Construido | Integración con API de Alegra para facturación electrónica DIAN Colombia |
 | **RRHH & Nómina** | 🔄 Fase 2 | Empleados, contratos, liquidación mensual |
-| **Reportes & BI** | ✅ Producción | Aging de cartera (CxC/CxP), compras y ventas por período (proveedor/cliente/marca), retenciones acumuladas. P&L y Balance General requieren motor de asientos contables, ver roadmap |
+| **Motor de asientos (partida doble)** | 🧪 Borrador contable | Asientos automáticos al confirmar venta/compra y abonar CxC/CxP, con reverso al anular. Mapeo PUC estándar (Decreto 2650) **pendiente de validar con el contador** |
+| **Reportes & BI** | ✅ Producción | Aging de cartera (CxC/CxP), compras y ventas por período (proveedor/cliente/marca), retenciones acumuladas. P&L y Balance General ya tienen la base contable (motor de asientos); falta construir los reportes |
 | **Electron** | 🔄 Fase 4 | Empaquetado como aplicación de escritorio (.exe) |
 
 ---
@@ -590,7 +591,8 @@ El sistema tiene 3 roles, diseñados para una red LAN de 5 PCs:
 
 ### Fase 3
 - [x] Reportes & BI — aging cartera, compras/ventas por período, retenciones acumuladas (2026-06-17)
-- [ ] P&L y Balance General — requieren motor de asientos contables automáticos (partida doble al confirmar venta/compra/abono), que hoy no existe. Proyecto separado, pendiente de planear
+- [x] Motor de asientos contables — partida doble automática al confirmar venta/compra y abonar cartera, reverso al anular, endpoints `/contabilidad/asientos` (2026-07-02). **Mapeo PUC borrador: validar con el contador antes de usar para reportes oficiales** (`backend/app/modules/contabilidad/asientos.py`)
+- [ ] P&L y Balance General — la base contable ya existe (motor de asientos); falta construir los reportes agregados por cuenta/período
 - [ ] Devoluciones en ventas y compras
 - [ ] Notificaciones y alertas de vencimiento CxP
 

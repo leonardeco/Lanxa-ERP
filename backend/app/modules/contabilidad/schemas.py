@@ -3,7 +3,7 @@ Super Ozono Global — Pydantic Schemas para la API REST
 """
 
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import List, Optional
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -331,3 +331,37 @@ class HealthResponse(BaseModel):
     database: str = "connected"
     version: str = "0.1.0"
     empresa: str = "Super Ozono Global"
+
+
+# ══════════════════════════════════════════════════════════
+# Asientos contables (partida doble)
+# ══════════════════════════════════════════════════════════
+
+class MovimientoAsientoResponse(BaseModel):
+    id: int
+    cuenta_id: int
+    cuenta_codigo: Optional[str] = None
+    cuenta_nombre: Optional[str] = None
+    centro_costo_id: Optional[int] = None
+    debito: Decimal
+    credito: Decimal
+    descripcion: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+class AsientoResponse(BaseModel):
+    id: int
+    fecha: date
+    descripcion: str
+    tipo_documento: Optional[str] = None
+    modulo_origen: Optional[str] = None
+    documento_ref: Optional[str] = None
+    usuario_id: Optional[int] = None
+    periodo_id: Optional[int] = None
+    anulado: bool
+    reversado: bool
+    created_at: Optional[datetime] = None
+    movimientos: List[MovimientoAsientoResponse] = []
+    total_debito: Decimal = Decimal("0.00")
+    total_credito: Decimal = Decimal("0.00")
