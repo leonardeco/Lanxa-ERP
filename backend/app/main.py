@@ -14,6 +14,7 @@ from slowapi import _rate_limit_exceeded_handler
 from app.core.config import get_settings
 from app.core.database import engine, async_session, Base
 from app.core.limiter import limiter
+from app.core.logging_config import configurar_logging
 from app.modules.contabilidad.router import router as contabilidad_router
 from app.modules.ventas.router import router as ventas_router
 from app.modules.usuarios.router import router as usuarios_router
@@ -23,17 +24,10 @@ from app.modules.inventario.router import router as inventario_router
 from app.modules.reportes.router import router as reportes_router
 from app.modules.contabilidad.schemas import HealthResponse
 
-# ── Structured Logging ───────────────────────────────────
-structlog.configure(
-    processors=[
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.add_log_level,
-        structlog.dev.ConsoleRenderer(),
-    ],
-    wrapper_class=structlog.make_filtering_bound_logger(0),
-)
-logger = structlog.get_logger()
+# ── Logging: consola + archivo rotado backend/logs/erp.log ──
 settings = get_settings()
+configurar_logging(debug=settings.DEBUG)
+logger = structlog.get_logger("erp")
 
 
 # ══════════════════════════════════════════════════════════

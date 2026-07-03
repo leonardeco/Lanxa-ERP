@@ -117,3 +117,41 @@ export const asientosApi = {
     api.get<Asiento[]>(`${BASE}/asientos`, { params }).then(r => r.data),
   getAsiento: (id: number) => api.get<Asiento>(`${BASE}/asientos/${id}`).then(r => r.data),
 };
+
+// ── Auxiliar por tercero (estado de cuenta) ──────────────
+
+export interface TerceroItem {
+  id: number;
+  nit_cc: string;
+  razon_social: string;
+  tipo: string;
+}
+
+export interface MovimientoAuxiliar {
+  fecha: string;
+  asiento_id: number;
+  documento_ref?: string;
+  descripcion: string;
+  cuenta_codigo: string;
+  cuenta_nombre: string;
+  debito: number;
+  credito: number;
+  saldo_acumulado: number;
+}
+
+export interface AuxiliarTercero {
+  tercero_id: number;
+  nit_cc: string;
+  razon_social: string;
+  tipo: string;
+  movimientos: MovimientoAuxiliar[];
+  total_debitos: number;
+  total_creditos: number;
+  saldo_final: number;
+}
+
+export const tercerosApi = {
+  getTerceros: () => api.get<TerceroItem[]>(`${BASE}/terceros`).then(r => r.data),
+  getAuxiliar: (terceroId: number, params?: { fecha_desde?: string; fecha_hasta?: string; cuenta?: string }) =>
+    api.get<AuxiliarTercero>(`${BASE}/terceros/${terceroId}/auxiliar`, { params }).then(r => r.data),
+};

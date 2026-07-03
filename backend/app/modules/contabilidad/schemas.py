@@ -366,3 +366,28 @@ class AsientoResponse(BaseModel):
     movimientos: List[MovimientoAsientoResponse] = []
     total_debito: Decimal = Decimal("0.00")
     total_credito: Decimal = Decimal("0.00")
+
+
+class MovimientoAuxiliar(BaseModel):
+    fecha: date
+    asiento_id: int
+    documento_ref: Optional[str] = None
+    descripcion: str
+    cuenta_codigo: str
+    cuenta_nombre: str
+    debito: Decimal
+    credito: Decimal
+    saldo_acumulado: Decimal  # débitos - créditos corrido (naturaleza cliente)
+
+
+class AuxiliarTerceroResponse(BaseModel):
+    tercero_id: int
+    nit_cc: str
+    razon_social: str
+    tipo: str
+    fecha_desde: Optional[date] = None
+    fecha_hasta: Optional[date] = None
+    movimientos: List[MovimientoAuxiliar]
+    total_debitos: Decimal
+    total_creditos: Decimal
+    saldo_final: Decimal

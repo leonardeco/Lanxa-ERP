@@ -35,6 +35,7 @@ from app.modules.contabilidad.schemas import (
     CxPCreate, CxPUpdate, CxPResponse, CarteraStats,
     PagoResponse, AbonoCxCResultado, AbonoCxPResultado,
     AsientoResponse, MovimientoAsientoResponse,
+    MovimientoAuxiliar, AuxiliarTerceroResponse,
 )
 
 router = APIRouter(prefix="/api/v1/contabilidad", tags=["Contabilidad"])
@@ -717,3 +718,70 @@ async def get_asiento(asiento_id: int, _: AdminOrAdministradoraDep, db: AsyncSes
     if not asiento:
         raise HTTPException(404, "Asiento no encontrado")
     return _asiento_response(asiento, asiento.movimientos)
+
+
+@router.get("/terceros/{tercero_id}/auxiliar", response_model=AuxiliarTerceroResponse)
+async def auxiliar_tercero(
+    tercero_id: int,
+    _: AdminOrAdministradoraDep,
+    fecha_desde: Optional[date] = Query(None),
+    fecha_hasta: Optional[date] = Query(None),
+    cuenta: Optional[str] = Query(None, description="Filtrar por código PUC (ej. 130505)"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Auxiliar contable / estado de cuenta del tercero: todos sus movimientos
+    del libro diario con saldo acumulado (débitos − créditos). Para un cliente,
+    el saldo del auxiliar de 130505 es lo que debe; para un proveedor en
+    220501, el saldo negativo es lo que se le debe.
+    """
+    tercero = await db.get(Tercero, tercero_id)
+    if not tercero:
+        raise HTTPException(404, "Tercero no encontrado")
+
+    q = (
+        select(MovimientoAsiento, AsientoContable, PlanCuentas)
+        .join(AsientoContable, AsientoContable.id == MovimientoAsiento.asiento_id)
+        .join(PlanCuentas, PlanCuentas.id == MovimientoAsiento.cuenta_id)
+        .where(MovimientoAsiento.tercero_id == tercero_id)
+        .order_by(AsientoContable.fecha, AsientoContable.id, MovimientoAsiento.id)
+    )
+    if fecha_desde:
+        q = q.where(AsientoContable.fecha >= fecha_desde)
+    if fecha_hasta:
+        q = q.where(AsientoContable.fecha <= fecha_hasta)
+    if cuenta:
+        q = q.where(PlanCuentas.codigo_puc == cuenta)
+
+    movimientos: List[MovimientoAuxiliar] = []
+    saldo = Decimal("0.00")
+    total_deb = Decimal("0.00")
+    total_cred = Decimal("0.00")
+    for mov, asiento, cta in (await db.execute(q)).all():
+        saldo += mov.debito - mov.credito
+        total_deb += mov.debito
+        total_cred += mov.credito
+        movimientos.append(MovimientoAuxiliar(
+            fecha=asiento.fecha,
+            asiento_id=asiento.id,
+            documento_ref=asiento.documento_ref,
+            descripcion=asiento.descripcion,
+            cuenta_codigo=cta.codigo_puc,
+            cuenta_nombre=cta.nombre,
+            debito=mov.debito,
+            credito=mov.credito,
+            saldo_acumulado=saldo,
+        ))
+
+    return AuxiliarTerceroResponse(
+        tercero_id=tercero.id,
+        nit_cc=tercero.nit_cc,
+        razon_social=tercero.razon_social,
+        tipo=tercero.tipo.value if hasattr(tercero.tipo, "value") else tercero.tipo,
+        fecha_desde=fecha_desde,
+        fecha_hasta=fecha_hasta,
+        movimientos=movimientos,
+        total_debitos=total_deb,
+        total_creditos=total_cred,
+        saldo_final=saldo,
+    )

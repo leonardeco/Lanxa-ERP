@@ -330,3 +330,50 @@ async def test_mes_sin_periodo_creado_no_bloquea(client: AsyncClient, auth_heade
     """Si el mes no tiene PeriodoContable, las operaciones fluyen normal."""
     venta = await _setup_venta(client, auth_headers)  # julio sin período creado
     assert venta["numero"].startswith("SOG-V-")
+
+
+@pytest.mark.asyncio
+async def test_auxiliar_por_tercero_estado_de_cuenta(client: AsyncClient, auth_headers: dict):
+    """15d: el auxiliar del cliente refleja factura y abono con saldo corrido."""
+    venta = await _setup_venta(client, auth_headers)  # total 238000 → DB 130505
+    cxc = next(
+        c for c in (await client.get("/api/v1/contabilidad/cartera/cxc", headers=auth_headers)).json()
+        if c["numero_factura"] == venta["numero"]
+    )
+    await client.post(
+        f"/api/v1/contabilidad/cartera/cxc/{cxc['id']}/abonar",
+        json={"valor": "100000.00"},
+        headers=auth_headers,
+    )
+
+    tercero = next(
+        t for t in (await client.get("/api/v1/contabilidad/terceros", headers=auth_headers)).json()
+        if t["nit_cc"] == "900100200"
+    )
+
+    # Auxiliar completo del tercero
+    resp = await client.get(
+        f"/api/v1/contabilidad/terceros/{tercero['id']}/auxiliar", headers=auth_headers
+    )
+    assert resp.status_code == 200
+    aux = resp.json()
+    assert aux["razon_social"] == "Cliente Asiento SAS"
+    assert len(aux["movimientos"]) > 0
+
+    # Filtrado a la cuenta Clientes (130505): factura +238000, abono −100000
+    resp = await client.get(
+        f"/api/v1/contabilidad/terceros/{tercero['id']}/auxiliar?cuenta=130505",
+        headers=auth_headers,
+    )
+    aux = resp.json()
+    assert len(aux["movimientos"]) == 2
+    assert float(aux["movimientos"][0]["debito"]) == 238000.0
+    assert float(aux["movimientos"][1]["credito"]) == 100000.0
+    # Saldo del auxiliar == saldo pendiente de la CxC
+    assert float(aux["saldo_final"]) == 138000.0
+    assert float(aux["movimientos"][-1]["saldo_acumulado"]) == 138000.0
+
+    resp = await client.get(
+        "/api/v1/contabilidad/terceros/99999/auxiliar", headers=auth_headers
+    )
+    assert resp.status_code == 404
