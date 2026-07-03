@@ -297,6 +297,7 @@ npm run lint
 | [`DESPLIEGUE.md`](./DESPLIEGUE.md) | Administrador — checklist de actualización del PC servidor y rollback (restore de backups **verificado**) |
 | [`MAPEO-PUC-PARA-CONTADOR.md`](./MAPEO-PUC-PARA-CONTADOR.md) | Contador(a) — validación del mapeo contable del motor de asientos |
 | [`BITACORA.md`](./BITACORA.md) | Desarrollo — registro de sesiones |
+| [`PENDIENTES.md`](./PENDIENTES.md) | Todos — backlog priorizado: qué falta y de quién depende |
 
 ---
 
