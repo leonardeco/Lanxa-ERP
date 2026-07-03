@@ -11,10 +11,10 @@ import {
   type BalanceGeneralResponse,
   type GrupoEstadoFinanciero,
 } from '../services/reportesApi';
-import { asientosApi, type Asiento } from '../services/contabilidadApi';
+import { asientosApi, tercerosApi, type Asiento, type TerceroItem, type AuxiliarTercero } from '../services/contabilidadApi';
 import { descargarCsv } from '../utils/exportCsv';
 
-type ReportesTab = 'aging' | 'periodo' | 'retenciones' | 'pyg' | 'balance' | 'diario';
+type ReportesTab = 'aging' | 'periodo' | 'retenciones' | 'pyg' | 'balance' | 'diario' | 'auxiliar';
 
 const COP = (n: number | string) =>
   Number(n).toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -629,6 +629,134 @@ function LibroDiarioTab() {
 }
 
 // ══════════════════════════════════════════════════════════
+// AUXILIAR POR TERCERO — estado de cuenta
+// ══════════════════════════════════════════════════════════
+
+function AuxiliarTerceroTab() {
+  const [terceros, setTerceros] = useState<TerceroItem[]>([]);
+  const [terceroId, setTerceroId] = useState<number>(0);
+  const [fechaDesde, setFechaDesde] = useState('');
+  const [fechaHasta, setFechaHasta] = useState('');
+  const [cuenta, setCuenta] = useState('');
+  const [data, setData] = useState<AuxiliarTercero | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    tercerosApi.getTerceros().then(setTerceros).catch(() => {});
+  }, []);
+
+  const cargar = () => {
+    if (!terceroId) return;
+    setLoading(true);
+    tercerosApi.getAuxiliar(terceroId, {
+      fecha_desde: fechaDesde || undefined,
+      fecha_hasta: fechaHasta || undefined,
+      cuenta: cuenta || undefined,
+    }).then(setData).catch(() => {}).finally(() => setLoading(false));
+  };
+
+  return (
+    <div className="fade-in">
+      <div className="table-card" style={{ marginBottom: 20, padding: 16, display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div className="form-group" style={{ margin: 0, minWidth: 260 }}>
+          <label>Tercero</label>
+          <select className="form-input" value={terceroId} onChange={e => setTerceroId(Number(e.target.value))}>
+            <option value={0}>— Seleccionar —</option>
+            {terceros.map(t => (
+              <option key={t.id} value={t.id}>{t.razon_social} ({t.nit_cc}) · {t.tipo}</option>
+            ))}
+          </select>
+        </div>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label>Desde</label>
+          <input className="form-input" type="date" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} />
+        </div>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label>Hasta</label>
+          <input className="form-input" type="date" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} />
+        </div>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label>Cuenta PUC (opcional)</label>
+          <input className="form-input" placeholder="130505" value={cuenta} onChange={e => setCuenta(e.target.value)} />
+        </div>
+        <button className="btn-primary" onClick={cargar} disabled={!terceroId || loading}>
+          {loading ? 'Cargando...' : 'Consultar'}
+        </button>
+        {data && data.movimientos.length > 0 && (
+          <button
+            className="btn-secondary"
+            onClick={() => descargarCsv(
+              `auxiliar-${data.nit_cc}`,
+              ['Fecha', 'Documento', 'Descripción', 'Cuenta', 'Nombre cuenta', 'Débito', 'Crédito', 'Saldo'],
+              data.movimientos.map(m => [
+                m.fecha, m.documento_ref, m.descripcion, m.cuenta_codigo, m.cuenta_nombre,
+                m.debito, m.credito, m.saldo_acumulado,
+              ]),
+            )}
+          >
+            ⬇ Exportar Excel
+          </button>
+        )}
+      </div>
+
+      {data && (
+        <>
+          <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 20 }}>
+            <div className="kpi-card">
+              <div className="kpi-label">{data.razon_social}</div>
+              <div className="kpi-value" style={{ fontSize: '1rem' }}>{data.nit_cc} · {data.tipo}</div>
+            </div>
+            <div className="kpi-card">
+              <div className="kpi-label">Débitos</div>
+              <div className="kpi-value">{COP(data.total_debitos)}</div>
+            </div>
+            <div className="kpi-card">
+              <div className="kpi-label">Créditos</div>
+              <div className="kpi-value">{COP(data.total_creditos)}</div>
+            </div>
+            <div className="kpi-card">
+              <div className="kpi-label">Saldo</div>
+              <div className="kpi-value" style={{ color: data.saldo_final > 0 ? '#16a34a' : data.saldo_final < 0 ? '#dc2626' : undefined }}>
+                {COP(data.saldo_final)}
+              </div>
+            </div>
+          </div>
+          <div className="table-card">
+            <table className="erp-table">
+              <thead>
+                <tr>
+                  <th>Fecha</th><th>Documento</th><th>Descripción</th><th>Cuenta</th>
+                  <th style={{ textAlign: 'right' }}>Débito</th>
+                  <th style={{ textAlign: 'right' }}>Crédito</th>
+                  <th style={{ textAlign: 'right' }}>Saldo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.movimientos.length === 0 ? (
+                  <tr><td colSpan={7} style={{ textAlign: 'center', color: '#888', padding: 24 }}>
+                    Sin movimientos para los filtros seleccionados
+                  </td></tr>
+                ) : data.movimientos.map((m, i) => (
+                  <tr key={i}>
+                    <td>{m.fecha}</td>
+                    <td style={{ fontFamily: 'monospace', fontSize: 11 }}>{m.documento_ref}</td>
+                    <td>{m.descripcion}</td>
+                    <td title={m.cuenta_nombre} style={{ fontFamily: 'monospace', fontSize: 12 }}>{m.cuenta_codigo}</td>
+                    <td style={{ textAlign: 'right' }}>{m.debito > 0 ? COP(m.debito) : '—'}</td>
+                    <td style={{ textAlign: 'right' }}>{m.credito > 0 ? COP(m.credito) : '—'}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{COP(m.saldo_acumulado)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ══════════════════════════════════════════════════════════
 
@@ -642,6 +770,7 @@ export default function ReportesView() {
     { id: 'pyg', label: '📈 Estado de Resultados' },
     { id: 'balance', label: '⚖️ Balance General' },
     { id: 'diario', label: '📖 Libro Diario' },
+    { id: 'auxiliar', label: '👥 Auxiliar por Tercero' },
   ];
 
   return (
@@ -664,6 +793,7 @@ export default function ReportesView() {
       {tab === 'pyg' && <EstadoResultadosTab />}
       {tab === 'balance' && <BalanceGeneralTab />}
       {tab === 'diario' && <LibroDiarioTab />}
+      {tab === 'auxiliar' && <AuxiliarTerceroTab />}
     </div>
   );
 }

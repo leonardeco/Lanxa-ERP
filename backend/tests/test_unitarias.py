@@ -517,3 +517,22 @@ def test_bogota_now_es_hora_local_utc_menos_5():
     delta_horas = (utcnow() - bogota_now()).total_seconds() / 3600
     # Colombia es UTC-5 fijo (sin horario de verano)
     assert 4.9 < delta_horas < 5.1
+
+
+def test_logging_persistente_escribe_archivo_rotado(tmp_path, monkeypatch):
+    """14b: los eventos de structlog y logging estándar quedan en el archivo rotado."""
+    import logging
+    import structlog
+    from app.core import logging_config
+
+    monkeypatch.setattr(logging_config, "LOG_DIR", tmp_path)
+    logging_config.configurar_logging(debug=False)
+
+    structlog.get_logger("erp").info("evento_de_prueba", venta="SOG-V-0001")
+    logging.getLogger("uvicorn.error").error("error de prueba stdlib")
+    for h in logging.getLogger().handlers:
+        h.flush()
+
+    contenido = (tmp_path / "erp.log").read_text(encoding="utf-8")
+    assert "evento_de_prueba" in contenido
+    assert "error de prueba stdlib" in contenido
