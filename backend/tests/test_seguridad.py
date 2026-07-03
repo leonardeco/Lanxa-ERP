@@ -561,3 +561,30 @@ async def test_sec_listados_paginados(client: AsyncClient, auth_headers: dict):
     assert len(resp.json()) == 2
     resp = await client.get("/api/v1/ventas/productos?limit=2&offset=2", headers=auth_headers)
     assert len(resp.json()) == 1
+
+
+def test_sec_hashes_de_passlib_siguen_verificando():
+    """Migración passlib→bcrypt: los hashes existentes en BD deben seguir válidos.
+
+    Hash generado con passlib 1.7.4 + bcrypt 4.0.1 el 2026-07-03 para la
+    contraseña 'testpassword' — si esto falla, TODOS los usuarios reales
+    quedarían bloqueados al desplegar."""
+    from app.core.security import get_password_hash, verify_password
+
+    hash_passlib = "$2b$12$3sIyHeJfAHzjPGs8Op28Ye92aLpNcnH5RS7agLwX06J4sDKwMWfLu"
+    assert verify_password("testpassword", hash_passlib) is True
+    assert verify_password("otra-clave", hash_passlib) is False
+
+    # Los hashes nuevos también son $2b$ estándar y verifican
+    nuevo = get_password_hash("ClaveNueva2026!")
+    assert nuevo.startswith("$2b$12$")
+    assert verify_password("ClaveNueva2026!", nuevo) is True
+
+    # Contraseñas > 72 bytes: mismo comportamiento de truncado que passlib
+    larga = "x" * 100
+    h = get_password_hash(larga)
+    assert verify_password(larga, h) is True
+    assert verify_password("x" * 72, h) is True  # truncada al límite de bcrypt
+
+    # Hash corrupto en BD → False, nunca excepción
+    assert verify_password("lo-que-sea", "no-es-un-hash") is False

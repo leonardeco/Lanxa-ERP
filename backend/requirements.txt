@@ -18,8 +18,7 @@ email-validator==2.3.0
 
 # ── Security ─────────────────────────────────────────────
 python-jose[cryptography]==3.5.0
-passlib[bcrypt]==1.7.4
-bcrypt==4.0.1
+bcrypt==5.0.0  # uso directo (passlib eliminado en jul-2026: sin mantenimiento, bloqueaba bcrypt>=4.1)
 slowapi==0.1.10
 cryptography==49.0.0
 

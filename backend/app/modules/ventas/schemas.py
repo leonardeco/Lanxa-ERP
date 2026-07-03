@@ -2,7 +2,9 @@
 Super Ozono Global — Schemas Pydantic para Ventas & Comercial
 """
 
-from pydantic import BaseModel, Field, field_serializer
+from pydantic import BaseModel, Field, field_serializer, model_validator
+
+from app.core.nit import validar_dv
 from typing import Optional, List
 from datetime import date, datetime
 from decimal import Decimal
@@ -98,7 +100,13 @@ class ClienteBase(BaseModel):
 
 
 class ClienteCreate(ClienteBase):
-    pass
+    @model_validator(mode="after")
+    def _dv_correcto(self):
+        # 14e: si el usuario digita el DV, debe ser el correcto según la DIAN
+        error = validar_dv(self.nit_cc, self.dv)
+        if error:
+            raise ValueError(error)
+        return self
 
 
 class ClienteUpdate(BaseModel):
