@@ -594,3 +594,73 @@ af7336b  test(backend): flujo completo de ventas y gestion de usuarios + cobertu
 3. Push a GitHub (dispara el CI por primera vez).
 4. Backups fuera del PC servidor (riesgo #1 operacional).
 5. Al desplegar: `pip install -r requirements.txt`, renombrar `ACCESS_TOKEN_EXPIRE_*` en el `.env` del servidor, `alembic stamp head` una vez.
+
+---
+
+## Sesión — 2 de julio 2026 (continuación) — Motor contable, estados financieros, E2E y entrega funcional
+
+### Resumen
+
+Continuación de la sesión del overhaul: se construyó el **motor de asientos contables (partida doble)** y sobre él los **estados financieros (P&L y Balance General)** con UI completa y export a Excel; se cerraron los 5 pendientes de robustez de auth del 1 de julio; se agregó la tercera capa de tests (**E2E con Playwright**); se hizo el **primer push a GitHub** (CI en verde al primer intento) y se procesó la primera tanda de Dependabot. Al cierre: **198 tests de API + 25 de componentes + 5 E2E**, todo verde, local = remoto.
+
+### Lo que se hizo
+
+**1. Motor de asientos contables (partida doble automática)** — `backend/app/modules/contabilidad/asientos.py`
+
+- Asiento automático al **confirmar venta** (DB 130505 Clientes + retenciones sufridas / CR 413595 Ingresos + 240801 IVA), al **confirmar compra** (DB 143501 Inventario + 240802 IVA descontable / CR 220501 Proveedores + retenciones practicadas) y al **abonar CxC/CxP** (Caja ↔ Clientes/Proveedores).
+- **Reverso espejo al anular** — ambos asientos quedan activos y netean a cero (traza de auditoría); flag `reversado` evita reversos dobles.
+- Valida el balanceo (rechaza asientos descuadrados), crea las cuentas PUC del mapeo si faltan y asigna período contable por fecha.
+- **Materializa el registro único de terceros**: cada cliente/proveedor queda vinculado por NIT en los movimientos (`tercero_id`); un NIT que compra y vende pasa a tipo **Mixto**. Base lista para el auxiliar por tercero.
+- Columnas nuevas `documento_ref` + `reversado` vía **migración Alembic** (`72f7b9fae762`) — el drift de nulabilidad legacy se dejó fuera a propósito (documentado en la migración).
+- ⚠️ **Mapeo PUC en borrador**: ver `MAPEO-PUC-PARA-CONTADOR.md` (preguntas concretas para la contadora + pendiente de costo de venta 6135/1435).
+
+**2. Estados financieros (API + UI)**
+
+- `GET /reportes/estado-resultados` (P&L por período) y `GET /reportes/balance-general` (con saldos iniciales, resultado del ejercicio cerrando contra patrimonio y flag `cuadrado`).
+- **3 pestañas nuevas en Reportes**: Estado de Resultados, Balance General (indicador "✓ Cuadrado") y **Libro Diario** (asientos expandibles, filtros por módulo/documento, badge de reversados).
+- **Export a Excel en los 6 reportes** (`utils/exportCsv.ts`: BOM UTF-8, separador `;`, coma decimal — abre directo en Excel es-CO).
+- **Panel de alertas de cartera en el Dashboard**: documentos vencidos y por vencer en 7 días (CxC y CxP).
+
+**3. Robustez de auth (cerrados los pendientes #1-5 del 1 de julio)**
+
+- Refresh tokens vencidos se purgan en cada login; el delete del token de usuario inactivo se commitea antes del raise (el rollback lo revertía).
+- JWT con `sub` no numérico → 401 (antes 500). Guard de **último admin** (update y toggle). Mensaje único de login (anti-enumeración). Paginación `limit/offset` en los 6 listados grandes.
+
+**4. Ops y entrega funcional**
+
+- Fix real en `start.bat`/`stop.bat`: `> /dev/null` (sintaxis Unix) → `> nul` (6 ocurrencias).
+- `DESPLIEGUE.md`: checklist de actualización del servidor con rollback.
+- **Simulacro de recuperación ejecutado**: backup cifrado → BD destruida → restore → contenido idéntico (138 filas / 23 tablas). El procedimiento está probado, no solo escrito.
+- `MANUAL-DE-USUARIO.md`: guía no técnica por flujos para los 4 usuarios.
+- Búsqueda por texto en el catálogo de productos (clientes y proveedores ya la tenían).
+
+**5. Tercera capa de tests: E2E con Playwright**
+
+- `npm run test:e2e` levanta backend (puerto 8100, BD e2e sembrada) + frontend (5273, sin TLS vía flag `E2E=1` en `vite.config.ts`) y corre 5 flujos en Chromium: login inválido/válido, menú por rol, Ventas con búsqueda, reportes financieros (Balance "✓ Cuadrado") y logout.
+- Los primeros runs atraparon 2 defectos reales de selectores (strict mode + pestaña inicial de Ventas) — corregidos.
+
+**6. GitHub: push, CI y Dependabot**
+
+- **Primer push** (16 commits) → CI verde al primer intento (backend 3m18s, frontend 53s, pip-audit 28s).
+- Dependabot abrió 8 PRs a los segundos. Fusionados con CI verde: 3 de GitHub Actions (checkout v7, setup-python v6, setup-node v6), pip-menores (10 minors: SQLAlchemy 2.0.51, pydantic 2.13.4, uvicorn 0.49…), structlog 26.1, @types/node 26 y npm-menores (7).
+- **Rechazado bcrypt 4.0.1→5.0**: su CI falló — passlib 1.7.4 (sin mantenimiento) no carga el backend de bcrypt ≥ 4.1. Comentado en el PR con `@dependabot ignore this major version`. **Pendiente técnico nuevo**: migrar `security.py` de passlib a bcrypt directo para desbloquear la actualización.
+- Tras cada merge se re-validó el entorno local completo (198 + 25 + 5 tests).
+
+### Commits de esta parte (pusheados a GitHub)
+
+```
+dae561c  feat(reportes)+fix(auth): P&L y Balance General + robustez de autenticacion
+baaf165  feat(frontend): UI de estados financieros, libro diario y alertas de vencimiento
+4dd4284  feat: exports a Excel, terceros en asientos, busqueda de productos y ops
+39a013e  test(e2e): smoke con Playwright + manual de usuario final
++ 945612f (motor de asientos), ac56881 (bitácora), 2bb9653 (tests frontend) y 7 merges de Dependabot
+```
+
+### Pendientes
+
+1. **Contadora**: validar `MAPEO-PUC-PARA-CONTADOR.md`, entregar PUC definitivo, inventario inicial y saldos de apertura (`SaldoInicial` está listo para recibirlos).
+2. **Costo de venta** (asiento 6135/1435) — requiere definir método de costeo (promedio ponderado con el kardex actual es lo natural).
+3. Migrar `security.py` de passlib a bcrypt directo (desbloquea bcrypt 5; probar login con hashes existentes).
+4. Backups fuera del PC servidor (riesgo operativo #1).
+5. Funcional de fases: devoluciones (notas crédito/débito), cotizaciones, RRHH/nómina, Electron, audit log.
+6. Al desplegar al servidor: seguir `DESPLIEGUE.md` (incluye rename de `ACCESS_TOKEN_EXPIRE_*` y `alembic stamp`).

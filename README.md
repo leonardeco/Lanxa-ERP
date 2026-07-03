@@ -40,7 +40,7 @@ Sistema de gestión empresarial (ERP) desarrollado a medida para **TECNOLOGÍA E
 | **Alegra** | ✅ Construido | Integración con API de Alegra para facturación electrónica DIAN Colombia |
 | **RRHH & Nómina** | 🔄 Fase 2 | Empleados, contratos, liquidación mensual |
 | **Motor de asientos (partida doble)** | 🧪 Borrador contable | Asientos automáticos al confirmar venta/compra y abonar CxC/CxP, con reverso al anular. Mapeo PUC estándar (Decreto 2650) **pendiente de validar con el contador** |
-| **Reportes & BI** | ✅ Producción | Aging de cartera (CxC/CxP), compras y ventas por período (proveedor/cliente/marca), retenciones acumuladas. P&L y Balance General ya tienen la base contable (motor de asientos); falta construir los reportes |
+| **Reportes & BI** | ✅ Producción | Aging de cartera, compras/ventas por período, retenciones, **Estado de Resultados (P&L), Balance General y Libro Diario** — todos exportables a Excel |
 | **Electron** | 🔄 Fase 4 | Empaquetado como aplicación de escritorio (.exe) |
 
 ---
@@ -119,16 +119,17 @@ modules/<nombre>/
 |----------|---------|-----|
 | FastAPI | 0.139 | Framework web async |
 | SQLAlchemy | 2.0 | ORM async — PostgreSQL y SQLite |
-| Pydantic | 2.11 | Validación y serialización |
+| Pydantic | 2.13 | Validación y serialización |
 | python-jose | 3.5 | Generación y verificación JWT |
-| passlib + bcrypt | 1.7 / 4.3 | Hash seguro de contraseñas |
+| passlib + bcrypt | 1.7 / 4.0.1 | Hash de contraseñas (bcrypt pineado: passlib es incompatible con ≥4.1) |
 | httpx | 0.28 | Cliente HTTP async (Alegra API) |
-| structlog | 25.4 | Logging estructurado JSON |
-| aiosqlite | 0.20 | Driver SQLite async (desarrollo local) |
-| asyncpg | 0.30 | Driver PostgreSQL async (producción) |
-| uvicorn | 0.34 | Servidor ASGI |
-| pytest + httpx | 9.1 | Entorno de testing unitario y asíncrono |
+| structlog | 26.1 | Logging estructurado JSON |
+| aiosqlite | 0.22 | Driver SQLite async (desarrollo local) |
+| asyncpg | 0.31 | Driver PostgreSQL async (producción) |
+| uvicorn | 0.49 | Servidor ASGI |
+| pytest + httpx | 9.1 | Testing de API (198 tests, cobertura 95%) |
 | flake8 + mypy | 7.3 / 2.1 | Análisis estático y verificación de tipos (QA) |
+| Alembic | 1.18 | Migraciones de esquema (async, baseline + revisiones) |
 
 ### Frontend
 
@@ -139,6 +140,8 @@ modules/<nombre>/
 | Vite | 8.0 | Bundler y dev server |
 | Axios | 1.17 | HTTP client con interceptores JWT |
 | jwt-decode | 4.0 | Decodificación de token en cliente |
+| Vitest + Testing Library | 4.1 | Tests de componentes (25) |
+| Playwright | 1.61 | Smoke E2E en navegador real (5 flujos) |
 
 ### Infraestructura (Docker)
 
@@ -256,7 +259,9 @@ cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 ```
 
-La configuración vive en `backend/.flake8` (línea máx. 120), `backend/mypy.ini`, `backend/pytest.ini` y `backend/.coveragerc` (con `concurrency = greenlet` — necesario para que coverage trace los endpoints async de SQLAlchemy). Además, `.github/workflows/ci.yml` corre lint + tipos + tests (backend) y ESLint + tsc + Vitest + build (frontend) en cada push/PR a `main`.
+La configuración vive en `backend/.flake8` (línea máx. 120), `backend/mypy.ini`, `backend/pytest.ini` y `backend/.coveragerc` (con `concurrency = greenlet` — necesario para que coverage trace los endpoints async de SQLAlchemy). Además, `.github/workflows/ci.yml` corre lint + tipos + tests con cobertura (backend), ESLint + tsc + Vitest + build (frontend) y `pip-audit` (seguridad) en cada push/PR a `main`; Dependabot propone actualizaciones semanales.
+
+El proyecto tiene **tres capas de tests**: 198 de API (pytest, cobertura 95%), 25 de componentes (Vitest + Testing Library) y 5 E2E de navegador real (Playwright — `npm run test:e2e` levanta backend con BD propia + frontend y prueba login, navegación y reportes financieros).
 
 Opcionalmente, instala los hooks de pre-commit para que el lint corra automático antes de cada commit:
 
@@ -281,6 +286,17 @@ mypy app/
 cd frontend
 npm run lint
 ```
+
+---
+
+## Documentos del proyecto
+
+| Documento | Para quién |
+|---|---|
+| [`MANUAL-DE-USUARIO.md`](./MANUAL-DE-USUARIO.md) | Usuarios finales — guía por flujos (vender, cobrar, comprar, pagar) |
+| [`DESPLIEGUE.md`](./DESPLIEGUE.md) | Administrador — checklist de actualización del PC servidor y rollback (restore de backups **verificado**) |
+| [`MAPEO-PUC-PARA-CONTADOR.md`](./MAPEO-PUC-PARA-CONTADOR.md) | Contador(a) — validación del mapeo contable del motor de asientos |
+| [`BITACORA.md`](./BITACORA.md) | Desarrollo — registro de sesiones |
 
 ---
 
@@ -478,6 +494,12 @@ GET    /api/v1/reportes/aging-cartera                 # CxC y CxP por buckets de
 GET    /api/v1/reportes/compras-periodo               # ?fecha_desde=&fecha_hasta= (default: mes actual)
 GET    /api/v1/reportes/ventas-periodo                # idem, agrupado por cliente y por marca
 GET    /api/v1/reportes/retenciones-periodo           # retefuente/reteIVA/reteICA de compras + ventas
+GET    /api/v1/reportes/estado-resultados             # P&L por período (ingresos/costos/gastos por cuenta)
+GET    /api/v1/reportes/balance-general               # ?fecha_corte= — con resultado del ejercicio y flag 'cuadrado'
+
+# Asientos contables (partida doble — libro diario)
+GET    /api/v1/contabilidad/asientos                  # filtros: modulo_origen, documento_ref
+GET    /api/v1/contabilidad/asientos/{id}             # detalle con movimientos y totales
 
 # Ventas
 GET    /api/v1/ventas/productos
@@ -592,9 +614,10 @@ El sistema tiene 3 roles, diseñados para una red LAN de 5 PCs:
 ### Fase 3
 - [x] Reportes & BI — aging cartera, compras/ventas por período, retenciones acumuladas (2026-06-17)
 - [x] Motor de asientos contables — partida doble automática al confirmar venta/compra y abonar cartera, reverso al anular, endpoints `/contabilidad/asientos` (2026-07-02). **Mapeo PUC borrador: validar con el contador antes de usar para reportes oficiales** (`backend/app/modules/contabilidad/asientos.py`)
-- [ ] P&L y Balance General — la base contable ya existe (motor de asientos); falta construir los reportes agregados por cuenta/período
+- [x] P&L y Balance General — `/reportes/estado-resultados` y `/reportes/balance-general` con verificación de ecuación contable, UI con pestañas propias y export a Excel (2026-07-02)
+- [x] Libro Diario consultable (UI con asientos expandibles, filtros y export) + registro único de terceros materializado desde los asientos (2026-07-02)
 - [ ] Devoluciones en ventas y compras
-- [ ] Notificaciones y alertas de vencimiento CxP
+- [x] Alertas de vencimiento CxC/CxP en el Dashboard — vencidas y por vencer en 7 días (2026-07-02)
 
 ### Fase 4
 - [ ] Empaquetado Electron (app de escritorio .exe)
