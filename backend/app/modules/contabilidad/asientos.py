@@ -26,12 +26,13 @@ Si una cuenta del mapeo no existe en el PUC, el motor la crea automáticamente
 """
 from decimal import Decimal
 
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.contabilidad.models import (
     AsientoContable, MovimientoAsiento, PlanCuentas, PeriodoContable,
-    Tercero, TipoTercero,
+    Tercero, TipoTercero, EstadoPeriodo,
     ClaseCuenta, NaturalezaCuenta, NivelCuenta,
 )
 
@@ -95,6 +96,26 @@ async def _get_or_create_tercero(
     return tercero.id
 
 
+async def validar_periodo_abierto(db: AsyncSession, fecha) -> None:
+    """
+    Cierre contable real: si existe un PeriodoContable CERRADO para el mes de
+    `fecha`, ninguna operación de negocio (confirmar/anular documentos, abonar
+    o anular pagos) puede registrar movimientos ahí. Si el mes no tiene período
+    creado, se permite (la empresa no crea períodos por adelantado).
+    """
+    periodo = await db.scalar(
+        select(PeriodoContable).where(
+            PeriodoContable.anio == fecha.year, PeriodoContable.mes == fecha.month
+        )
+    )
+    if periodo and periodo.estado == EstadoPeriodo.CERRADO:
+        raise HTTPException(
+            400,
+            f"El período contable {periodo.periodo} está CERRADO. "
+            "Reábrelo en Contabilidad → Períodos para registrar movimientos en esa fecha.",
+        )
+
+
 async def _periodo_para(db: AsyncSession, fecha) -> int | None:
     periodo = await db.scalar(
         select(PeriodoContable).where(
@@ -122,6 +143,11 @@ async def registrar_asiento(
     Valida partida doble: la suma de débitos debe igualar la de créditos.
     Las líneas en cero se omiten.
     """
+    # Punto único de control: TODO movimiento contable pasa por aquí.
+    # Si el período del mes está cerrado, la operación completa se aborta
+    # (el rollback de la sesión revierte stock/cartera creados antes).
+    await validar_periodo_abierto(db, fecha)
+
     lineas = [(c, d, cr) for c, d, cr in lineas if d > CERO or cr > CERO]
     total_debito = sum(d for _, d, _ in lineas)
     total_credito = sum(c for _, _, c in lineas)
@@ -176,6 +202,9 @@ async def reversar_asientos(
 
     reversos = []
     for original in asientos:
+        # El reverso se registra en la fecha del original: si ese mes ya se
+        # cerró, la anulación exige reabrir el período (decisión del contador)
+        await validar_periodo_abierto(db, original.fecha)
         movimientos = (await db.execute(
             select(MovimientoAsiento).where(MovimientoAsiento.asiento_id == original.id)
         )).scalars().all()

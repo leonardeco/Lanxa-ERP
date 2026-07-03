@@ -77,16 +77,37 @@ function AbonoModal({ saldo, onAbono, onClose }: {
 
 // ── Modal Historial de Pagos ──────────────────────────────
 
-function PagosHistorialModal({ tipo, documento, onClose }: {
-  tipo: Tab; documento: CxC | CxP; onClose: () => void;
+function PagosHistorialModal({ tipo, documento, onClose, onChanged }: {
+  tipo: Tab; documento: CxC | CxP; onClose: () => void; onChanged?: () => void;
 }) {
   const [pagos, setPagos] = useState<Pago[]>([]);
   const [loading, setLoading] = useState(true);
+  const [anulando, setAnulando] = useState<number | null>(null);
 
-  useEffect(() => {
+  const cargar = () => {
     const params = tipo === 'cxc' ? { cxc_id: documento.id } : { cxp_id: documento.id };
     carteraApi.getPagos(params).then(setPagos).catch(() => {}).finally(() => setLoading(false));
-  }, [tipo, documento.id]);
+  };
+
+  useEffect(() => { cargar(); }, [tipo, documento.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleAnular = async (p: Pago) => {
+    if (!confirm(
+      `Anular el comprobante ${p.numero_comprobante} por ${formatCOP(p.valor)}?
+` +
+      'El saldo del documento se restaura y el asiento contable se reversa.'
+    )) return;
+    setAnulando(p.id);
+    try {
+      await carteraApi.anularPago(p.id);
+      cargar();
+      onChanged?.();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'No se pudo anular el comprobante');
+    } finally {
+      setAnulando(null);
+    }
+  };
 
   const numero = tipo === 'cxc' ? (documento as CxC).numero_factura : (documento as CxP).numero_documento;
 
@@ -109,16 +130,27 @@ function PagosHistorialModal({ tipo, documento, onClose }: {
           </thead>
           <tbody>
             {pagos.map(p => (
-              <tr key={p.id}>
-                <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{p.numero_comprobante}</td>
+              <tr key={p.id} style={{ opacity: p.anulado ? 0.5 : 1 }}>
+                <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>
+                  {p.numero_comprobante}
+                  {p.anulado && <span className="badge red" style={{ marginLeft: 6 }}>Anulado</span>}
+                </td>
                 <td style={{ fontSize: '0.8rem' }}>{new Date(p.fecha).toLocaleString('es-CO')}</td>
                 <td>{formatCOP(p.valor)}</td>
                 <td>{formatCOP(p.saldo_nuevo)}</td>
-                <td>
+                <td style={{ whiteSpace: 'nowrap' }}>
                   <button className="btn btn-ghost" style={{ fontSize: '0.75rem', padding: '3px 8px' }}
                     onClick={() => printComprobante(tipo === 'cxc' ? 'CxC' : 'CxP', documento, p)}>
                     🖨️
                   </button>
+                  {!p.anulado && (
+                    <button className="btn btn-ghost" style={{ fontSize: '0.75rem', padding: '3px 8px', color: '#dc2626' }}
+                      disabled={anulando === p.id}
+                      title="Anular comprobante (restaura el saldo y reversa el asiento)"
+                      onClick={() => handleAnular(p)}>
+                      {anulando === p.id ? '…' : '⛔'}
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -464,7 +496,7 @@ export default function CarteraView() {
         <AbonoModal saldo={abonoTarget.saldo} onAbono={handleAbono} onClose={() => setAbonoTarget(null)} />
       )}
       {historialTarget && (
-        <PagosHistorialModal tipo={historialTarget.tipo} documento={historialTarget.documento} onClose={() => setHistorialTarget(null)} />
+        <PagosHistorialModal tipo={historialTarget.tipo} documento={historialTarget.documento} onClose={() => setHistorialTarget(null)} onChanged={load} />
       )}
     </div>
   );

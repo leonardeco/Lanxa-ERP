@@ -28,3 +28,4 @@ structlog==26.1.0
 
 # ── CORS & Utils ─────────────────────────────────────────
 httpx==0.28.1
+tzdata==2026.2  # base IANA para ZoneInfo(America/Bogota) — Windows no la trae

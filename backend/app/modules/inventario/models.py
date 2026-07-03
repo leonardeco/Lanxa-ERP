@@ -9,7 +9,7 @@ from decimal import Decimal
 from sqlalchemy import String, DateTime, Numeric, ForeignKey, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
-from app.core.time import utcnow
+from app.core.time import bogota_now, utcnow
 import enum
 
 
@@ -49,7 +49,8 @@ class MovimientoInventario(Base):
 
     motivo: Mapped[str | None] = mapped_column(String(300))
     usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
-    fecha: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    # Fecha de negocio del movimiento, en hora local de Colombia
+    fecha: Mapped[datetime] = mapped_column(DateTime, default=bogota_now)
     created_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow)
 
     producto = relationship("Producto")

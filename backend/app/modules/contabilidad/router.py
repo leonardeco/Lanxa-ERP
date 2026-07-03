@@ -22,7 +22,7 @@ from app.modules.contabilidad.models import (
 )
 from app.modules.compras.models import CompraDocumento
 from app.modules.contabilidad.models import AsientoContable, MovimientoAsiento
-from app.modules.contabilidad.asientos import asiento_abono_cxc, asiento_abono_cxp
+from app.modules.contabilidad.asientos import asiento_abono_cxc, asiento_abono_cxp, reversar_asientos
 from app.modules.contabilidad.schemas import (
     PlanCuentasCreate, PlanCuentasUpdate, PlanCuentasResponse,
     CentroCostoCreate, CentroCostoUpdate, CentroCostoResponse,
@@ -592,6 +592,62 @@ async def list_pagos(
         q = q.where(Pago.cxp_id == cxp_id)
     rows = (await db.execute(q)).scalars().all()
     return rows
+
+
+@router.post("/cartera/pagos/{pago_id}/anular", response_model=PagoResponse)
+async def anular_pago(
+    pago_id: int, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+):
+    """
+    Anula un abono mal registrado: restaura el saldo y estado del documento
+    (CxC/CxP), re-sincroniza el estado_pago de la compra si aplica, y genera
+    el reverso del asiento contable. El comprobante queda marcado como anulado
+    pero visible (trazabilidad). Bloqueado si el período contable está cerrado.
+    """
+    pago = await db.get(Pago, pago_id)
+    if not pago:
+        raise HTTPException(404, "Comprobante de pago no encontrado")
+    if pago.anulado:
+        raise HTTPException(400, f"El comprobante {pago.numero_comprobante} ya está anulado")
+
+    # Reverso contable primero: si el período está cerrado, lanza 400 y el
+    # rollback deja todo intacto
+    await reversar_asientos(
+        db,
+        documento_ref=pago.numero_comprobante,
+        usuario_id=current.id,
+        motivo=f"Anulación de abono {pago.numero_comprobante}",
+    )
+
+    # Restaurar saldo y estado del documento de cartera
+    if pago.tipo == TipoPago.CXC and pago.cxc_id:
+        cxc = await db.get(CuentaPorCobrar, pago.cxc_id)
+        if cxc:
+            cxc.abonos = max((cxc.abonos or Decimal("0")) - pago.valor, Decimal("0"))
+            if cxc.estado != EstadoDocumento.ANULADO:
+                cxc.estado = (
+                    EstadoDocumento.PARCIAL if cxc.abonos > 0 else EstadoDocumento.PENDIENTE
+                )
+    elif pago.tipo == TipoPago.CXP and pago.cxp_id:
+        cxp = await db.get(CuentaPorPagar, pago.cxp_id)
+        if cxp:
+            cxp.abonos = max((cxp.abonos or Decimal("0")) - pago.valor, Decimal("0"))
+            if cxp.estado != EstadoDocumento.ANULADO:
+                cxp.estado = (
+                    EstadoDocumento.PARCIAL if cxp.abonos > 0 else EstadoDocumento.PENDIENTE
+                )
+            # Re-sincronizar la compra origen
+            if cxp.compra_id:
+                compra = await db.get(CompraDocumento, cxp.compra_id)
+                if compra and compra.estado != "Anulada":
+                    compra.estado_pago = "Parcial" if cxp.abonos > 0 else "Pendiente"
+
+    pago.anulado = True
+    pago.notas = ((pago.notas or "") + "\n[ANULADO] Reversado por correccion").strip()
+
+    await db.commit()
+    await db.refresh(pago)
+    return pago
 
 
 # ════════════════════════════════════════════════════════════
