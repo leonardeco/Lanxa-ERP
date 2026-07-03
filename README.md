@@ -34,7 +34,8 @@ Sistema de gestión empresarial (ERP) desarrollado a medida para **TECNOLOGÍA E
 | **Contabilidad** | ✅ Producción | PUC (Decreto 2650), Centros de Costo, Períodos, Parámetros tributarios y de nómina |
 | **Ventas & Comercial** | ✅ Producción | Productos (catálogo multimarca), Clientes B2B, Documentos de venta con retenciones, impresión PDF |
 | **Compras & Proveedores** | ✅ Producción | CRUD proveedores, documentos de compra con retenciones, confirmación/anulación, impresión PDF |
-| **Cartera CxC & CxP** | ✅ Producción | CxC y CxP con abonos, aging automático, CxP generada automáticamente al confirmar compras, comprobante de pago numerado (Recibo de Caja / Comprobante de Egreso) |
+| **Cartera CxC & CxP** | ✅ Producción | Abonos con comprobante numerado (RC-/CE-), **anulación de abonos con reverso contable**, aging automático, CxP automática al confirmar compras |
+| **Devoluciones** | ✅ Producción | Nota crédito NC- (ventas, con modal) y devolución a proveedor ND- (API): reverso parcial de inventario, cartera y contabilidad con tope acumulado por línea |
 | **Inventario** | ✅ Producción | Kardex de movimientos (Entrada/Salida/Ajuste), entradas automáticas al confirmar compra, salidas automáticas al confirmar venta, reversa al anular, dashboard de valorización |
 | **Usuarios** | ✅ Producción | CRUD de usuarios, gestión de roles, cambio de contraseña |
 | **Alegra** | ✅ Construido | Integración con API de Alegra para facturación electrónica DIAN Colombia |
@@ -501,6 +502,14 @@ GET    /api/v1/reportes/balance-general               # ?fecha_corte= — con re
 # Asientos contables (partida doble — libro diario)
 GET    /api/v1/contabilidad/asientos                  # filtros: modulo_origen, documento_ref
 GET    /api/v1/contabilidad/asientos/{id}             # detalle con movimientos y totales
+GET    /api/v1/contabilidad/terceros/{id}/auxiliar    # estado de cuenta por tercero (saldo corrido)
+POST   /api/v1/contabilidad/cartera/pagos/{id}/anular # anula un abono: restaura saldo + reverso contable
+
+# Devoluciones
+POST   /api/v1/ventas/{id}/devoluciones               # nota crédito NC- (parcial/total)
+GET    /api/v1/ventas/{id}/devoluciones
+POST   /api/v1/compras/{id}/devoluciones              # devolución a proveedor ND- (valida stock)
+GET    /api/v1/compras/{id}/devoluciones
 
 # Ventas
 GET    /api/v1/ventas/productos
@@ -617,7 +626,7 @@ El sistema tiene 3 roles, diseñados para una red LAN de 5 PCs:
 - [x] Motor de asientos contables — partida doble automática al confirmar venta/compra y abonar cartera, reverso al anular, endpoints `/contabilidad/asientos` (2026-07-02). **Mapeo PUC borrador: validar con el contador antes de usar para reportes oficiales** (`backend/app/modules/contabilidad/asientos.py`)
 - [x] P&L y Balance General — `/reportes/estado-resultados` y `/reportes/balance-general` con verificación de ecuación contable, UI con pestañas propias y export a Excel (2026-07-02)
 - [x] Libro Diario consultable (UI con asientos expandibles, filtros y export) + registro único de terceros materializado desde los asientos (2026-07-02)
-- [ ] Devoluciones en ventas y compras
+- [x] Devoluciones en ventas (NC-, full-stack) y compras (ND-, API) — reverso parcial de inventario/cartera/asientos (2026-07-03)
 - [x] Alertas de vencimiento CxC/CxP en el Dashboard — vencidas y por vencer en 7 días (2026-07-02)
 
 ### Fase 4

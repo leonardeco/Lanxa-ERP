@@ -737,6 +737,10 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | 28 | Alertas de vencimiento en Dashboard, búsqueda en catálogo, terceros materializados | ✅ Completado 2026-07-02 |
 | 29 | Ops: DESPLIEGUE.md, MANUAL-DE-USUARIO.md, fix start/stop.bat, restore de backups **verificado con simulacro** | ✅ Completado 2026-07-02 |
 | 30 | GitHub: push inicial, CI verde, Dependabot activo (7 PRs fusionados, bcrypt 5 rechazado con causa) | ✅ Completado 2026-07-02 |
+| 31 | Cartera robusta: anulación de abonos con reverso, cierre real de períodos, hora local Colombia | ✅ Completado 2026-07-03 |
+| 32 | Auxiliar por tercero (estado de cuenta con saldo corrido) + logs rotados en backend/logs/ | ✅ Completado 2026-07-03 |
+| 33 | passlib → bcrypt 5 directo (compat verificada), DV del NIT (algoritmo DIAN), stock decimal y flags visibles | ✅ Completado 2026-07-03 |
+| 34 | Devoluciones: nota crédito NC- (full-stack) y devolución a proveedor ND- (API) con cuenta 417501 | ✅ Completado 2026-07-03 |
 
 ### Deuda técnica / mejoras pendientes
 
