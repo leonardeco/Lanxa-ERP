@@ -282,3 +282,51 @@ async def test_tercero_cliente_y_proveedor_queda_mixto(client: AsyncClient, auth
     resp = await client.get("/api/v1/contabilidad/terceros", headers=auth_headers)
     tercero = next(t for t in resp.json() if t["nit_cc"] == "900555000")
     assert tercero["tipo"] == "Mixto"
+
+
+@pytest.mark.asyncio
+async def test_periodo_cerrado_bloquea_operaciones(client: AsyncClient, auth_headers: dict):
+    """15b: con el período del mes CERRADO no se puede confirmar, abonar ni anular."""
+    BASE_CONT = "/api/v1/contabilidad"
+
+    # Crear y CERRAR el período 2026-07
+    periodo = (await client.post(
+        f"{BASE_CONT}/periodos", json={"anio": 2026, "mes": 7}, headers=auth_headers
+    )).json()
+    await client.patch(f"{BASE_CONT}/periodos/{periodo['id']}/toggle", headers=auth_headers)
+
+    # Confirmar una venta fechada en julio → 400 y la venta sigue en Borrador
+    venta = await _setup_venta(client, auth_headers, confirmar=False)
+    resp = await client.post(f"/api/v1/ventas/{venta['id']}/confirmar", headers=auth_headers)
+    assert resp.status_code == 400
+    assert "CERRADO" in resp.json()["detail"]
+    resp = await client.get(f"/api/v1/ventas/{venta['id']}", headers=auth_headers)
+    assert resp.json()["estado"] == "Borrador"
+
+    # El rollback también revirtió el descuento de stock
+    productos = (await client.get("/api/v1/ventas/productos", headers=auth_headers)).json()
+    assert float(productos[0]["stock_actual"]) == 50.0
+
+    # Confirmar compra en julio → 400
+    compra = await _setup_compra(client, auth_headers, confirmar=False)
+    resp = await client.post(f"/api/v1/compras/{compra['id']}/confirmar", headers=auth_headers)
+    assert resp.status_code == 400
+
+    # Reabrir el período → ahora sí se puede confirmar y anular
+    await client.patch(f"{BASE_CONT}/periodos/{periodo['id']}/toggle", headers=auth_headers)
+    resp = await client.post(f"/api/v1/ventas/{venta['id']}/confirmar", headers=auth_headers)
+    assert resp.status_code == 200
+
+    # Cerrar de nuevo: anular (reverso en julio) también queda bloqueado
+    await client.patch(f"{BASE_CONT}/periodos/{periodo['id']}/toggle", headers=auth_headers)
+    resp = await client.post(f"/api/v1/ventas/{venta['id']}/anular", headers=auth_headers)
+    assert resp.status_code == 400
+    resp = await client.get(f"/api/v1/ventas/{venta['id']}", headers=auth_headers)
+    assert resp.json()["estado"] == "Confirmada"  # la anulación no ocurrió
+
+
+@pytest.mark.asyncio
+async def test_mes_sin_periodo_creado_no_bloquea(client: AsyncClient, auth_headers: dict):
+    """Si el mes no tiene PeriodoContable, las operaciones fluyen normal."""
+    venta = await _setup_venta(client, auth_headers)  # julio sin período creado
+    assert venta["numero"].startswith("SOG-V-")

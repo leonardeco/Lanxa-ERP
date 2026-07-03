@@ -57,6 +57,7 @@ export interface Pago {
   usuario_id?: number;
   fecha: string;
   created_at: string;
+  anulado: boolean;
 }
 
 const BASE = '/v1/contabilidad/cartera';
@@ -85,6 +86,9 @@ export const carteraApi = {
     api.post<{ documento: CxP; pago: Pago }>(`${BASE}/cxp/${id}/abonar`, { valor, notas }).then(r => r.data),
   anularCxP: (id: number) =>
     api.patch<CxP>(`${BASE}/cxp/${id}/anular`).then(r => r.data),
+
+  anularPago: (pagoId: number) =>
+    api.post<Pago>(`${BASE}/pagos/${pagoId}/anular`).then(r => r.data),
 
   getPagos: (params: { cxc_id?: number; cxp_id?: number }) =>
     api.get<Pago[]>(`${BASE}/pagos`, { params }).then(r => r.data),

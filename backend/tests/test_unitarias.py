@@ -508,3 +508,12 @@ async def test_dashboard_inventario_estructura(client: AsyncClient, auth_headers
     assert "valor_total_inventario" in data
     assert "productos_stock_bajo" in data
     assert "movimientos_mes" in data
+
+
+def test_bogota_now_es_hora_local_utc_menos_5():
+    """Las fechas de negocio (comprobantes, kardex) van en hora Colombia, no UTC."""
+    from app.core.time import bogota_now, utcnow
+
+    delta_horas = (utcnow() - bogota_now()).total_seconds() / 3600
+    # Colombia es UTC-5 fijo (sin horario de verano)
+    assert 4.9 < delta_horas < 5.1

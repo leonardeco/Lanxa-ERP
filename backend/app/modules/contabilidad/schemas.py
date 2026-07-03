@@ -307,6 +307,7 @@ class PagoResponse(BaseModel):
     notas: Optional[str] = None
     usuario_id: Optional[int] = None
     fecha: datetime
+    anulado: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}

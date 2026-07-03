@@ -11,7 +11,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
-from app.core.time import utcnow
+from app.core.time import bogota_now, utcnow
 import enum
 
 
@@ -308,7 +308,11 @@ class Pago(Base):
     saldo_nuevo: Mapped[Decimal] = mapped_column(Numeric(18, 2))
     notas: Mapped[str | None] = mapped_column(Text)
     usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
-    fecha: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    # Fecha de NEGOCIO en hora local (un abono a las 8pm es de HOY, no de mañana UTC)
+    fecha: Mapped[datetime] = mapped_column(DateTime, default=bogota_now)
+    # Anulación de un abono mal registrado: restaura el saldo del documento y
+    # genera el reverso contable. El comprobante queda visible para trazabilidad.
+    anulado: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow)
 
 
