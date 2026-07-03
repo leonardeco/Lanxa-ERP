@@ -520,3 +520,77 @@ Nuevo `tests/test_validaciones.py` (10 casos: abono ≤0, venta inválida, sobre
 14. Confirmar `UVT_VALOR` con el contador (hoy placeholder = 49799, UVT 2025) y **activar los flags `retiene_*`** en los clientes que sean agentes retenedores.
 
 **Nota:** esta sesión NO se pusheó a GitHub. Cuando se decida subir, revisar que `.env.local`, `venv/` y `superozono.db` sigan ignorados (lo están).
+
+---
+
+## Sesión — 2 de julio 2026 — Overhaul de calidad, seguridad y cobertura (Claude Fable 5)
+
+### Resumen
+
+La sesión más grande del proyecto hasta la fecha: **10 commits en local** (sin push, a pedido del usuario). Tres frentes: (1) calidad de código — tipado SQLAlchemy 2.0 completo, mypy en cero, tooling de QA formalizado, CI en GitHub Actions, Alembic; (2) **seguridad** — 14 CVEs eliminados y todos los hallazgos accionables del `REPORTE_SEGURIDAD.md` resueltos; (3) **cobertura de tests: 123 → 178 tests, cobertura real 95%** (se descubrió que coverage medía mal el código async). Frontend: code splitting (bundle inicial −39%), ErrorBoundary y primeros tests con Vitest.
+
+### Lo que se hizo
+
+**1. Infraestructura de calidad**
+
+- `venv` del backend recreado (estaba roto, apuntaba al PC anterior "MI PC") — resuelve el pendiente de la sesión del 1 de julio.
+- `requirements-dev.txt` nuevo con pytest/flake8/mypy/pre-commit/pip-audit pineados (antes no estaban declarados en ningún lado).
+- Configs formales: `backend/.flake8` (línea 120), `backend/mypy.ini`, `backend/.coveragerc`, `pytest.ini` sin `--disable-warnings`.
+- **Migración de modelos a SQLAlchemy 2.0 tipado** (`Mapped`/`mapped_column`) en ventas, compras, inventario y contabilidad → **mypy: 161 errores → 0**.
+- `datetime.utcnow()` (deprecado) reemplazado por helper `utcnow()` naive-UTC en `core/time.py` — resuelve el pendiente #13 del 1 de julio. Warnings de pytest: 1189 → 1.
+- Pydantic modernizado: `class Config` → `model_config` / `SettingsConfigDict`.
+- **Alembic async** configurado (`backend/alembic/`, URL desde el `.env` de la app, batch mode para SQLite) con **migración baseline** verificada con `alembic check`; la BD de dev quedó `stamp head` — resuelve el pendiente #11.
+- **CI en GitHub Actions** (`.github/workflows/ci.yml`): flake8 + mypy + pytest con cobertura (backend), ESLint + tsc + Vitest + build (frontend), pip-audit (seguridad). Dependabot semanal para pip/npm/actions.
+- Line endings normalizados en todo el repo (`.gitattributes` + `.editorconfig` + `git add --renormalize`).
+- **pre-commit** configurado e instalado (checks básicos + flake8) — ya validó los commits reales de la sesión.
+
+**2. Seguridad (ver actualización en `REPORTE_SEGURIDAD.md`)**
+
+- **14 CVEs → 0**: `python-multipart` 0.0.20→0.0.31, `fastapi` 0.115→0.139, `starlette` 0.46.2→1.3.1.
+- SEC-001/007: `/docs`, `/redoc`, `/openapi.json` y datos del sistema en `/` solo con `DEBUG=true`.
+- SEC-004: access token de 1h → **15 min** (`ACCESS_TOKEN_EXPIRE_MINUTES`, renombrada en código, `.env` local y las 3 plantillas). **Al desplegar al servidor: renombrar la variable en su `.env`.**
+- SEC-005: rate limiting en `reset-password` (5/min) y `me/password` (10/min).
+- SEC-006: `Settings` rechaza `CORS_ORIGINS=*` con `DEBUG=false` (la app no arranca).
+- SEC-009: sync de Alegra usa `PUT` para actualizar contactos/items (el POST podía duplicar) — resuelve el pendiente #9.
+- Headers de seguridad en todas las respuestas (middleware ASGI puro): `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, HSTS.
+
+**3. Cobertura de tests (123 → 178, cobertura real 95%)**
+
+- **Hallazgo clave:** pytest-cov no trazaba el código dentro de los greenlets de SQLAlchemy async — la cobertura reportada (70%) era falsa. Con `concurrency = greenlet` en `.coveragerc`, la real era 82%; se subió a **95%**.
+- Tests nuevos: flujo de ventas (13), gestión de usuarios (8), maestros contables (7), cartera CxC/CxP con comprobantes RC-/CE- (8), flujo de compras con CxP e inventario (8), integración Alegra con HTTP mockeado (11), seguridad SEC (4+).
+- Módulos al final: compras/router **100%**, ventas/router 97%, usuarios/router 97%, contabilidad/router 95%, alegra/router 94%.
+
+**4. Frontend**
+
+- `useAuth` separado a `contexts/auth.ts` (arregla el error de ESLint react-refresh; ESLint queda en 0).
+- **Code splitting** con `React.lazy` por vista: bundle inicial 426 kB → **259 kB**.
+- **ErrorBoundary** en la zona de contenido (fallback recuperable con "Reintentar").
+- **Vitest + Testing Library** configurados, 5 tests iniciales (`useAuth`, `ErrorBoundary`), scripts `npm run test`/`test:watch`, integrado al CI.
+
+### Commits de esta sesión (LOCAL — sin push, 10 en total)
+
+```
+569e626  feat(frontend): code splitting, ErrorBoundary y suite de tests con Vitest
+294000c  refactor(backend): SQLAlchemy 2.0 tipado, mypy limpio y tooling de QA
+4881e85  feat(backend): migraciones Alembic async con baseline del esquema completo
+43fa981  ci: GitHub Actions, Dependabot, cobertura y documentacion de QA
+7a1a7cc  chore: normalizar finales de linea en todo el repo
+af7336b  test(backend): flujo completo de ventas y gestion de usuarios + cobertura real
+418c9d2  chore: hooks de pre-commit y documentacion de QA actualizada
+64d82e8  security: resolver hallazgos del reporte de seguridad + 14 CVEs de dependencias
+85a3cb5  test(backend): cartera, compras y maestros contables — cobertura 82% -> 91%
+9858d99  test(backend): integracion Alegra con cliente HTTP mockeado
+```
+
+### Estado de los pendientes de la sesión del 1 de julio
+
+- ✅ Resueltos hoy: venv recreado, #9 (Alegra PUT), #11 (Alembic), #13 (utcnow tz).
+- ⏳ **Siguen abiertos** (backend, robustez de auth): #1 limpieza de refresh tokens expirados, #2 `int(token_data.sub)` puede dar 500, #3 guard de "último admin", #4 enumeración de usuarios en login, #5 paginación de listados. También #6-8, #10 (calidad menor), #12 (locks de concurrencia, solo multi-worker) y #14 (confirmar UVT con el contador).
+
+### Pendientes para próximas sesiones
+
+1. Tests de frontend para vistas críticas (Login, Cartera/Ventas) — en curso.
+2. **Motor de asientos contables (partida doble)** → P&L y Balance General. Requiere validar el mapeo PUC con el contador.
+3. Push a GitHub (dispara el CI por primera vez).
+4. Backups fuera del PC servidor (riesgo #1 operacional).
+5. Al desplegar: `pip install -r requirements.txt`, renombrar `ACCESS_TOKEN_EXPIRE_*` en el `.env` del servidor, `alembic stamp head` una vez.
