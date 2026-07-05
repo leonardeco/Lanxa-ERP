@@ -9,7 +9,7 @@ from sqlalchemy import select, func, extract, desc, and_
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from decimal import Decimal
-from datetime import date
+from datetime import date, timedelta
 
 from app.core.database import get_db
 from app.core.config import get_settings
@@ -17,13 +17,15 @@ from app.core.numbering import next_sequential_numero
 from app.api.deps import CurrentUser, AdminOrAdministradoraDep
 from app.modules.ventas.models import (
     Producto, Cliente, VentaDocumento, VentaDetalle,
+    Cotizacion, CotizacionDetalle, EstadoCotizacion,
     DevolucionVenta, DevolucionVentaDetalle,
     EstadoVenta, EstadoPago,
 )
 from app.modules.ventas.schemas import (
     ProductoCreate, ProductoUpdate, ProductoResponse,
     ClienteCreate, ClienteUpdate, ClienteResponse,
-    VentaCreate, VentaResponse, VentaDetalleResponse,
+    VentaCreate, VentaResponse, VentaDetalleCreate, VentaDetalleResponse,
+    CotizacionCreate, CotizacionRechazo, CotizacionResponse,
     VentaDashboardStats,
     DevolucionCreate, DevolucionResponse,
 )
@@ -400,6 +402,258 @@ async def delete_cliente(cliente_id: int, _: AdminOrAdministradoraDep, db: Async
     cliente.activo = False
     await db.flush()
     return {"detail": f"Cliente '{cliente.razon_social}' desactivado correctamente"}
+
+
+# ══════════════════════════════════════════════════════════
+# COTIZACIONES — COT-####
+# (declaradas antes de las rutas /{venta_id} para que la ruta
+#  literal /cotizaciones no sea capturada por el path param)
+# ══════════════════════════════════════════════════════════
+
+_COTIZACION_EAGER = (
+    selectinload(Cotizacion.cliente),
+    selectinload(Cotizacion.venta),
+    selectinload(Cotizacion.detalles).selectinload(CotizacionDetalle.producto),
+)
+
+
+def _build_cotizacion_response(cot: Cotizacion) -> CotizacionResponse:
+    """Requiere cliente, venta y detalles (con .producto) precargados."""
+    estado = cot.estado.value if hasattr(cot.estado, "value") else cot.estado
+    vencida = (
+        cot.estado in (EstadoCotizacion.BORRADOR, EstadoCotizacion.ENVIADA)
+        and cot.fecha_vencimiento < date.today()
+    )
+    return CotizacionResponse(
+        id=cot.id,
+        numero=cot.numero,
+        fecha=cot.fecha,
+        vigencia_dias=cot.vigencia_dias,
+        fecha_vencimiento=cot.fecha_vencimiento,
+        cliente_id=cot.cliente_id,
+        vendedor=cot.vendedor,
+        subtotal=cot.subtotal,
+        descuento_total=cot.descuento_total,
+        base_gravable=cot.base_gravable,
+        iva_total=cot.iva_total,
+        total=cot.total,
+        estado=estado,
+        motivo_rechazo=cot.motivo_rechazo,
+        venta_id=cot.venta_id,
+        venta_numero=cot.venta.numero if cot.venta else None,
+        vencida=vencida,
+        observaciones=cot.observaciones,
+        created_at=cot.created_at,
+        updated_at=cot.updated_at,
+        cliente_razon_social=cot.cliente.razon_social if cot.cliente else None,
+        cliente_nit=cot.cliente.nit_cc if cot.cliente else None,
+        detalles=[
+            VentaDetalleResponse(
+                id=d.id,
+                producto_id=d.producto_id,
+                cantidad=d.cantidad,
+                precio_unitario=d.precio_unitario,
+                descuento_porcentaje=d.descuento_porcentaje,
+                subtotal_linea=d.subtotal_linea,
+                iva_porcentaje=d.iva_porcentaje,
+                iva_valor=d.iva_valor,
+                total_linea=d.total_linea,
+                notas=d.notas,
+                producto_nombre=d.producto.nombre if d.producto else None,
+                producto_sku=d.producto.sku if d.producto else None,
+            )
+            for d in cot.detalles
+        ],
+    )
+
+
+async def _get_cotizacion_or_404(db: AsyncSession, cotizacion_id: int) -> Cotizacion:
+    cot = await db.scalar(
+        select(Cotizacion).options(*_COTIZACION_EAGER).where(Cotizacion.id == cotizacion_id)
+    )
+    if not cot:
+        raise HTTPException(status_code=404, detail="Cotización no encontrada")
+    return cot
+
+
+@router.get("/cotizaciones", response_model=List[CotizacionResponse])
+async def list_cotizaciones(
+    _: CurrentUser,
+    estado: Optional[str] = Query(None),
+    limit: int = Query(500, ge=1, le=2000),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
+):
+    """Listar cotizaciones (paginado, más recientes primero)."""
+    query = (
+        select(Cotizacion)
+        .options(*_COTIZACION_EAGER)
+        .order_by(desc(Cotizacion.fecha), desc(Cotizacion.id))
+        .limit(limit)
+        .offset(offset)
+    )
+    if estado:
+        query = query.where(Cotizacion.estado == estado)
+    rows = (await db.execute(query)).scalars().all()
+    return [_build_cotizacion_response(c) for c in rows]
+
+
+@router.get("/cotizaciones/{cotizacion_id}", response_model=CotizacionResponse)
+async def get_cotizacion(cotizacion_id: int, _: CurrentUser, db: AsyncSession = Depends(get_db)):
+    return _build_cotizacion_response(await _get_cotizacion_or_404(db, cotizacion_id))
+
+
+@router.post("/cotizaciones", response_model=CotizacionResponse, status_code=201)
+async def create_cotizacion(
+    data: CotizacionCreate, current: CurrentUser, db: AsyncSession = Depends(get_db)
+):
+    """Crear una cotización en Borrador. No toca inventario ni contabilidad."""
+    cliente = await db.get(Cliente, data.cliente_id)
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+
+    numero = await next_sequential_numero(db, Cotizacion.numero, "COT")
+    cot = Cotizacion(
+        numero=numero,
+        fecha=data.fecha,
+        vigencia_dias=data.vigencia_dias,
+        fecha_vencimiento=data.fecha + timedelta(days=data.vigencia_dias),
+        cliente_id=data.cliente_id,
+        vendedor=data.vendedor,
+        observaciones=data.observaciones,
+        estado=EstadoCotizacion.BORRADOR,
+        usuario_id=current.id,
+    )
+    db.add(cot)
+    await db.flush()
+
+    subtotal_total = Decimal("0.00")
+    descuento_total = Decimal("0.00")
+    iva_total = Decimal("0.00")
+    for det_data in data.detalles:
+        producto = await db.get(Producto, det_data.producto_id)
+        if not producto:
+            raise HTTPException(
+                status_code=404, detail=f"Producto ID {det_data.producto_id} no encontrado")
+
+        calc = _calcular_detalle(det_data)
+        db.add(CotizacionDetalle(
+            cotizacion_id=cot.id,
+            producto_id=det_data.producto_id,
+            cantidad=det_data.cantidad,
+            precio_unitario=det_data.precio_unitario,
+            descuento_porcentaje=det_data.descuento_porcentaje,
+            subtotal_linea=calc["subtotal_linea"],
+            iva_porcentaje=det_data.iva_porcentaje,
+            iva_valor=calc["iva_valor"],
+            total_linea=calc["total_linea"],
+            notas=det_data.notas,
+        ))
+        linea_bruta = det_data.cantidad * det_data.precio_unitario
+        subtotal_total += linea_bruta
+        descuento_total += linea_bruta * (det_data.descuento_porcentaje / Decimal("100"))
+        iva_total += calc["iva_valor"]
+
+    base_gravable = subtotal_total - descuento_total
+    cot.subtotal = round(subtotal_total, 2)
+    cot.descuento_total = round(descuento_total, 2)
+    cot.base_gravable = round(base_gravable, 2)
+    cot.iva_total = round(iva_total, 2)
+    cot.total = round(base_gravable + iva_total, 2)
+
+    await db.flush()
+    return _build_cotizacion_response(await _get_cotizacion_or_404(db, cot.id))
+
+
+@router.post("/cotizaciones/{cotizacion_id}/enviar", response_model=CotizacionResponse)
+async def enviar_cotizacion(cotizacion_id: int, _: CurrentUser, db: AsyncSession = Depends(get_db)):
+    """Marcar la cotización como Enviada al cliente."""
+    cot = await _get_cotizacion_or_404(db, cotizacion_id)
+    if cot.estado != EstadoCotizacion.BORRADOR:
+        raise HTTPException(status_code=400, detail="Solo se pueden enviar cotizaciones en Borrador")
+    cot.estado = EstadoCotizacion.ENVIADA
+    await db.flush()
+    return _build_cotizacion_response(cot)
+
+
+@router.post("/cotizaciones/{cotizacion_id}/aprobar", response_model=CotizacionResponse)
+async def aprobar_cotizacion(cotizacion_id: int, _: CurrentUser, db: AsyncSession = Depends(get_db)):
+    """El cliente aprobó. Valida que la cotización siga vigente."""
+    cot = await _get_cotizacion_or_404(db, cotizacion_id)
+    if cot.estado not in (EstadoCotizacion.BORRADOR, EstadoCotizacion.ENVIADA):
+        raise HTTPException(
+            status_code=400, detail="Solo se pueden aprobar cotizaciones en Borrador o Enviadas")
+    if cot.fecha_vencimiento < date.today():
+        raise HTTPException(
+            status_code=400,
+            detail=f"La cotización venció el {cot.fecha_vencimiento.isoformat()}. "
+                   "Crea una nueva cotización con precios vigentes.",
+        )
+    cot.estado = EstadoCotizacion.APROBADA
+    await db.flush()
+    return _build_cotizacion_response(cot)
+
+
+@router.post("/cotizaciones/{cotizacion_id}/rechazar", response_model=CotizacionResponse)
+async def rechazar_cotizacion(
+    cotizacion_id: int,
+    _: CurrentUser,
+    data: CotizacionRechazo | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """El cliente rechazó (o se descarta internamente)."""
+    cot = await _get_cotizacion_or_404(db, cotizacion_id)
+    if cot.estado not in (EstadoCotizacion.BORRADOR, EstadoCotizacion.ENVIADA):
+        raise HTTPException(
+            status_code=400, detail="Solo se pueden rechazar cotizaciones en Borrador o Enviadas")
+    cot.estado = EstadoCotizacion.RECHAZADA
+    if data and data.motivo:
+        cot.motivo_rechazo = data.motivo
+    await db.flush()
+    return _build_cotizacion_response(cot)
+
+
+@router.post("/cotizaciones/{cotizacion_id}/convertir", response_model=CotizacionResponse)
+async def convertir_cotizacion(
+    cotizacion_id: int, current: CurrentUser, db: AsyncSession = Depends(get_db)
+):
+    """Convertir una cotización Aprobada en un documento de venta (Borrador).
+    Reusa el flujo de creación de ventas: la venta nace sin efectos de
+    inventario/contabilidad hasta que se confirme."""
+    cot = await _get_cotizacion_or_404(db, cotizacion_id)
+    if cot.estado != EstadoCotizacion.APROBADA:
+        raise HTTPException(
+            status_code=400, detail="Solo se pueden convertir cotizaciones Aprobadas")
+
+    venta_data = VentaCreate(
+        fecha=date.today(),
+        cliente_id=cot.cliente_id,
+        vendedor=cot.vendedor,
+        observaciones=(
+            f"Generada desde cotización {cot.numero}"
+            + (f"\n{cot.observaciones}" if cot.observaciones else "")
+        ),
+        detalles=[
+            VentaDetalleCreate(
+                producto_id=d.producto_id,
+                cantidad=d.cantidad,
+                precio_unitario=d.precio_unitario,
+                descuento_porcentaje=d.descuento_porcentaje,
+                iva_porcentaje=d.iva_porcentaje,
+                notas=d.notas,
+            )
+            for d in cot.detalles
+        ],
+    )
+    venta_resp = await create_venta(venta_data, current, db)
+
+    cot.estado = EstadoCotizacion.CONVERTIDA
+    cot.venta_id = venta_resp.id
+    await db.flush()
+    # La relación .venta ya estaba cargada como None en el identity map;
+    # refrescarla para que la respuesta traiga el número de la venta creada.
+    await db.refresh(cot, attribute_names=["venta"])
+    return _build_cotizacion_response(cot)
 
 
 # ══════════════════════════════════════════════════════════

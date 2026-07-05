@@ -1,6 +1,6 @@
 /**
  * Ventas & Comercial View — Módulo completo de ventas
- * 4 pestañas: Dashboard, Productos, Clientes, Facturas
+ * 5 pestañas: Dashboard, Productos, Clientes, Cotizaciones, Facturas
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -11,12 +11,14 @@ import {
   type Venta,
   type VentaDashboard,
   type VentaDetalleInput,
+  type Cotizacion,
 } from '../services/ventasApi';
 import { printFactura } from '../utils/printFactura';
+import { printCotizacion } from '../utils/printCotizacion';
 import Toast from '../components/Toast';
 import Modal from '../components/Modal';
 
-type VentasTab = 'dashboard' | 'productos' | 'clientes' | 'facturas';
+type VentasTab = 'dashboard' | 'productos' | 'clientes' | 'cotizaciones' | 'facturas';
 
 // ══════════════════════════════════════════════════════════
 // MARCAS PARA FILTRO
@@ -744,6 +746,421 @@ function ClienteFormModal({ cliente, onSave, onClose }: {
 }
 
 // ══════════════════════════════════════════════════════════
+// COTIZACIONES TAB
+// ══════════════════════════════════════════════════════════
+
+const COT_ESTADO_COLOR: Record<string, string> = {
+  Borrador: 'neutral', Enviada: 'blue', Aprobada: 'green',
+  Rechazada: 'red', Convertida: 'purple',
+};
+
+function CotizacionesTab() {
+  const [cotizaciones, setCotizaciones] = useState<Cotizacion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showNueva, setShowNueva] = useState(false);
+  const [showDetalle, setShowDetalle] = useState<Cotizacion | null>(null);
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+
+  const fetchCotizaciones = useCallback(() => {
+    setLoading(true);
+    ventasApi.getCotizaciones()
+      .then(res => setCotizaciones(res.data))
+      .catch(() => setToast({ msg: 'Error al cargar cotizaciones', type: 'error' }))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { fetchCotizaciones(); }, [fetchCotizaciones]);
+
+  const accion = async (fn: () => Promise<unknown>, ok: string) => {
+    try {
+      await fn();
+      setToast({ msg: ok, type: 'success' });
+      fetchCotizaciones();
+    } catch (err: any) {
+      setToast({ msg: err.response?.data?.detail || 'Error en la operación', type: 'error' });
+    }
+  };
+
+  const handleEnviar = (c: Cotizacion) =>
+    accion(() => ventasApi.enviarCotizacion(c.id), `Cotización ${c.numero} marcada como Enviada`);
+
+  const handleAprobar = (c: Cotizacion) =>
+    accion(() => ventasApi.aprobarCotizacion(c.id), `Cotización ${c.numero} aprobada`);
+
+  const handleRechazar = (c: Cotizacion) => {
+    const motivo = prompt(`Motivo del rechazo de ${c.numero} (opcional):`);
+    if (motivo === null) return; // canceló el prompt
+    accion(() => ventasApi.rechazarCotizacion(c.id, motivo.trim() || undefined),
+      `Cotización ${c.numero} rechazada`);
+  };
+
+  const handleConvertir = (c: Cotizacion) => {
+    if (!confirm(`¿Convertir ${c.numero} en documento de venta?\nLa venta nace en Borrador: revísala y confírmala en la pestaña Facturas.`)) return;
+    accion(() => ventasApi.convertirCotizacion(c.id), `Cotización ${c.numero} convertida en venta`);
+  };
+
+  return (
+    <div className="fade-in">
+      {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+
+      <div className="table-container">
+        <div className="table-header">
+          <div className="table-title">📋 Cotizaciones</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div className="table-count">{cotizaciones.length} cotizaciones</div>
+            <button className="btn-primary-sm" onClick={() => setShowNueva(true)}>
+              + Nueva Cotización
+            </button>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="empty-state"><div className="empty-state-icon">⏳</div></div>
+        ) : cotizaciones.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-state-icon">📋</div>
+            <div className="empty-state-text">No hay cotizaciones</div>
+            <div className="empty-state-sub">Crea la primera con el botón "+ Nueva Cotización"</div>
+          </div>
+        ) : (
+          <div style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>N° Cotización</th>
+                  <th>Fecha</th>
+                  <th>Vence</th>
+                  <th>Cliente</th>
+                  <th>Total</th>
+                  <th>Estado</th>
+                  <th>Venta</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cotizaciones.map(c => (
+                  <tr key={c.id} style={{ opacity: c.estado === 'Rechazada' ? 0.5 : 1 }}>
+                    <td className="code">{c.numero}</td>
+                    <td>{new Date(c.fecha + 'T00:00:00').toLocaleDateString('es-CO')}</td>
+                    <td>
+                      <span style={c.vencida ? { color: 'var(--red-400, #f87171)', fontWeight: 600 } : undefined}>
+                        {new Date(c.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-CO')}
+                        {c.vencida ? ' ⚠️' : ''}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 600, fontSize: '0.82rem' }}>{c.cliente_razon_social}</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--neutral-500)' }}>NIT: {c.cliente_nit}</div>
+                    </td>
+                    <td className="code" style={{ color: 'var(--oz-green-400)', fontWeight: 700 }}>
+                      ${Number(c.total).toLocaleString('es-CO')}
+                    </td>
+                    <td>
+                      <span className={`badge ${COT_ESTADO_COLOR[c.estado] || 'neutral'}`} title={c.motivo_rechazo || undefined}>
+                        {c.estado}
+                      </span>
+                    </td>
+                    <td className="code">{c.venta_numero || '—'}</td>
+                    <td>
+                      <div className="action-btns">
+                        <button className="btn-icon" title="Ver detalle" onClick={() => setShowDetalle(c)}>👁️</button>
+                        <button className="btn-icon" title="Imprimir / PDF" onClick={() => printCotizacion(c)}>🖨️</button>
+                        {c.estado === 'Borrador' && (
+                          <button className="btn-icon" title="Marcar como enviada" onClick={() => handleEnviar(c)}>📤</button>
+                        )}
+                        {(c.estado === 'Borrador' || c.estado === 'Enviada') && (
+                          <>
+                            <button className="btn-icon" title="Aprobar" onClick={() => handleAprobar(c)}>✅</button>
+                            <button className="btn-icon" title="Rechazar" onClick={() => handleRechazar(c)}>❌</button>
+                          </>
+                        )}
+                        {c.estado === 'Aprobada' && (
+                          <button className="btn-icon" title="Convertir en venta" onClick={() => handleConvertir(c)}>🔁</button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {showNueva && (
+        <NuevaCotizacionModal
+          onClose={() => setShowNueva(false)}
+          onCreated={() => { setShowNueva(false); fetchCotizaciones(); setToast({ msg: 'Cotización creada exitosamente', type: 'success' }); }}
+        />
+      )}
+
+      {showDetalle && (
+        <Modal title={`Detalle — ${showDetalle.numero}`} onClose={() => setShowDetalle(null)} wide>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+            <button className="btn btn-primary" style={{ fontSize: '0.85rem' }} onClick={() => printCotizacion(showDetalle)}>
+              🖨️ Imprimir / Guardar PDF
+            </button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+            <div>
+              <div className="detail-label">Cliente</div>
+              <div className="detail-value">{showDetalle.cliente_razon_social}</div>
+              <div className="detail-sub">NIT: {showDetalle.cliente_nit}</div>
+            </div>
+            <div>
+              <div className="detail-label">Vigencia</div>
+              <div className="detail-value">
+                {showDetalle.vigencia_dias} días — hasta {new Date(showDetalle.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-CO', { dateStyle: 'long' })}
+              </div>
+              {showDetalle.vendedor && <div className="detail-sub">Vendedor: {showDetalle.vendedor}</div>}
+              {showDetalle.venta_numero && <div className="detail-sub">Convertida en venta: {showDetalle.venta_numero}</div>}
+              {showDetalle.motivo_rechazo && <div className="detail-sub">Motivo rechazo: {showDetalle.motivo_rechazo}</div>}
+            </div>
+          </div>
+
+          <table className="data-table" style={{ marginBottom: 16 }}>
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Producto</th>
+                <th>Cant.</th>
+                <th>P. Unit.</th>
+                <th>Desc%</th>
+                <th>IVA</th>
+                <th>Total Línea</th>
+              </tr>
+            </thead>
+            <tbody>
+              {showDetalle.detalles.map(d => (
+                <tr key={d.id}>
+                  <td className="code">{d.producto_sku}</td>
+                  <td>{d.producto_nombre}</td>
+                  <td>{Number(d.cantidad)}</td>
+                  <td className="code">${Number(d.precio_unitario).toLocaleString('es-CO')}</td>
+                  <td>{Number(d.descuento_porcentaje)}%</td>
+                  <td>{Number(d.iva_porcentaje)}%</td>
+                  <td className="code" style={{ fontWeight: 600 }}>${Number(d.total_linea).toLocaleString('es-CO')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div className="venta-totales">
+            <div className="total-row"><span>Subtotal</span><span>${Number(showDetalle.subtotal).toLocaleString('es-CO')}</span></div>
+            {Number(showDetalle.descuento_total) > 0 && <div className="total-row"><span>Descuentos</span><span>-${Number(showDetalle.descuento_total).toLocaleString('es-CO')}</span></div>}
+            <div className="total-row"><span>Base Gravable</span><span>${Number(showDetalle.base_gravable).toLocaleString('es-CO')}</span></div>
+            <div className="total-row"><span>IVA</span><span>${Number(showDetalle.iva_total).toLocaleString('es-CO')}</span></div>
+            <div className="total-row total-final"><span>TOTAL COTIZADO</span><span>${Number(showDetalle.total).toLocaleString('es-CO')}</span></div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ── Nueva Cotización Modal ──
+
+function NuevaCotizacionModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [productos, setProductos] = useState<Producto[]>([]);
+  const [clienteId, setClienteId] = useState('');
+  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
+  const [vigenciaDias, setVigenciaDias] = useState('15');
+  const [vendedor, setVendedor] = useState('');
+  const [observaciones, setObservaciones] = useState('');
+  const [lineas, setLineas] = useState<VentaDetalleInput[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    ventasApi.getClientes().then(r => setClientes(r.data)).catch(() => { });
+    ventasApi.getProductos().then(r => setProductos(r.data.filter(p => p.activo))).catch(() => { });
+  }, []);
+
+  const addLinea = () => {
+    setLineas(prev => [...prev, {
+      producto_id: 0,
+      cantidad: 1,
+      precio_unitario: 0,
+      descuento_porcentaje: 0,
+      iva_porcentaje: 19,
+    }]);
+  };
+
+  const updateLinea = (idx: number, field: string, value: any) => {
+    setLineas(prev => prev.map((l, i) => {
+      if (i !== idx) return l;
+      const updated = { ...l, [field]: value };
+      if (field === 'producto_id') {
+        const prod = productos.find(p => p.id === Number(value));
+        if (prod) {
+          updated.precio_unitario = Number(prod.precio_venta);
+          updated.iva_porcentaje = Number(prod.tarifa_iva);
+        }
+      }
+      return updated;
+    }));
+  };
+
+  const removeLinea = (idx: number) => {
+    setLineas(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const calcTotalLinea = (l: VentaDetalleInput) => {
+    const sub = l.cantidad * l.precio_unitario;
+    const base = sub - sub * (l.descuento_porcentaje / 100);
+    return base + base * (l.iva_porcentaje / 100);
+  };
+
+  const totalGeneral = lineas.reduce((sum, l) => sum + calcTotalLinea(l), 0);
+
+  const handleSubmit = async () => {
+    if (!clienteId) { setError('Selecciona un cliente'); return; }
+    if (lineas.length === 0) { setError('Agrega al menos una línea de producto'); return; }
+    if (lineas.some(l => !l.producto_id)) { setError('Selecciona un producto en cada línea'); return; }
+
+    setSaving(true);
+    setError('');
+    try {
+      await ventasApi.createCotizacion({
+        fecha,
+        vigencia_dias: parseInt(vigenciaDias) || 15,
+        cliente_id: parseInt(clienteId),
+        vendedor: vendedor || undefined,
+        observaciones: observaciones || undefined,
+        detalles: lineas,
+      });
+      onCreated();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Error al crear la cotización');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal title="📋 Nueva Cotización" onClose={onClose} wide>
+      <div className="modal-form">
+        {error && <div className="form-error fade-in">{error}</div>}
+
+        <div className="form-row">
+          <div className="form-group" style={{ flex: 3 }}>
+            <label>Cliente *</label>
+            <select value={clienteId} onChange={e => setClienteId(e.target.value)}>
+              <option value="">— Seleccionar cliente —</option>
+              {clientes.filter(c => c.activo).map(c => (
+                <option key={c.id} value={c.id}>{c.razon_social} ({c.nit_cc})</option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Fecha</label>
+            <input type="date" value={fecha} onChange={e => setFecha(e.target.value)} />
+          </div>
+          <div className="form-group" style={{ flex: 0.7 }}>
+            <label>Vigencia (días)</label>
+            <input type="number" min="1" max="365" value={vigenciaDias} onChange={e => setVigenciaDias(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label>Vendedor</label>
+            <input type="text" value={vendedor} onChange={e => setVendedor(e.target.value)} placeholder="Nombre" />
+          </div>
+        </div>
+
+        {/* Líneas de detalle */}
+        <div style={{ marginTop: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <label style={{ fontWeight: 600, color: 'var(--neutral-200)' }}>Líneas de Detalle</label>
+            <button type="button" className="btn-primary-sm" onClick={addLinea}>+ Agregar Línea</button>
+          </div>
+
+          {lineas.length === 0 ? (
+            <div className="empty-state" style={{ padding: 20 }}>
+              <div className="empty-state-text" style={{ fontSize: '0.8rem' }}>Agrega productos a esta cotización</div>
+            </div>
+          ) : (
+            <div className="venta-lineas">
+              {lineas.map((l, idx) => (
+                <div key={idx} className="venta-linea fade-in">
+                  <div className="form-row" style={{ gap: 6 }}>
+                    <div className="form-group" style={{ flex: 3 }}>
+                      <select
+                        value={l.producto_id}
+                        onChange={e => updateLinea(idx, 'producto_id', Number(e.target.value))}
+                      >
+                        <option value={0}>— Producto —</option>
+                        {productos.map(p => (
+                          <option key={p.id} value={p.id}>
+                            [{p.sku}] {p.nombre} — ${Number(p.precio_venta).toLocaleString('es-CO')}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group" style={{ flex: 0.7 }}>
+                      <input
+                        type="number" min="1" placeholder="Cant."
+                        value={l.cantidad}
+                        onChange={e => updateLinea(idx, 'cantidad', Number(e.target.value))}
+                      />
+                    </div>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <input
+                        type="number" min="0" step="100" placeholder="P. Unit."
+                        value={l.precio_unitario}
+                        onChange={e => updateLinea(idx, 'precio_unitario', Number(e.target.value))}
+                      />
+                    </div>
+                    <div className="form-group" style={{ flex: 0.6 }}>
+                      <input
+                        type="number" min="0" max="100" step="0.5" placeholder="Desc%"
+                        value={l.descuento_porcentaje}
+                        onChange={e => updateLinea(idx, 'descuento_porcentaje', Number(e.target.value))}
+                      />
+                    </div>
+                    <div className="linea-total" style={{ flex: 1, textAlign: 'right' }}>
+                      <span className="code" style={{ color: 'var(--oz-green-400)', fontWeight: 700 }}>
+                        ${calcTotalLinea(l).toLocaleString('es-CO', { maximumFractionDigits: 0 })}
+                      </span>
+                    </div>
+                    <button type="button" className="btn-icon-danger" onClick={() => removeLinea(idx)} title="Eliminar línea">×</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {lineas.length > 0 && (
+          <div className="venta-total-bar">
+            <span>Total Cotizado</span>
+            <span className="code" style={{ fontSize: '1.2rem', color: 'var(--oz-green-400)', fontWeight: 800 }}>
+              ${totalGeneral.toLocaleString('es-CO', { maximumFractionDigits: 0 })}
+            </span>
+          </div>
+        )}
+
+        <div className="form-group" style={{ marginTop: 12 }}>
+          <label>Observaciones</label>
+          <textarea value={observaciones} onChange={e => setObservaciones(e.target.value)} rows={2} placeholder="Condiciones comerciales, tiempos de entrega..." />
+        </div>
+
+        <div className="modal-actions">
+          <button type="button" className="btn-secondary" onClick={onClose}>Cancelar</button>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={handleSubmit}
+            disabled={saving}
+          >
+            {saving ? 'Creando...' : 'Crear Cotización'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ══════════════════════════════════════════════════════════
 // FACTURAS TAB
 // ══════════════════════════════════════════════════════════
 
@@ -1243,6 +1660,7 @@ export default function VentasView() {
     { id: 'dashboard', icon: '📊', label: 'Dashboard' },
     { id: 'productos', icon: '📦', label: 'Productos' },
     { id: 'clientes', icon: '👥', label: 'Clientes' },
+    { id: 'cotizaciones', icon: '📋', label: 'Cotizaciones' },
     { id: 'facturas', icon: '🧾', label: 'Facturas' },
   ];
 
@@ -1267,6 +1685,7 @@ export default function VentasView() {
         {activeTab === 'dashboard' && <VentasDashboardTab />}
         {activeTab === 'productos' && <ProductosTab />}
         {activeTab === 'clientes' && <ClientesTab />}
+        {activeTab === 'cotizaciones' && <CotizacionesTab />}
         {activeTab === 'facturas' && <FacturasTab />}
       </div>
     </div>

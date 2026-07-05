@@ -224,6 +224,53 @@ class VentaResponse(BaseModel):
 
 
 # ══════════════════════════════════════════════════════════
+# Cotizaciones
+# ══════════════════════════════════════════════════════════
+
+class CotizacionCreate(BaseModel):
+    fecha: date
+    vigencia_dias: int = Field(default=15, ge=1, le=365)
+    cliente_id: int
+    vendedor: Optional[str] = None
+    observaciones: Optional[str] = None
+    # Las líneas usan el mismo shape que las de venta (misma calculadora)
+    detalles: List[VentaDetalleCreate] = Field(min_length=1)
+
+
+class CotizacionRechazo(BaseModel):
+    motivo: Optional[str] = Field(default=None, max_length=300)
+
+
+class CotizacionResponse(BaseModel):
+    id: int
+    numero: str
+    fecha: date
+    vigencia_dias: int
+    fecha_vencimiento: date
+    cliente_id: int
+    vendedor: Optional[str] = None
+    subtotal: Decimal
+    descuento_total: Decimal
+    base_gravable: Decimal
+    iva_total: Decimal
+    total: Decimal
+    estado: str
+    motivo_rechazo: Optional[str] = None
+    venta_id: Optional[int] = None
+    venta_numero: Optional[str] = None
+    vencida: bool = False  # calculada: aún negociable pero pasó la vigencia
+    observaciones: Optional[str] = None
+    created_at: datetime | None = None
+    updated_at: Optional[datetime] = None
+
+    cliente_razon_social: Optional[str] = None
+    cliente_nit: Optional[str] = None
+    detalles: List[VentaDetalleResponse] = []
+
+    model_config = {"from_attributes": True}
+
+
+# ══════════════════════════════════════════════════════════
 # Dashboard de Ventas
 # ══════════════════════════════════════════════════════════
 
