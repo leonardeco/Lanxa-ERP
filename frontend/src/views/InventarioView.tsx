@@ -7,6 +7,7 @@ import {
 import { ventasApi, type Producto } from '../services/ventasApi';
 import { useAuth } from '../contexts/auth';
 import Toast from '../components/Toast';
+import ErrorState from '../components/ErrorState';
 
 type InventarioTab = 'dashboard' | 'productos' | 'movimientos' | 'ajuste';
 
@@ -28,16 +29,18 @@ const TIPO_COLOR: Record<string, string> = {
 function InventarioDashboardTab() {
   const [stats, setStats] = useState<InventarioDashboard | null>(null);
   const [loading, setLoading] = useState(true);
+  const [intento, setIntento] = useState(0);
 
   useEffect(() => {
+    setLoading(true);
     inventarioApi.getDashboard()
       .then(r => setStats(r.data))
-      .catch(() => {})
+      .catch(() => setStats(null))
       .finally(() => setLoading(false));
-  }, []);
+  }, [intento]);
 
   if (loading) return <div className="loading-spinner" style={{ margin: '60px auto' }} />;
-  if (!stats) return <div className="empty-state"><div className="empty-state-text">Error cargando dashboard</div></div>;
+  if (!stats) return <ErrorState mensaje="Error al cargar el dashboard de inventario" onRetry={() => setIntento(i => i + 1)} />;
 
   return (
     <div className="fade-in">
@@ -99,11 +102,17 @@ function InventarioDashboardTab() {
 function ProductosStockTab() {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [search, setSearch] = useState('');
+  const [intento, setIntento] = useState(0);
 
   useEffect(() => {
-    ventasApi.getProductos().then(r => setProductos(r.data)).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+    setLoading(true);
+    setError(false);
+    ventasApi.getProductos().then(r => setProductos(r.data)).catch(() => setError(true)).finally(() => setLoading(false));
+  }, [intento]);
+
+  if (error) return <ErrorState mensaje="No se pudo cargar el stock de productos" onRetry={() => setIntento(i => i + 1)} />;
 
   const filtered = productos.filter(p =>
     p.nombre.toLowerCase().includes(search.toLowerCase()) ||
@@ -174,18 +183,22 @@ function ProductosStockTab() {
 function MovimientosTab() {
   const [movimientos, setMovimientos] = useState<MovimientoInventario[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [productoFiltro, setProductoFiltro] = useState('');
   const [tipoFiltro, setTipoFiltro] = useState('');
 
   const load = useCallback(() => {
     setLoading(true);
+    setError(false);
     inventarioApi.getMovimientos()
       .then(r => setMovimientos(r.data))
-      .catch(() => {})
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  if (error) return <ErrorState mensaje="No se pudo cargar el kardex de movimientos" onRetry={load} />;
 
   const filtered = movimientos.filter(m =>
     (!productoFiltro || (m.producto_nombre ?? '').toLowerCase().includes(productoFiltro.toLowerCase()) || (m.producto_sku ?? '').toLowerCase().includes(productoFiltro.toLowerCase())) &&
@@ -263,7 +276,9 @@ function AjusteTab({ onToast, onSaved }: { onToast: (msg: string, type: 'success
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    ventasApi.getProductos().then(r => setProductos(r.data)).catch(() => {});
+    ventasApi.getProductos().then(r => setProductos(r.data))
+      .catch(() => onToast('No se pudieron cargar los productos para el ajuste', 'error'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const F = (field: keyof typeof form, value: string | number) =>

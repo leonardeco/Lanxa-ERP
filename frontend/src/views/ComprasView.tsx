@@ -11,6 +11,7 @@ import { printCompra } from '../utils/printCompra';
 import { useUnsavedChanges, confirmarDescartar } from '../utils/unsavedGuard';
 import Toast from '../components/Toast';
 import Modal from '../components/Modal';
+import ErrorState from '../components/ErrorState';
 
 type ComprasTab = 'dashboard' | 'proveedores' | 'compras' | 'nueva';
 
@@ -37,16 +38,18 @@ const IVA_OPTIONS = [0, 5, 19];
 function ComprasDashboardTab() {
   const [stats, setStats] = useState<ComprasDashboard | null>(null);
   const [loading, setLoading] = useState(true);
+  const [intento, setIntento] = useState(0);
 
   useEffect(() => {
+    setLoading(true);
     comprasApi.getDashboard()
       .then(r => setStats(r.data))
-      .catch(() => {})
+      .catch(() => setStats(null))
       .finally(() => setLoading(false));
-  }, []);
+  }, [intento]);
 
   if (loading) return <div className="loading-spinner" style={{ margin: '60px auto' }} />;
-  if (!stats) return <div className="empty-state"><div className="empty-state-text">Error cargando dashboard</div></div>;
+  if (!stats) return <ErrorState mensaje="Error al cargar el dashboard de compras" onRetry={() => setIntento(i => i + 1)} />;
 
   const variacion = stats.total_compras_mes_anterior > 0
     ? ((Number(stats.total_compras_mes) - Number(stats.total_compras_mes_anterior)) / Number(stats.total_compras_mes_anterior)) * 100
@@ -669,8 +672,11 @@ function NuevaCompraTab({
   useUnsavedChanges(dirty);
 
   useEffect(() => {
-    comprasApi.getProveedores().then(r => setProveedores(r.data)).catch(() => {});
-    ventasApi.getProductos().then(r => setProductos(r.data)).catch(() => {});
+    comprasApi.getProveedores().then(r => setProveedores(r.data))
+      .catch(() => onToast('No se pudieron cargar los proveedores', 'error'));
+    ventasApi.getProductos().then(r => setProductos(r.data))
+      .catch(() => onToast('No se pudieron cargar los productos', 'error'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const F = (field: keyof typeof form, value: string | number) =>

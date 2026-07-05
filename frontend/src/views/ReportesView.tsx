@@ -14,6 +14,7 @@ import {
 import { asientosApi, tercerosApi, type Asiento, type TerceroItem, type AuxiliarTercero } from '../services/contabilidadApi';
 import { auditoriaApi, type RegistroAuditoria } from '../services/auditoriaApi';
 import { descargarCsv } from '../utils/exportCsv';
+import ErrorState from '../components/ErrorState';
 
 type ReportesTab = 'aging' | 'periodo' | 'retenciones' | 'pyg' | 'balance' | 'diario' | 'auxiliar' | 'auditoria';
 
@@ -101,13 +102,15 @@ function AgingTabla({ titulo, reporte }: { titulo: string; reporte: AgingReporte
 function AgingTab() {
   const [data, setData] = useState<AgingCarteraResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [intento, setIntento] = useState(0);
 
   useEffect(() => {
-    reportesApi.getAgingCartera().then(setData).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+    setLoading(true);
+    reportesApi.getAgingCartera().then(setData).catch(() => setData(null)).finally(() => setLoading(false));
+  }, [intento]);
 
   if (loading) return <div className="loading-spinner" style={{ margin: '60px auto' }} />;
-  if (!data) return <div className="empty-state"><div className="empty-state-text">Error cargando el reporte</div></div>;
+  if (!data) return <ErrorState mensaje="Error al cargar el aging de cartera" onRetry={() => setIntento(i => i + 1)} />;
 
   return (
     <div className="fade-in">
@@ -128,12 +131,15 @@ function PeriodoTab() {
   const [ventas, setVentas] = useState<VentasPeriodoResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [error, setError] = useState(false);
+
   const cargar = () => {
     setLoading(true);
+    setError(false);
     Promise.all([
       reportesApi.getComprasPeriodo(fechaDesde, fechaHasta),
       reportesApi.getVentasPeriodo(fechaDesde, fechaHasta),
-    ]).then(([c, v]) => { setCompras(c); setVentas(v); }).catch(() => {}).finally(() => setLoading(false));
+    ]).then(([c, v]) => { setCompras(c); setVentas(v); }).catch(() => setError(true)).finally(() => setLoading(false));
   };
 
   useEffect(() => { cargar(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -152,7 +158,9 @@ function PeriodoTab() {
         <button className="btn-primary" onClick={cargar} disabled={loading}>{loading ? 'Cargando...' : 'Aplicar'}</button>
       </div>
 
-      {loading ? <div className="loading-spinner" style={{ margin: '60px auto' }} /> : (
+      {loading ? <div className="loading-spinner" style={{ margin: '60px auto' }} /> : error ? (
+        <ErrorState mensaje="Error al cargar el reporte del período" onRetry={cargar} />
+      ) : (
         <>
           {compras && (
             <div style={{ marginBottom: 32 }}>
@@ -254,9 +262,12 @@ function RetencionesTab() {
   const [data, setData] = useState<RetencionesPeriodoResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [error, setError] = useState(false);
+
   const cargar = () => {
     setLoading(true);
-    reportesApi.getRetencionesPeriodo(fechaDesde, fechaHasta).then(setData).catch(() => {}).finally(() => setLoading(false));
+    setError(false);
+    reportesApi.getRetencionesPeriodo(fechaDesde, fechaHasta).then(setData).catch(() => setError(true)).finally(() => setLoading(false));
   };
 
   useEffect(() => { cargar(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -275,7 +286,8 @@ function RetencionesTab() {
         <button className="btn-primary" onClick={cargar} disabled={loading}>{loading ? 'Cargando...' : 'Aplicar'}</button>
       </div>
 
-      {loading ? <div className="loading-spinner" style={{ margin: '60px auto' }} /> : data && (
+      {error && !loading && <ErrorState mensaje="Error al cargar el reporte de retenciones" onRetry={cargar} />}
+      {loading ? <div className="loading-spinner" style={{ margin: '60px auto' }} /> : data && !error && (
         <>
           <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 20 }}>
             <div className="kpi-card">
@@ -361,10 +373,13 @@ function EstadoResultadosTab() {
   const [data, setData] = useState<EstadoResultadosResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [error, setError] = useState(false);
+
   const cargar = () => {
     setLoading(true);
+    setError(false);
     estadosFinancierosApi.getEstadoResultados(fechaDesde, fechaHasta)
-      .then(setData).catch(() => {}).finally(() => setLoading(false));
+      .then(setData).catch(() => setError(true)).finally(() => setLoading(false));
   };
 
   useEffect(() => { cargar(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -401,7 +416,8 @@ function EstadoResultadosTab() {
         )}
       </div>
 
-      {loading ? <div className="loading-spinner" style={{ margin: '60px auto' }} /> : data && (
+      {error && !loading && <ErrorState mensaje="Error al cargar el estado de resultados" onRetry={cargar} />}
+      {loading ? <div className="loading-spinner" style={{ margin: '60px auto' }} /> : data && !error && (
         <>
           <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 20 }}>
             <div className="kpi-card">
@@ -433,10 +449,13 @@ function BalanceGeneralTab() {
   const [data, setData] = useState<BalanceGeneralResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [error, setError] = useState(false);
+
   const cargar = () => {
     setLoading(true);
+    setError(false);
     estadosFinancierosApi.getBalanceGeneral(fechaCorte)
-      .then(setData).catch(() => {}).finally(() => setLoading(false));
+      .then(setData).catch(() => setError(true)).finally(() => setLoading(false));
   };
 
   useEffect(() => { cargar(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -470,7 +489,8 @@ function BalanceGeneralTab() {
         )}
       </div>
 
-      {loading ? <div className="loading-spinner" style={{ margin: '60px auto' }} /> : data && (
+      {error && !loading && <ErrorState mensaje="Error al cargar el balance general" onRetry={cargar} />}
+      {loading ? <div className="loading-spinner" style={{ margin: '60px auto' }} /> : data && !error && (
         <>
           <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 20 }}>
             <div className="kpi-card">
@@ -520,12 +540,15 @@ function LibroDiarioTab() {
   const [expandido, setExpandido] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [error, setError] = useState(false);
+
   const cargar = () => {
     setLoading(true);
+    setError(false);
     asientosApi.getAsientos({
       modulo_origen: modulo || undefined,
       documento_ref: documento || undefined,
-    }).then(setAsientos).catch(() => {}).finally(() => setLoading(false));
+    }).then(setAsientos).catch(() => setError(true)).finally(() => setLoading(false));
   };
 
   useEffect(() => { cargar(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -564,7 +587,9 @@ function LibroDiarioTab() {
         )}
       </div>
 
-      {loading ? <div className="loading-spinner" style={{ margin: '60px auto' }} /> : (
+      {loading ? <div className="loading-spinner" style={{ margin: '60px auto' }} /> : error ? (
+        <ErrorState mensaje="Error al cargar el libro diario" onRetry={cargar} />
+      ) : (
         <div className="table-card">
           <table className="erp-table">
             <thead>
@@ -641,19 +666,21 @@ function AuxiliarTerceroTab() {
   const [cuenta, setCuenta] = useState('');
   const [data, setData] = useState<AuxiliarTercero | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    tercerosApi.getTerceros().then(setTerceros).catch(() => {});
+    tercerosApi.getTerceros().then(setTerceros).catch(() => setError(true));
   }, []);
 
   const cargar = () => {
     if (!terceroId) return;
     setLoading(true);
+    setError(false);
     tercerosApi.getAuxiliar(terceroId, {
       fecha_desde: fechaDesde || undefined,
       fecha_hasta: fechaHasta || undefined,
       cuenta: cuenta || undefined,
-    }).then(setData).catch(() => {}).finally(() => setLoading(false));
+    }).then(setData).catch(() => setError(true)).finally(() => setLoading(false));
   };
 
   return (
@@ -700,7 +727,10 @@ function AuxiliarTerceroTab() {
         )}
       </div>
 
-      {data && (
+      {error && !loading && (
+        <ErrorState mensaje="Error al cargar el auxiliar del tercero" onRetry={cargar} />
+      )}
+      {data && !error && (
         <>
           <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 20 }}>
             <div className="kpi-card">
@@ -780,9 +810,12 @@ function AuditoriaTab() {
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
   const [expandido, setExpandido] = useState<number | null>(null);
+  const [error, setError] = useState(false);
+  const [intento, setIntento] = useState(0);
 
   useEffect(() => {
     setLoading(true);
+    setError(false);
     auditoriaApi.getRegistros({
       entidad: entidad || undefined,
       accion: accion || undefined,
@@ -790,9 +823,9 @@ function AuditoriaTab() {
       fecha_hasta: hasta || undefined,
     })
       .then(res => setRegistros(res.data))
-      .catch(() => setRegistros([]))
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [entidad, accion, desde, hasta]);
+  }, [entidad, accion, desde, hasta, intento]);
 
   const exportar = () => {
     descargarCsv(
@@ -844,6 +877,8 @@ function AuditoriaTab() {
 
       {loading ? (
         <div className="empty-state"><div className="empty-state-icon">⏳</div></div>
+      ) : error ? (
+        <ErrorState mensaje="Error al cargar el log de auditoría" onRetry={() => setIntento(i => i + 1)} />
       ) : registros.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">🕵️</div>
