@@ -40,6 +40,14 @@ class EstadoPago(str, enum.Enum):
     PAGADO = "Pagado"
 
 
+class EstadoCotizacion(str, enum.Enum):
+    BORRADOR = "Borrador"
+    ENVIADA = "Enviada"
+    APROBADA = "Aprobada"
+    RECHAZADA = "Rechazada"
+    CONVERTIDA = "Convertida"
+
+
 class CategoriaProducto(str, enum.Enum):
     BIOCIDA = "Biocida"
     FERTILIZANTE = "Fertilizante"
@@ -198,6 +206,67 @@ class VentaDetalle(Base):
 
     def __repr__(self):
         return f"<VentaDetalle Prod:{self.producto_id} Cant:{self.cantidad} Total:{self.total_linea}>"
+
+
+class Cotizacion(Base):
+    """Cotización comercial — COT-####. Sin efectos de inventario ni
+    contabilidad: solo al convertirla nace una venta (en Borrador)."""
+    __tablename__ = "cotizaciones"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    numero: Mapped[str] = mapped_column(String(20), unique=True, index=True)  # COT-0001
+    fecha: Mapped[date] = mapped_column(Date, default=date.today)
+    vigencia_dias: Mapped[int] = mapped_column(default=15)
+    fecha_vencimiento: Mapped[date] = mapped_column(Date)  # fecha + vigencia_dias
+    cliente_id: Mapped[int] = mapped_column(ForeignKey("clientes.id"))
+    vendedor: Mapped[str | None] = mapped_column(String(200))
+
+    subtotal: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    descuento_total: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    base_gravable: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    iva_total: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    total: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+
+    estado: Mapped[EstadoCotizacion] = mapped_column(
+        SAEnum(EstadoCotizacion), default=EstadoCotizacion.BORRADOR)
+    motivo_rechazo: Mapped[str | None] = mapped_column(String(300))
+    venta_id: Mapped[int | None] = mapped_column(
+        ForeignKey("ventas_documentos.id"), index=True)  # venta creada al convertir
+
+    observaciones: Mapped[str | None] = mapped_column(Text)
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+    cliente = relationship("Cliente")
+    venta = relationship("VentaDocumento")
+    detalles = relationship(
+        "CotizacionDetalle", back_populates="cotizacion", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<Cotizacion {self.numero} - {self.total}>"
+
+
+class CotizacionDetalle(Base):
+    __tablename__ = "cotizaciones_detalles"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    cotizacion_id: Mapped[int] = mapped_column(ForeignKey("cotizaciones.id"))
+    producto_id: Mapped[int] = mapped_column(ForeignKey("productos.id"))
+    cantidad: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("1.00"))
+    precio_unitario: Mapped[Decimal] = mapped_column(Numeric(18, 2))
+    descuento_porcentaje: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=Decimal("0.00"))
+    subtotal_linea: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    iva_porcentaje: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=Decimal("19.00"))
+    iva_valor: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    total_linea: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    notas: Mapped[str | None] = mapped_column(String(300))
+
+    cotizacion = relationship("Cotizacion", back_populates="detalles")
+    producto = relationship("Producto")
+
+    def __repr__(self):
+        return f"<CotizacionDetalle Prod:{self.producto_id} Cant:{self.cantidad}>"
 
 
 class DevolucionVenta(Base):

@@ -177,7 +177,56 @@ export const ventasApi = {
   getDevoluciones: (ventaId: number) =>
     api.get<Devolucion[]>(`${BASE}/${ventaId}/devoluciones`).then(r => r.data),
 
+  // ── Cotizaciones ──
+  getCotizaciones: (estado?: string) => {
+    const params = estado ? { estado } : {};
+    return api.get<Cotizacion[]>(`${BASE}/cotizaciones`, { params });
+  },
+  getCotizacion: (id: number) => api.get<Cotizacion>(`${BASE}/cotizaciones/${id}`),
+  createCotizacion: (data: CotizacionInput) => api.post<Cotizacion>(`${BASE}/cotizaciones`, data),
+  enviarCotizacion: (id: number) => api.post<Cotizacion>(`${BASE}/cotizaciones/${id}/enviar`),
+  aprobarCotizacion: (id: number) => api.post<Cotizacion>(`${BASE}/cotizaciones/${id}/aprobar`),
+  rechazarCotizacion: (id: number, motivo?: string) =>
+    api.post<Cotizacion>(`${BASE}/cotizaciones/${id}/rechazar`, motivo ? { motivo } : {}),
+  convertirCotizacion: (id: number) => api.post<Cotizacion>(`${BASE}/cotizaciones/${id}/convertir`),
 };
+
+// ── Cotizaciones ─────────────────────────────────────────
+
+export interface CotizacionInput {
+  fecha: string;
+  vigencia_dias: number;
+  cliente_id: number;
+  vendedor?: string;
+  observaciones?: string;
+  detalles: VentaDetalleInput[];
+}
+
+export interface Cotizacion {
+  id: number;
+  numero: string;
+  fecha: string;
+  vigencia_dias: number;
+  fecha_vencimiento: string;
+  cliente_id: number;
+  vendedor?: string;
+  subtotal: number;
+  descuento_total: number;
+  base_gravable: number;
+  iva_total: number;
+  total: number;
+  estado: string;
+  motivo_rechazo?: string;
+  venta_id?: number;
+  venta_numero?: string;
+  vencida: boolean;
+  observaciones?: string;
+  created_at: string;
+  updated_at?: string;
+  cliente_razon_social?: string;
+  cliente_nit?: string;
+  detalles: VentaDetalle[];
+}
 
 // ── Devoluciones (Nota crédito) ───────────────────────────
 
