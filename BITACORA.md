@@ -755,3 +755,27 @@ UX **#17**: ningún formulario con trabajo digitado se descarta ya sin preguntar
 ### Pendientes tras esta sesión
 
 Ver `PENDIENTES.md` (10ª revisión). Funcional restante: #18 RRHH (Fase 2), #20 Alegra/DIAN (necesita token real), #21 Electron, #21a staging, #21b multi-bodega (pregunta de negocio). Bloqueados por la contadora: mapeo PUC, costeo, datos maestros, UVT.
+
+---
+
+## Sesión — 5 de julio 2026 (4ª parte) — Deuda técnica 14c/14d/13a/13b (Claude Fable 5)
+
+### Resumen
+
+Cuatro ítems de deuda técnica en un bloque (`8cd9810`): revocación de sesiones por Admin, smoke E2E en el CI, validación de formato de email y `_enrich_cxc/cxp` explícitos. Tests: 228 → **233 API**; E2E ahora corre local **y** en CI.
+
+### Lo que se hizo
+
+**14c — Revocación de sesiones**: `POST /v1/usuarios/{id}/revocar-sesiones` (solo Admin) borra los refresh tokens del usuario; sin refresh la sesión muere al expirar el access token (máx. 15 min) sin necesidad de desactivar la cuenta. Botón "🔒 Cerrar sesiones" en Usuarios y registro en auditoría. Test verifica que el refresh token revocado devuelve 401.
+
+**14d — Playwright en CI**: job `e2e` en `ci.yml` con `continue-on-error: true` (opcional: no bloquea el merge). `playwright.config.ts` ahora detecta el SO: en Windows usa el python del venv, en Linux (CI) el del sistema — el comando anterior era Windows-only.
+
+**13a — EmailStr**: `ClienteCreate/Update` y `ProveedorCreate/Update` validan formato de email (422 si es inválido); `''` del frontend se normaliza a `None`. Los `Response` se quedan como `str`: los registros legacy con texto libre siguen siendo legibles.
+
+**13b — `_enrich` explícito**: `_enrich_cxc/cxp` construyen `CxCResponse`/`CxPResponse` campo a campo en vez de `{**obj.__dict__}` (frágil ante cambios de modelo y dependiente del estado interno de SQLAlchemy). De paso mypy destapó que `created_at` era Optional en el modelo pero requerido en el schema — corregido.
+
+**Lección aplicada**: esta vez ESLint y mypy se corrieron localmente antes del push (el CI del feature #17 se cayó por una regla de ESLint que no estaba en el checklist local).
+
+### Pendientes tras esta sesión
+
+Ver `PENDIENTES.md` (11ª revisión). La deuda técnica que queda es de mayor calado: #10 migración de nulabilidad legacy (requiere la BD real del servidor), #13 extraer servicios de dominio, #14 manejo de errores consistente en frontend, #14a unificar Cliente/Proveedor/Tercero. Funcional: #18 RRHH, #20 Alegra/DIAN, #21 Electron — todos requieren insumos externos.
