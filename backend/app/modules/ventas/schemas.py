@@ -2,7 +2,7 @@
 Super Ozono Global — Schemas Pydantic para Ventas & Comercial
 """
 
-from pydantic import BaseModel, Field, field_serializer, model_validator
+from pydantic import BaseModel, EmailStr, Field, field_serializer, field_validator, model_validator
 
 from app.core.nit import validar_dv
 from typing import Optional, List
@@ -100,6 +100,15 @@ class ClienteBase(BaseModel):
 
 
 class ClienteCreate(ClienteBase):
+    # 13a: formato de email validado solo en escritura (el Response queda como
+    # str para no romper la lectura de registros legacy con texto libre)
+    email: Optional[EmailStr] = None
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def _email_vacio_es_none(cls, v):
+        return v or None
+
     @model_validator(mode="after")
     def _dv_correcto(self):
         # 14e: si el usuario digita el DV, debe ser el correcto según la DIAN
@@ -119,7 +128,7 @@ class ClienteUpdate(BaseModel):
     departamento: Optional[str] = None
     telefono: Optional[str] = None
     celular: Optional[str] = None
-    email: Optional[str] = None
+    email: Optional[EmailStr] = None
     contacto_nombre: Optional[str] = None
     contacto_cargo: Optional[str] = None
     lista_precios: Optional[str] = None
@@ -131,6 +140,11 @@ class ClienteUpdate(BaseModel):
     tarifa_reteica: Optional[Decimal] = None
     activo: Optional[bool] = None
     notas: Optional[str] = None
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def _email_vacio_es_none(cls, v):
+        return v or None
 
 
 class ClienteResponse(ClienteBase):

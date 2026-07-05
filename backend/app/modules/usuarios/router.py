@@ -236,6 +236,25 @@ async def reset_usuario_password(
     return {"message": "Contraseña restablecida correctamente"}
 
 
+@router.post("/v1/usuarios/{user_id}/revocar-sesiones")
+async def revocar_sesiones_usuario(user_id: int, session: SessionDep, admin: SuperuserDep):
+    """Cierra las sesiones remotas de un usuario borrando sus refresh tokens.
+    El access token vigente expira solo (máx. 15 min); sin refresh token no
+    puede renovarse, así que la sesión muere sin necesidad de desactivarlo."""
+    user = await session.get(Usuario, user_id)
+    if not user:
+        raise HTTPException(404, "Usuario no encontrado")
+    result = await session.execute(
+        delete(RefreshToken).where(RefreshToken.usuario_id == user_id)
+    )
+    revocadas = getattr(result, "rowcount", 0) or 0
+    registrar_auditoria(session, admin, "Revocar sesiones", "Usuario", user.id,
+                        f"Usuario {user.email} — {revocadas} sesión(es) revocada(s)")
+    await session.commit()
+    return {"message": f"{revocadas} sesión(es) revocada(s) para {user.email}",
+            "sesiones_revocadas": revocadas}
+
+
 # ── Cambio de contraseña propia (cualquier usuario) ──────
 
 @router.put("/v1/usuarios/me/password")

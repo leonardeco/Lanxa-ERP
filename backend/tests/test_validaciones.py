@@ -301,3 +301,59 @@ async def test_dv_incorrecto_rechaza_cliente_y_proveedor(client, auth_headers):
         headers=auth_headers,
     )
     assert resp.status_code == 201
+
+
+# ══════════════════════════════════════════════════════════
+# 13a — Formato de email en cliente/proveedor (solo escritura)
+# ══════════════════════════════════════════════════════════
+
+@pytest.mark.asyncio
+async def test_email_invalido_en_cliente_da_422(client: AsyncClient, auth_headers: dict):
+    resp = await client.post(
+        "/api/v1/ventas/clientes",
+        json={"nit_cc": "900777001", "razon_social": "Email Malo SAS",
+              "email": "esto no es un email"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_email_vacio_o_valido_en_cliente_ok(client: AsyncClient, auth_headers: dict):
+    # '' se normaliza a None (el frontend envía cadena vacía)
+    resp = await client.post(
+        "/api/v1/ventas/clientes",
+        json={"nit_cc": "900777002", "razon_social": "Sin Email SAS", "email": ""},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201
+    assert resp.json()["email"] is None
+
+    resp = await client.post(
+        "/api/v1/ventas/clientes",
+        json={"nit_cc": "900777003", "razon_social": "Con Email SAS",
+              "email": "compras@cliente.com"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201
+    assert resp.json()["email"] == "compras@cliente.com"
+
+    # El update también valida
+    cliente_id = resp.json()["id"]
+    resp = await client.put(
+        f"/api/v1/ventas/clientes/{cliente_id}",
+        json={"email": "malo@"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_email_invalido_en_proveedor_da_422(client: AsyncClient, auth_headers: dict):
+    resp = await client.post(
+        "/api/v1/compras/proveedores",
+        json={"nit_cc": "800777001", "razon_social": "Proveedor Email Malo",
+              "email": "sin-arroba"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 422

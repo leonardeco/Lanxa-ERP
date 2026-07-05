@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 from app.core.nit import validar_dv
 from typing import Optional, List
@@ -27,6 +27,15 @@ class ProveedorBase(BaseModel):
 
 
 class ProveedorCreate(ProveedorBase):
+    # 13a: formato de email validado solo en escritura (el Response queda como
+    # str para no romper la lectura de registros legacy con texto libre)
+    email: Optional[EmailStr] = None
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def _email_vacio_es_none(cls, v):
+        return v or None
+
     @model_validator(mode="after")
     def _dv_correcto(self):
         error = validar_dv(self.nit_cc, self.dv)
@@ -46,11 +55,16 @@ class ProveedorUpdate(BaseModel):
     departamento: Optional[str] = None
     telefono: Optional[str] = None
     celular: Optional[str] = None
-    email: Optional[str] = None
+    email: Optional[EmailStr] = None
     contacto_nombre: Optional[str] = None
     contacto_cargo: Optional[str] = None
     dias_credito: Optional[int] = None
     notas: Optional[str] = None
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def _email_vacio_es_none(cls, v):
+        return v or None
 
 
 class ProveedorResponse(ProveedorBase):

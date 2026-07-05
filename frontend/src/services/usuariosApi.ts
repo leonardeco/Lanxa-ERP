@@ -33,4 +33,7 @@ export const usuariosApi = {
     api.put('/v1/usuarios/me/password', { current_password, new_password }).then(r => r.data),
   resetPassword: (id: number, new_password: string) =>
     api.put(`/v1/usuarios/${id}/reset-password`, { new_password }).then(r => r.data),
+  revocarSesiones: (id: number) =>
+    api.post<{ message: string; sesiones_revocadas: number }>(`/v1/usuarios/${id}/revocar-sesiones`)
+      .then(r => r.data),
 };

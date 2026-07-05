@@ -5,7 +5,14 @@ import { defineConfig } from '@playwright/test';
  * (puerto 5273, sin TLS) y prueba los flujos criticos en Chromium.
  *
  *   npm run test:e2e
+ *
+ * Corre local (Windows, python del venv) y en CI (Linux, python del sistema).
  */
+const isWindows = process.platform === 'win32';
+const backendCommand = isWindows
+  ? 'cd ..\\backend && (if exist e2e.db del e2e.db) && venv\\Scripts\\python.exe -m uvicorn app.main:app --port 8100'
+  : 'cd ../backend && rm -f e2e.db && python -m uvicorn app.main:app --port 8100';
+
 export default defineConfig({
   testDir: './e2e',
   timeout: 30_000,
@@ -17,8 +24,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command:
-        'cd ..\\backend && (if exist e2e.db del e2e.db) && venv\\Scripts\\python.exe -m uvicorn app.main:app --port 8100',
+      command: backendCommand,
       url: 'http://localhost:8100/health',
       reuseExistingServer: false,
       timeout: 60_000,
