@@ -35,6 +35,7 @@ from app.modules.contabilidad.models import CuentaPorCobrar, EstadoDocumento, Pa
 from app.modules.contabilidad.asientos import (
     asiento_venta_confirmada, asiento_devolucion_venta, reversar_asientos,
 )
+from app.modules.auditoria.service import registrar_auditoria, diff_cambios
 
 router = APIRouter(prefix="/api/v1/ventas", tags=["Ventas & Comercial"])
 settings = get_settings()
@@ -287,7 +288,7 @@ async def get_producto(producto_id: int, _: CurrentUser, db: AsyncSession = Depe
 
 
 @router.post("/productos", response_model=ProductoResponse, status_code=201)
-async def create_producto(data: ProductoCreate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def create_producto(data: ProductoCreate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
     """Crear un nuevo producto."""
     # Verificar SKU único
     existing = await db.scalar(select(Producto.id).where(Producto.sku == data.sku))
@@ -298,12 +299,15 @@ async def create_producto(data: ProductoCreate, _: AdminOrAdministradoraDep, db:
     db.add(producto)
     await db.flush()
     await db.refresh(producto)
+    registrar_auditoria(db, current, "Crear", "Producto", producto.id,
+                        f"Producto {producto.sku} — {producto.nombre}")
+    await db.flush()
     return producto
 
 
 @router.put("/productos/{producto_id}", response_model=ProductoResponse)
 async def update_producto(
-    producto_id: int, data: ProductoUpdate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+    producto_id: int, data: ProductoUpdate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
 ):
     """Actualizar un producto existente."""
     producto = await db.get(Producto, producto_id)
@@ -311,22 +315,28 @@ async def update_producto(
         raise HTTPException(status_code=404, detail="Producto no encontrado")
 
     update_data = data.model_dump(exclude_unset=True)
+    cambios = diff_cambios(producto, update_data)
     for field, value in update_data.items():
         setattr(producto, field, value)
 
+    if cambios:
+        registrar_auditoria(db, current, "Actualizar", "Producto", producto.id,
+                            f"Producto {producto.sku} — {producto.nombre}", cambios)
     await db.flush()
     await db.refresh(producto)
     return producto
 
 
 @router.delete("/productos/{producto_id}")
-async def delete_producto(producto_id: int, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def delete_producto(producto_id: int, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
     """Desactivar un producto (soft delete)."""
     producto = await db.get(Producto, producto_id)
     if not producto:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
 
     producto.activo = False
+    registrar_auditoria(db, current, "Desactivar", "Producto", producto.id,
+                        f"Producto {producto.sku} — {producto.nombre}")
     await db.flush()
     return {"detail": f"Producto '{producto.nombre}' desactivado correctamente"}
 
@@ -361,7 +371,7 @@ async def get_cliente(cliente_id: int, _: CurrentUser, db: AsyncSession = Depend
 
 
 @router.post("/clientes", response_model=ClienteResponse, status_code=201)
-async def create_cliente(data: ClienteCreate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def create_cliente(data: ClienteCreate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
     """Crear un nuevo cliente."""
     existing = await db.scalar(select(Cliente.id).where(Cliente.nit_cc == data.nit_cc))
     if existing:
@@ -371,12 +381,15 @@ async def create_cliente(data: ClienteCreate, _: AdminOrAdministradoraDep, db: A
     db.add(cliente)
     await db.flush()
     await db.refresh(cliente)
+    registrar_auditoria(db, current, "Crear", "Cliente", cliente.id,
+                        f"Cliente {cliente.nit_cc} — {cliente.razon_social}")
+    await db.flush()
     return cliente
 
 
 @router.put("/clientes/{cliente_id}", response_model=ClienteResponse)
 async def update_cliente(
-    cliente_id: int, data: ClienteUpdate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+    cliente_id: int, data: ClienteUpdate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
 ):
     """Actualizar un cliente existente."""
     cliente = await db.get(Cliente, cliente_id)
@@ -384,22 +397,28 @@ async def update_cliente(
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
 
     update_data = data.model_dump(exclude_unset=True)
+    cambios = diff_cambios(cliente, update_data)
     for field, value in update_data.items():
         setattr(cliente, field, value)
 
+    if cambios:
+        registrar_auditoria(db, current, "Actualizar", "Cliente", cliente.id,
+                            f"Cliente {cliente.nit_cc} — {cliente.razon_social}", cambios)
     await db.flush()
     await db.refresh(cliente)
     return cliente
 
 
 @router.delete("/clientes/{cliente_id}")
-async def delete_cliente(cliente_id: int, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def delete_cliente(cliente_id: int, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
     """Desactivar un cliente (soft delete)."""
     cliente = await db.get(Cliente, cliente_id)
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
 
     cliente.activo = False
+    registrar_auditoria(db, current, "Desactivar", "Cliente", cliente.id,
+                        f"Cliente {cliente.nit_cc} — {cliente.razon_social}")
     await db.flush()
     return {"detail": f"Cliente '{cliente.razon_social}' desactivado correctamente"}
 
