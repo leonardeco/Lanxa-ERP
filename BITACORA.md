@@ -779,3 +779,19 @@ Cuatro ítems de deuda técnica en un bloque (`8cd9810`): revocación de sesione
 ### Pendientes tras esta sesión
 
 Ver `PENDIENTES.md` (11ª revisión). La deuda técnica que queda es de mayor calado: #10 migración de nulabilidad legacy (requiere la BD real del servidor), #13 extraer servicios de dominio, #14 manejo de errores consistente en frontend, #14a unificar Cliente/Proveedor/Tercero. Funcional: #18 RRHH, #20 Alegra/DIAN, #21 Electron — todos requieren insumos externos.
+
+---
+
+## Sesión — 5 de julio 2026 (5ª parte) — Errores visibles en frontend (Claude Fable 5)
+
+### Resumen
+
+**#14**: eliminados los `.catch(() => {})` silenciosos del frontend (`c81fcc0`). Antes, si un panel fallaba al cargar, quedaba un vacío indistinguible de "no hay datos"; ahora cada uno muestra un `ErrorState` con el mensaje de qué falló y botón "↻ Reintentar" que recarga sin refrescar la página.
+
+### Lo que se hizo
+
+Componente compartido `components/ErrorState.tsx` (`role="alert"`). Cubiertos 21 sitios: dashboards de Ventas/Compras/Inventario (retry por contador de intento), stock y kardex de Inventario, historial de pagos de Cartera, y las 8 pestañas de Reportes (aging, período, retenciones, P&L, balance, libro diario, auxiliar y auditoría — el patrón es `error` state + `ErrorState onRetry={cargar}`). Los selects de los formularios de captura (clientes/productos en Nueva Venta/Cotización, proveedores/productos en Nueva Compra y Ajuste de inventario) avisan con toast o error visible. Se conservó un único catch silencioso deliberado: las alertas de vencimiento del Dashboard general (documentado en el código — si fallan, el dashboard sigue).
+
+### Pendientes tras esta sesión
+
+Ver `PENDIENTES.md` (12ª revisión). Deuda restante de calado: #10 nulabilidad legacy (necesita la BD real), #13 servicios de dominio, #14a unificar terceros; #12/12a solo aplican multi-worker. Funcional: #18/#20/#21 requieren insumos externos.

@@ -1,6 +1,6 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **5 de julio de 2026** (11ª revisión — ✅ #16 Cotizaciones, ✅ #19 Auditoría, ✅ #17 datos sin guardar, ✅ #14c revocación de sesiones, ✅ #14d Playwright en CI, ✅ #13a EmailStr, ✅ #13b _enrich explícito). **Este archivo es la fuente única de pendientes.**.
+Backlog vivo del proyecto. Actualizado: **5 de julio de 2026** (12ª revisión — ✅ #16, #19, #17, #14c, #14d, #13a, #13b y ✅ #14 manejo de errores consistente en frontend con `ErrorState` + reintento). **Este archivo es la fuente única de pendientes.**.
 Estado general: 233 tests API (95% cobertura) + 30 componentes + 5 E2E (local y CI), CI verde, 0 CVEs.
 
 ---
@@ -34,7 +34,6 @@ Estado general: 233 tests API (95% cobertura) + 30 componentes + 5 E2E (local y 
 | 12 | Locks de concurrencia (`with_for_update`) en abonos y stock | **Solo si** el despliegue pasa a multi-worker; con uvicorn single-worker en LAN no aplica |
 | 12a | Race en numeración de documentos (BUG-004/005: `MAX+1` sin lock en SOG-V/SOG-CP/RC/CE) | Mismo escenario que #12: solo aplica multi-worker. Resolver junto con #12 (lock o secuencia de BD) |
 | 13 | Extraer servicios de dominio (`confirmar_venta` orquesta stock+CxC+asiento inline en el router) | Incluye unificar el patrón commit/flush entre módulos (BUG-006) y `estado` Enum vs String (ventas usa SAEnum, compras string) |
-| 14 | Manejo de errores consistente en frontend (varios `.catch(() => {})` silenciosos) | El usuario no se entera si un panel falló al cargar |
 | 14a | Unificar Cliente/Proveedor/Tercero a nivel de modelo | CxC guarda `cliente_nit` como texto sin FK; la materialización por NIT (2026-07-02) es el puente, falta la FK real |
 
 ## 🟢 Funcional — siguientes features (por prioridad de negocio)

@@ -745,6 +745,7 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | 36 | Auditoría de cambios: log con diff campo a campo en maestros/parámetros/usuarios + pestaña en Reportes con export | ✅ Completado 2026-07-05 |
 | 37 | UX: confirmación antes de descartar formularios con datos sin guardar (modales, Nueva Compra, cambio de módulo, beforeunload) | ✅ Completado 2026-07-05 |
 | 38 | Deuda técnica: revocación de sesiones por Admin (14c), E2E Playwright en CI (14d), EmailStr en cliente/proveedor (13a), `_enrich_cxc/cxp` explícitos (13b) | ✅ Completado 2026-07-05 |
+| 39 | Manejo de errores consistente en frontend: `ErrorState` compartido con reintento en 21 sitios que fallaban en silencio | ✅ Completado 2026-07-05 |
 
 ### Deuda técnica / mejoras pendientes
 
