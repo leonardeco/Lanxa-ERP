@@ -701,3 +701,23 @@ a0d90b5  feat: Sprint 3 — bcrypt directo, validacion DV del NIT y deuda rapida
 ### Pendientes tras esta sesión
 
 Ver `PENDIENTES.md` (7ª revisión). Próximos de código: botón de devolución en ComprasView (15-ui), cotizaciones (#16), audit log (#19). Bloqueados por la contadora: mapeo PUC, costeo (→ costo de venta #8), datos maestros.
+
+---
+
+## Sesión — 5 de julio 2026 — Cotizaciones (Claude Fable 5)
+
+### Resumen
+
+Feature **Cotizaciones (#16)** full-stack en un solo bloque: documento COT-#### con flujo comercial completo (Borrador → Enviada → Aprobada/Rechazada → Convertida), vigencia en días, conversión a venta reusando el flujo existente, PDF imprimible y pestaña nueva en el módulo de Ventas. Tests: 215 → **221 API + 25 componentes**.
+
+### Lo que se hizo
+
+**Backend (`3900182`)** — Modelos `Cotizacion`/`CotizacionDetalle` (mismas columnas de montos que ventas; `fecha_vencimiento = fecha + vigencia_dias`, default 15). Endpoints bajo `/api/v1/ventas/cotizaciones` (declarados antes de `/{venta_id}` para que la ruta literal no la capture el path param): listado con filtro por estado, detalle, creación (reusa `_calcular_detalle` y `next_sequential_numero`), y transiciones `enviar`/`aprobar`/`rechazar`/`convertir`. Reglas: aprobar valida que no esté vencida; rechazar acepta motivo opcional; convertir solo desde Aprobada y llama a `create_venta` directamente — la venta nace en **Borrador** con observación "Generada desde cotización COT-XXXX", sin efectos de inventario/contabilidad hasta confirmarla (verificado por test). La respuesta expone `vencida` (calculada) y `venta_numero`. Migración `d7a3c45e1b90` (2 tablas). 6 tests nuevos en `test_cotizaciones.py`.
+
+**Frontend (mismo commit)** — Pestaña "📋 Cotizaciones" en Ventas: tabla con vencimiento resaltado si está vencida, badge por estado (Convertida en morado), acciones contextuales (📤 enviar, ✅ aprobar, ❌ rechazar con motivo, 🔁 convertir con confirmación), modal de detalle y `printCotizacion.ts` (PDF con caja de vigencia y nota "no constituye factura"). Modal Nueva Cotización con las mismas líneas de detalle que Nueva Venta + campo vigencia.
+
+**Detalle técnico** — al convertir, la relación `cotizacion.venta` ya estaba cargada como `None` en el identity map y el `selectinload` del re-fetch no la refresca; se resolvió con `db.refresh(cot, attribute_names=["venta"])`.
+
+### Pendientes tras esta sesión
+
+Ver `PENDIENTES.md` (8ª revisión). Próximo de código acordado: **audit log (#19)**. Sigue bloqueado por la contadora: mapeo PUC, costeo (→ asiento de costo de venta #8), datos maestros.

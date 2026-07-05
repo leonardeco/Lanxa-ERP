@@ -1,7 +1,7 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **2 de julio de 2026** (7ª revisión — ✅ #15 Devoluciones: NC ventas full-stack y ND compras por API; Sprints 1-3 completados: ✅ 15a/b/c/d cartera+períodos+hora local+auxiliar; ✅ 14b logs; ✅ 9 passlib→bcrypt 5; ✅ 13c/13d/14e stock decimal, flags visibles, DV del NIT). **Este archivo es la fuente única de pendientes.**.
-Estado general: 198 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde, 0 CVEs.
+Backlog vivo del proyecto. Actualizado: **5 de julio de 2026** (8ª revisión — ✅ #16 Cotizaciones full-stack: COT-#### con flujo Borrador→Enviada→Aprobada/Rechazada→Convertida, vigencia, conversión a venta y PDF). **Este archivo es la fuente única de pendientes.**.
+Estado general: 221 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde, 0 CVEs.
 
 ---
 
@@ -45,7 +45,6 @@ Estado general: 198 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde
 
 | # | Feature | Alcance |
 |---|---|---|
-| 16 | **Cotizaciones** | Flujo cotización → aprobación → conversión a venta (típico B2B) |
 | 17 | Confirmación al cerrar formularios con datos sin guardar | UX: el modal de Nueva Compra pierde 10 líneas digitadas sin preguntar |
 | 18 | **RRHH y nómina** (Fase 2) | Empleados, contratos, liquidación — requiere definiciones de negocio propias |
 | 19 | **Auditoría de cambios** (audit log) | Quién modificó qué en productos/clientes/parámetros (los asientos ya guardan usuario) |
