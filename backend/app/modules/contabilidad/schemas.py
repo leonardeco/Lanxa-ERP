@@ -235,7 +235,7 @@ class CxCResponse(BaseModel):
     estado: str
     dias_vencido: int = 0
     notas: Optional[str]
-    created_at: datetime
+    created_at: Optional[datetime] = None  # nullable en el modelo (default utcnow)
 
     model_config = {"from_attributes": True}
 
@@ -286,7 +286,7 @@ class CxPResponse(BaseModel):
     dias_vencido: int = 0
     compra_id: Optional[int] = None
     notas: Optional[str]
-    created_at: datetime
+    created_at: Optional[datetime] = None  # nullable en el modelo (default utcnow)
 
     model_config = {"from_attributes": True}
 

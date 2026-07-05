@@ -181,3 +181,44 @@ async def test_listar_usuarios_ordenados(client: AsyncClient, auth_headers: dict
     assert resp.status_code == 200
     nombres = [u["nombre_completo"] for u in resp.json()]
     assert nombres == sorted(nombres)
+
+
+# ══════════════════════════════════════════════════════════
+# 14c — Revocación de sesiones por Admin
+# ══════════════════════════════════════════════════════════
+
+@pytest.mark.asyncio
+async def test_revocar_sesiones_mata_el_refresh_token(client: AsyncClient, auth_headers: dict):
+    usuario = await _crear_usuario(client, auth_headers)
+
+    # El usuario inicia sesión: obtiene refresh token (cookie)
+    login = await client.post(
+        "/api/login/access-token",
+        data={"username": usuario["email"], "password": "password123"},
+    )
+    assert login.status_code == 200
+    assert client.cookies.get("refresh_token")
+
+    # El Admin revoca sus sesiones
+    resp = await client.post(
+        f"/api/v1/usuarios/{usuario['id']}/revocar-sesiones", headers=auth_headers
+    )
+    assert resp.status_code == 200
+    assert resp.json()["sesiones_revocadas"] == 1
+
+    # El refresh token del usuario ya no sirve: la sesión no puede renovarse
+    refresh = await client.post("/api/login/refresh-token")
+    assert refresh.status_code == 401
+
+    # La acción queda auditada
+    log = (await client.get(
+        "/api/v1/auditoria?entidad=Usuario&accion=Revocar sesiones", headers=auth_headers
+    )).json()
+    assert len(log) == 1
+    assert usuario["email"] in log[0]["descripcion"]
+
+
+@pytest.mark.asyncio
+async def test_revocar_sesiones_usuario_inexistente_404(client: AsyncClient, auth_headers: dict):
+    resp = await client.post("/api/v1/usuarios/99999/revocar-sesiones", headers=auth_headers)
+    assert resp.status_code == 404

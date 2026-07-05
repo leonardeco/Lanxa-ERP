@@ -282,6 +282,16 @@ export default function UsuariosView() {
     }
   };
 
+  const handleRevocarSesiones = async (u: Usuario) => {
+    if (!confirm(`¿Cerrar las sesiones remotas de ${u.nombre_completo}?\nTendrá que iniciar sesión de nuevo en todos sus equipos.`)) return;
+    try {
+      const res = await usuariosApi.revocarSesiones(u.id);
+      showToast(res.message);
+    } catch (err: any) {
+      showToast(err?.response?.data?.detail ?? 'Error al revocar sesiones', 'error');
+    }
+  };
+
   const totalActivos = usuarios.filter(u => u.is_active).length;
   const totalInactivos = usuarios.length - totalActivos;
 
@@ -399,6 +409,14 @@ export default function UsuariosView() {
                             onClick={() => setModalReset(u)}
                           >
                             🔓 Resetear contraseña
+                          </button>
+                          <button
+                            className="btn btn-ghost"
+                            style={{ fontSize: '0.78rem', padding: '4px 10px' }}
+                            onClick={() => handleRevocarSesiones(u)}
+                            title="Borra sus refresh tokens: la sesión muere al expirar el access token (máx. 15 min)"
+                          >
+                            🔒 Cerrar sesiones
                           </button>
                           <button
                             className={`btn ${u.is_active ? 'btn-ghost' : 'btn-primary'}`}

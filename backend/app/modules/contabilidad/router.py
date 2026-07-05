@@ -338,19 +338,47 @@ async def _next_numero_comprobante(db: AsyncSession, prefijo: str) -> str:
     return await next_sequential_numero(db, Pago.numero_comprobante, prefijo)
 
 
-def _enrich_cxc(c: CuentaPorCobrar) -> dict:
+def _enrich_cxc(c: CuentaPorCobrar) -> CxCResponse:
+    """Construcción explícita (13b): antes usaba {**c.__dict__}, frágil ante
+    cambios de modelo y dependiente del estado interno de SQLAlchemy."""
     saldo = (c.valor_factura or Decimal("0")) - (c.abonos or Decimal("0"))
-    return {**c.__dict__, "saldo_pendiente": saldo, "dias_vencido": _dias_vencido(c.fecha_vencimiento, c.estado)}
+    return CxCResponse(
+        id=c.id,
+        numero_factura=c.numero_factura,
+        fecha_emision=c.fecha_emision,
+        cliente_nit=c.cliente_nit,
+        nombre_cliente=c.nombre_cliente,
+        marca=c.marca,
+        valor_factura=c.valor_factura,
+        abonos=c.abonos,
+        saldo_pendiente=saldo,
+        fecha_vencimiento=c.fecha_vencimiento,
+        estado=c.estado.value if hasattr(c.estado, "value") else c.estado,
+        dias_vencido=_dias_vencido(c.fecha_vencimiento, c.estado),
+        notas=c.notas,
+        created_at=c.created_at,
+    )
 
 
-def _enrich_cxp(p: CuentaPorPagar) -> dict:
+def _enrich_cxp(p: CuentaPorPagar) -> CxPResponse:
     saldo = (p.valor or Decimal("0")) - (p.abonos or Decimal("0"))
-    return {
-        **p.__dict__,
-        "saldo_pendiente": saldo,
-        "dias_vencido": _dias_vencido(p.fecha_vencimiento, p.estado),
-        "compra_id": p.compra_id,
-    }
+    return CxPResponse(
+        id=p.id,
+        numero_documento=p.numero_documento,
+        fecha=p.fecha,
+        proveedor_nit=p.proveedor_nit,
+        razon_social=p.razon_social,
+        concepto=p.concepto,
+        valor=p.valor,
+        abonos=p.abonos,
+        saldo_pendiente=saldo,
+        fecha_vencimiento=p.fecha_vencimiento,
+        estado=p.estado.value if hasattr(p.estado, "value") else p.estado,
+        dias_vencido=_dias_vencido(p.fecha_vencimiento, p.estado),
+        compra_id=p.compra_id,
+        notas=p.notas,
+        created_at=p.created_at,
+    )
 
 
 # -- Stats globales de cartera ---------------------------------
