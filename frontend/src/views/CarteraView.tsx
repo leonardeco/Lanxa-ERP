@@ -3,6 +3,7 @@ import { carteraApi, type CxC, type CxP, type CarteraStats, type Pago } from '..
 import { printComprobante } from '../utils/printComprobante';
 import Toast from '../components/Toast';
 import Modal from '../components/Modal';
+import ErrorState from '../components/ErrorState';
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -82,11 +83,13 @@ function PagosHistorialModal({ tipo, documento, onClose, onChanged }: {
 }) {
   const [pagos, setPagos] = useState<Pago[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [anulando, setAnulando] = useState<number | null>(null);
 
   const cargar = () => {
     const params = tipo === 'cxc' ? { cxc_id: documento.id } : { cxp_id: documento.id };
-    carteraApi.getPagos(params).then(setPagos).catch(() => {}).finally(() => setLoading(false));
+    setError(false);
+    carteraApi.getPagos(params).then(setPagos).catch(() => setError(true)).finally(() => setLoading(false));
   };
 
   useEffect(() => { cargar(); }, [tipo, documento.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -115,6 +118,8 @@ function PagosHistorialModal({ tipo, documento, onClose, onChanged }: {
     <Modal title={`Historial de pagos — ${numero}`} onClose={onClose}>
       {loading ? (
         <div className="loading-spinner" style={{ margin: '40px auto' }} />
+      ) : error ? (
+        <ErrorState mensaje="No se pudo cargar el historial de pagos" onRetry={cargar} />
       ) : pagos.length === 0 ? (
         <p style={{ color: 'var(--neutral-500)', textAlign: 'center', padding: 24 }}>Sin pagos registrados todavía</p>
       ) : (

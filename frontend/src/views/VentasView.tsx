@@ -17,6 +17,7 @@ import { printFactura } from '../utils/printFactura';
 import { printCotizacion } from '../utils/printCotizacion';
 import Toast from '../components/Toast';
 import Modal from '../components/Modal';
+import ErrorState from '../components/ErrorState';
 
 type VentasTab = 'dashboard' | 'productos' | 'clientes' | 'cotizaciones' | 'facturas';
 
@@ -42,16 +43,18 @@ const MARCA_COLORS: Record<string, string> = {
 function VentasDashboardTab() {
   const [stats, setStats] = useState<VentaDashboard | null>(null);
   const [loading, setLoading] = useState(true);
+  const [intento, setIntento] = useState(0);
 
   useEffect(() => {
+    setLoading(true);
     ventasApi.getDashboard()
       .then(res => setStats(res.data))
-      .catch(() => { })
+      .catch(() => setStats(null))
       .finally(() => setLoading(false));
-  }, []);
+  }, [intento]);
 
   if (loading) return <div className="empty-state fade-in"><div className="empty-state-icon">⏳</div><div className="empty-state-text">Cargando dashboard...</div></div>;
-  if (!stats) return <div className="empty-state fade-in"><div className="empty-state-icon">⚠️</div><div className="empty-state-text">Error al cargar dashboard</div></div>;
+  if (!stats) return <ErrorState mensaje="Error al cargar el dashboard de ventas" onRetry={() => setIntento(i => i + 1)} />;
 
   const kpis = [
     { icon: '💰', label: 'Ventas del Mes', value: `$${Number(stats.ventas_mes_actual).toLocaleString('es-CO')}`, color: 'green' },
@@ -977,8 +980,9 @@ function NuevaCotizacionModal({ onClose, onCreated }: { onClose: () => void; onC
   const [error, setError] = useState('');
 
   useEffect(() => {
-    ventasApi.getClientes().then(r => setClientes(r.data)).catch(() => { });
-    ventasApi.getProductos().then(r => setProductos(r.data.filter(p => p.activo))).catch(() => { });
+    const fallo = () => setError('No se pudieron cargar clientes/productos. Verifica la conexión y vuelve a abrir el formulario.');
+    ventasApi.getClientes().then(r => setClientes(r.data)).catch(fallo);
+    ventasApi.getProductos().then(r => setProductos(r.data.filter(p => p.activo))).catch(fallo);
   }, []);
 
   const addLinea = () => {
@@ -1471,8 +1475,9 @@ function NuevaVentaModal({ onClose, onCreated }: { onClose: () => void; onCreate
   const [error, setError] = useState('');
 
   useEffect(() => {
-    ventasApi.getClientes().then(r => setClientes(r.data)).catch(() => { });
-    ventasApi.getProductos().then(r => setProductos(r.data.filter(p => p.activo))).catch(() => { });
+    const fallo = () => setError('No se pudieron cargar clientes/productos. Verifica la conexión y vuelve a abrir el formulario.');
+    ventasApi.getClientes().then(r => setClientes(r.data)).catch(fallo);
+    ventasApi.getProductos().then(r => setProductos(r.data.filter(p => p.activo))).catch(fallo);
   }, []);
 
   const addLinea = () => {
