@@ -743,6 +743,7 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | 34 | Devoluciones: nota crédito NC- (full-stack) y devolución a proveedor ND- (API) con cuenta 417501 | ✅ Completado 2026-07-03 |
 | 35 | Cotizaciones COT- (full-stack): Borrador→Enviada→Aprobada/Rechazada→Convertida, vigencia, conversión a venta, PDF | ✅ Completado 2026-07-05 |
 | 36 | Auditoría de cambios: log con diff campo a campo en maestros/parámetros/usuarios + pestaña en Reportes con export | ✅ Completado 2026-07-05 |
+| 37 | UX: confirmación antes de descartar formularios con datos sin guardar (modales, Nueva Compra, cambio de módulo, beforeunload) | ✅ Completado 2026-07-05 |
 
 ### Deuda técnica / mejoras pendientes
 

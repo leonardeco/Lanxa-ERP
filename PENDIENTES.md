@@ -1,7 +1,7 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **5 de julio de 2026** (9ª revisión — ✅ #16 Cotizaciones full-stack y ✅ #19 Auditoría de cambios: log de quién modificó qué en maestros/parámetros/usuarios con diff campo a campo y pestaña en Reportes). **Este archivo es la fuente única de pendientes.**.
-Estado general: 228 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde, 0 CVEs.
+Backlog vivo del proyecto. Actualizado: **5 de julio de 2026** (10ª revisión — ✅ #16 Cotizaciones, ✅ #19 Auditoría de cambios y ✅ #17 confirmación al descartar formularios con datos sin guardar). **Este archivo es la fuente única de pendientes.**.
+Estado general: 228 tests API (95% cobertura) + 30 componentes + 5 E2E, CI verde, 0 CVEs.
 
 ---
 
@@ -45,7 +45,6 @@ Estado general: 228 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde
 
 | # | Feature | Alcance |
 |---|---|---|
-| 17 | Confirmación al cerrar formularios con datos sin guardar | UX: el modal de Nueva Compra pierde 10 líneas digitadas sin preguntar |
 | 18 | **RRHH y nómina** (Fase 2) | Empleados, contratos, liquidación — requiere definiciones de negocio propias |
 | 20 | Activación Alegra con facturación electrónica DIAN | La integración está construida y testeada con mocks; falta cuenta/token real y rotación documentada (SEC-002) |
 | 21 | Empaquetado Electron (Fase 4) | App de escritorio .exe |
