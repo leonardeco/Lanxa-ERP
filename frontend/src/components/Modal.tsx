@@ -1,4 +1,5 @@
 import { useEffect, useRef, useId, type ReactNode } from 'react'
+import { useUnsavedChanges, MENSAJE_DESCARTAR } from '../utils/unsavedGuard'
 
 interface ModalProps {
   title: string
@@ -6,6 +7,11 @@ interface ModalProps {
   children: ReactNode
   /** Usa el ancho amplio (modal-wide) para formularios grandes */
   wide?: boolean
+  /**
+   * Si es true, cerrar el modal (X, overlay, Escape) pide confirmación
+   * antes de descartar. Pasar el estado "dirty" del formulario.
+   */
+  confirmDiscard?: boolean
 }
 
 /**
@@ -13,10 +19,23 @@ interface ModalProps {
  * - Cierra al hacer clic en el overlay o pulsar Escape.
  * - role="dialog" + aria-modal + aria-labelledby con el título.
  * - Atrapa el foco dentro del modal y lo restaura al cerrar.
+ * - Con confirmDiscard, protege datos sin guardar (confirmación + beforeunload).
  */
-export default function Modal({ title, onClose, children, wide }: ModalProps) {
+export default function Modal({ title, onClose, children, wide, confirmDiscard }: ModalProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
+
+  // Aviso nativo del navegador si intentan cerrar/recargar con datos sin guardar
+  useUnsavedChanges(!!confirmDiscard)
+
+  // requestClose vive en un ref para que el efecto de foco/teclado no se
+  // re-ejecute (y robe el foco) cada vez que cambia el estado dirty del padre
+  const requestCloseRef = useRef(() => {})
+  requestCloseRef.current = () => {
+    if (confirmDiscard && !confirm(MENSAJE_DESCARTAR)) return
+    onClose()
+  }
+  const requestClose = () => requestCloseRef.current()
 
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null
@@ -31,7 +50,7 @@ export default function Modal({ title, onClose, children, wide }: ModalProps) {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault()
-        onClose()
+        requestCloseRef.current()
         return
       }
       if (e.key === 'Tab') {
@@ -58,13 +77,13 @@ export default function Modal({ title, onClose, children, wide }: ModalProps) {
       document.removeEventListener('keydown', handleKeyDown)
       previouslyFocused?.focus?.()
     }
-  }, [onClose])
+  }, [])
 
   return (
     <div
       className="modal-overlay"
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
+        if (e.target === e.currentTarget) requestClose()
       }}
     >
       <div
@@ -77,7 +96,7 @@ export default function Modal({ title, onClose, children, wide }: ModalProps) {
       >
         <div className="modal-header">
           <h3 id={titleId}>{title}</h3>
-          <button className="modal-close" onClick={onClose} aria-label="Cerrar">
+          <button className="modal-close" onClick={requestClose} aria-label="Cerrar">
             ×
           </button>
         </div>

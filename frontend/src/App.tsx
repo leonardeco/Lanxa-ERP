@@ -6,6 +6,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 import DashboardView from './views/DashboardView'
 import LoginView from './views/LoginView'
 import { useAuth } from './contexts/auth'
+import { confirmarDescartar } from './utils/unsavedGuard'
 
 // Vistas con code splitting: cada una baja en su propio chunk al abrirla,
 // en vez de inflar el bundle inicial (Dashboard y Login quedan eager
@@ -102,6 +103,8 @@ function App() {
 
   const handleViewChange = (view: ViewId) => {
     if (allowedViews.includes(view)) {
+      // #17: no descartar formularios con datos sin guardar al cambiar de módulo
+      if (view !== activeView && !confirmarDescartar()) return
       setActiveView(view)
     }
   }

@@ -57,4 +57,42 @@ describe('Modal', () => {
     await user.click(screen.getByRole('button', { name: 'Cerrar' }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  describe('confirmDiscard (#17 — datos sin guardar)', () => {
+    it('con confirmDiscard, pide confirmación antes de cerrar y respeta "Cancelar"', async () => {
+      const onClose = vi.fn();
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+      const user = userEvent.setup();
+      render(
+        <Modal title="X" onClose={onClose} confirmDiscard>
+          <input placeholder="campo" />
+        </Modal>,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Cerrar' }));
+      expect(confirmSpy).toHaveBeenCalledTimes(1);
+      expect(onClose).not.toHaveBeenCalled(); // el usuario canceló → sigue abierto
+
+      confirmSpy.mockReturnValue(true);
+      await user.keyboard('{Escape}');
+      expect(onClose).toHaveBeenCalledTimes(1); // confirmó → se cierra
+
+      confirmSpy.mockRestore();
+    });
+
+    it('sin confirmDiscard cierra directo, sin preguntar', async () => {
+      const onClose = vi.fn();
+      const confirmSpy = vi.spyOn(window, 'confirm');
+      const user = userEvent.setup();
+      render(
+        <Modal title="X" onClose={onClose}>
+          <input placeholder="campo" />
+        </Modal>,
+      );
+      await user.keyboard('{Escape}');
+      expect(confirmSpy).not.toHaveBeenCalled();
+      expect(onClose).toHaveBeenCalledTimes(1);
+      confirmSpy.mockRestore();
+    });
+  });
 });
