@@ -1,7 +1,7 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **5 de julio de 2026** (8ª revisión — ✅ #16 Cotizaciones full-stack: COT-#### con flujo Borrador→Enviada→Aprobada/Rechazada→Convertida, vigencia, conversión a venta y PDF). **Este archivo es la fuente única de pendientes.**.
-Estado general: 221 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde, 0 CVEs.
+Backlog vivo del proyecto. Actualizado: **5 de julio de 2026** (9ª revisión — ✅ #16 Cotizaciones full-stack y ✅ #19 Auditoría de cambios: log de quién modificó qué en maestros/parámetros/usuarios con diff campo a campo y pestaña en Reportes). **Este archivo es la fuente única de pendientes.**.
+Estado general: 228 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde, 0 CVEs.
 
 ---
 
@@ -47,7 +47,6 @@ Estado general: 221 tests API (95% cobertura) + 25 componentes + 5 E2E, CI verde
 |---|---|---|
 | 17 | Confirmación al cerrar formularios con datos sin guardar | UX: el modal de Nueva Compra pierde 10 líneas digitadas sin preguntar |
 | 18 | **RRHH y nómina** (Fase 2) | Empleados, contratos, liquidación — requiere definiciones de negocio propias |
-| 19 | **Auditoría de cambios** (audit log) | Quién modificó qué en productos/clientes/parámetros (los asientos ya guardan usuario) |
 | 20 | Activación Alegra con facturación electrónica DIAN | La integración está construida y testeada con mocks; falta cuenta/token real y rotación documentada (SEC-002) |
 | 21 | Empaquetado Electron (Fase 4) | App de escritorio .exe |
 | 21a | Entorno de staging (aunque sea una carpeta paralela con BD copia en el mismo servidor) | Hoy todo cambio va directo a producción — riesgo de proceso, no de código |
