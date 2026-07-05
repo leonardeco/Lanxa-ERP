@@ -721,3 +721,21 @@ Feature **Cotizaciones (#16)** full-stack en un solo bloque: documento COT-#### 
 ### Pendientes tras esta sesión
 
 Ver `PENDIENTES.md` (8ª revisión). Próximo de código acordado: **audit log (#19)**. Sigue bloqueado por la contadora: mapeo PUC, costeo (→ asiento de costo de venta #8), datos maestros.
+
+---
+
+## Sesión — 5 de julio 2026 (2ª parte) — Auditoría de cambios (Claude Fable 5)
+
+### Resumen
+
+Feature **Auditoría de cambios (#19)**: módulo nuevo `auditoria` que registra quién modificó qué en los datos maestros y en las acciones administrativas, con diff campo a campo (antes → después) y pestaña de consulta en Reportes. Tests: 221 → **228 API + 25 componentes**.
+
+### Lo que se hizo
+
+**Backend (`f76ed68`)** — Modelo `RegistroAuditoria` (tabla `auditoria`): fecha UTC, usuario (FK + email como snapshot), acción, entidad, entidad_id, descripción legible y `cambios` (JSON con el diff, solo en updates). `service.py` expone `registrar_auditoria()` (añade a la sesión sin commit: el registro viaja en la misma transacción del cambio — si la operación falla, el log también se revierte) y `diff_cambios()` (compara objeto vs payload, serializa Decimal/fechas/enums, omite campos que no cambian y excluye contraseñas). Endpoints instrumentados: productos y clientes (crear/actualizar/desactivar), proveedores (ídem), parámetros tributarios y de nómina (actualizar/activar/desactivar), toggle de períodos (Cerrar/Reabrir) y usuarios (crear/actualizar/activar/desactivar/reset de contraseña — se registra el hecho, nunca la clave; test lo verifica). Un PUT sin cambios reales no genera registro. `GET /api/v1/auditoria` (Admin/Administradora, 403 para Auxiliar) con filtros por entidad, acción, usuario y rango de fechas. Migración `e8b4d92f7a15`. 7 tests en `test_auditoria.py`.
+
+**Frontend (mismo commit)** — Pestaña "🕵️ Auditoría" en Reportes: filtros (entidad/acción/fechas), badge de color por acción, diff expandible por registro (tachado rojo → verde) y export a Excel. Servicio `auditoriaApi.ts`.
+
+### Pendientes tras esta sesión
+
+Ver `PENDIENTES.md` (9ª revisión). Con #16 y #19 cerrados, lo funcional que queda es: #17 confirmación al cerrar forms con datos sin guardar, #18 RRHH/nómina (Fase 2), #20 Alegra/DIAN, #21 Electron. Bloqueados por la contadora: mapeo PUC, costeo, datos maestros.
