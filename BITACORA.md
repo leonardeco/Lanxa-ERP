@@ -739,3 +739,19 @@ Feature **Auditoría de cambios (#19)**: módulo nuevo `auditoria` que registra 
 ### Pendientes tras esta sesión
 
 Ver `PENDIENTES.md` (9ª revisión). Con #16 y #19 cerrados, lo funcional que queda es: #17 confirmación al cerrar forms con datos sin guardar, #18 RRHH/nómina (Fase 2), #20 Alegra/DIAN, #21 Electron. Bloqueados por la contadora: mapeo PUC, costeo, datos maestros.
+
+---
+
+## Sesión — 5 de julio 2026 (3ª parte) — Confirmación de datos sin guardar (Claude Fable 5)
+
+### Resumen
+
+UX **#17**: ningún formulario con trabajo digitado se descarta ya sin preguntar. Guard global + prop `confirmDiscard` en el Modal compartido + aviso nativo del navegador. Tests: 25 → **30 componentes**; E2E 5/5 local.
+
+### Lo que se hizo
+
+**`7552fc9`** — `utils/unsavedGuard.ts`: registro global de formularios "sucios" con `useUnsavedChanges(dirty)` (activa además `beforeunload` para cierre/recarga del navegador) y `confirmarDescartar()` que consulta la navegación. `Modal.tsx` ganó la prop `confirmDiscard`: la X, el overlay y Escape piden confirmación si hay cambios; el cierre pasa por un ref para que el efecto de foco no se re-ejecute (y robe el foco) cuando el estado dirty cambia al digitar. `App.tsx` confirma antes de cambiar de módulo. El caso que motivó el pendiente — la pestaña **Nueva Compra** con 10 líneas digitadas — quedó protegido en los 3 frentes: cambio de pestaña interna de Compras, cambio de módulo y cierre del navegador. Modales cubiertos: proveedor y devolución (Compras); Nueva Venta, Nueva Cotización, devolución y forms de producto/cliente (Ventas) — los de edición detectan dirty por snapshot JSON del estado inicial. Guardar no pregunta (el submit llama `onClose` directo). 5 tests nuevos (2 Modal + 3 guard).
+
+### Pendientes tras esta sesión
+
+Ver `PENDIENTES.md` (10ª revisión). Funcional restante: #18 RRHH (Fase 2), #20 Alegra/DIAN (necesita token real), #21 Electron, #21a staging, #21b multi-bodega (pregunta de negocio). Bloqueados por la contadora: mapeo PUC, costeo, datos maestros, UVT.
