@@ -22,6 +22,7 @@ from app.modules.alegra.router import router as alegra_router
 from app.modules.compras.router import router as compras_router
 from app.modules.inventario.router import router as inventario_router
 from app.modules.reportes.router import router as reportes_router
+from app.modules.auditoria.router import router as auditoria_router
 from app.modules.contabilidad.schemas import HealthResponse
 
 # ── Logging: consola + archivo rotado backend/logs/erp.log ──
@@ -176,3 +177,4 @@ app.include_router(alegra_router)
 app.include_router(compras_router)
 app.include_router(inventario_router)
 app.include_router(reportes_router)
+app.include_router(auditoria_router)

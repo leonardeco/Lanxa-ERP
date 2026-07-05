@@ -26,6 +26,7 @@ from app.modules.contabilidad.asientos import (
 )
 from app.modules.inventario.models import TipoMovimientoInventario, OrigenMovimiento
 from app.modules.inventario.service import registrar_movimiento
+from app.modules.auditoria.service import registrar_auditoria, diff_cambios
 
 router = APIRouter(prefix="/api/v1/compras", tags=["Compras & Proveedores"])
 
@@ -123,7 +124,7 @@ async def list_proveedores(
 @router.post("/proveedores", response_model=ProveedorResponse, status_code=201)
 async def create_proveedor(
     data: ProveedorCreate,
-    _: AdminOrAdministradoraDep,
+    current: AdminOrAdministradoraDep,
     session: AsyncSession = Depends(get_db),
 ):
     existing = await session.execute(select(Proveedor).where(Proveedor.nit_cc == data.nit_cc))
@@ -131,6 +132,9 @@ async def create_proveedor(
         raise HTTPException(status_code=400, detail=f"Ya existe un proveedor con NIT {data.nit_cc}")
     proveedor = Proveedor(**data.model_dump())
     session.add(proveedor)
+    await session.flush()
+    registrar_auditoria(session, current, "Crear", "Proveedor", proveedor.id,
+                        f"Proveedor {proveedor.nit_cc} — {proveedor.razon_social}")
     await session.commit()
     await session.refresh(proveedor)
     return proveedor
@@ -140,15 +144,20 @@ async def create_proveedor(
 async def update_proveedor(
     id: int,
     data: ProveedorUpdate,
-    _: AdminOrAdministradoraDep,
+    current: AdminOrAdministradoraDep,
     session: AsyncSession = Depends(get_db),
 ):
     result = await session.execute(select(Proveedor).where(Proveedor.id == id))
     p = result.scalar_one_or_none()
     if not p:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
-    for field, value in data.model_dump(exclude_none=True).items():
+    update_data = data.model_dump(exclude_none=True)
+    cambios = diff_cambios(p, update_data)
+    for field, value in update_data.items():
         setattr(p, field, value)
+    if cambios:
+        registrar_auditoria(session, current, "Actualizar", "Proveedor", p.id,
+                            f"Proveedor {p.nit_cc} — {p.razon_social}", cambios)
     await session.commit()
     await session.refresh(p)
     return p
@@ -157,7 +166,7 @@ async def update_proveedor(
 @router.delete("/proveedores/{id}", status_code=204)
 async def delete_proveedor(
     id: int,
-    _: AdminOrAdministradoraDep,
+    current: AdminOrAdministradoraDep,
     session: AsyncSession = Depends(get_db),
 ):
     result = await session.execute(select(Proveedor).where(Proveedor.id == id))
@@ -165,6 +174,8 @@ async def delete_proveedor(
     if not p:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
     p.activo = False
+    registrar_auditoria(session, current, "Desactivar", "Proveedor", p.id,
+                        f"Proveedor {p.nit_cc} — {p.razon_social}")
     await session.commit()
 
 

@@ -12,9 +12,10 @@ import {
   type GrupoEstadoFinanciero,
 } from '../services/reportesApi';
 import { asientosApi, tercerosApi, type Asiento, type TerceroItem, type AuxiliarTercero } from '../services/contabilidadApi';
+import { auditoriaApi, type RegistroAuditoria } from '../services/auditoriaApi';
 import { descargarCsv } from '../utils/exportCsv';
 
-type ReportesTab = 'aging' | 'periodo' | 'retenciones' | 'pyg' | 'balance' | 'diario' | 'auxiliar';
+type ReportesTab = 'aging' | 'periodo' | 'retenciones' | 'pyg' | 'balance' | 'diario' | 'auxiliar' | 'auditoria';
 
 const COP = (n: number | string) =>
   Number(n).toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -757,6 +758,157 @@ function AuxiliarTerceroTab() {
 }
 
 // ══════════════════════════════════════════════════════════
+// AUDITORÍA DE CAMBIOS
+// ══════════════════════════════════════════════════════════
+
+const ENTIDADES_AUDITORIA = [
+  'Producto', 'Cliente', 'Proveedor', 'ParametroTributario',
+  'ParametroNomina', 'PeriodoContable', 'Usuario',
+];
+
+const ACCION_COLOR: Record<string, string> = {
+  Crear: '#22c55e', Actualizar: '#3b82f6', Desactivar: '#ef4444',
+  Activar: '#22c55e', Cerrar: '#f59e0b', Reabrir: '#3b82f6',
+  'Resetear contraseña': '#a78bfa',
+};
+
+function AuditoriaTab() {
+  const [registros, setRegistros] = useState<RegistroAuditoria[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [entidad, setEntidad] = useState('');
+  const [accion, setAccion] = useState('');
+  const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
+  const [expandido, setExpandido] = useState<number | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    auditoriaApi.getRegistros({
+      entidad: entidad || undefined,
+      accion: accion || undefined,
+      fecha_desde: desde || undefined,
+      fecha_hasta: hasta || undefined,
+    })
+      .then(res => setRegistros(res.data))
+      .catch(() => setRegistros([]))
+      .finally(() => setLoading(false));
+  }, [entidad, accion, desde, hasta]);
+
+  const exportar = () => {
+    descargarCsv(
+      'auditoria',
+      ['Fecha', 'Usuario', 'Acción', 'Entidad', 'Descripción', 'Cambios'],
+      registros.map(r => [
+        new Date(r.fecha + 'Z').toLocaleString('es-CO'),
+        r.usuario_email ?? '',
+        r.accion,
+        r.entidad,
+        r.descripcion,
+        r.cambios
+          ? Object.entries(r.cambios).map(([campo, c]) => `${campo}: ${c.antes} → ${c.despues}`).join('; ')
+          : '',
+      ]),
+    );
+  };
+
+  return (
+    <div className="fade-in">
+      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 16 }}>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label>Entidad</label>
+          <select value={entidad} onChange={e => setEntidad(e.target.value)}>
+            <option value="">Todas</option>
+            {ENTIDADES_AUDITORIA.map(en => <option key={en} value={en}>{en}</option>)}
+          </select>
+        </div>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label>Acción</label>
+          <select value={accion} onChange={e => setAccion(e.target.value)}>
+            <option value="">Todas</option>
+            {Object.keys(ACCION_COLOR).map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+        </div>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label>Desde</label>
+          <input type="date" value={desde} onChange={e => setDesde(e.target.value)} />
+        </div>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label>Hasta</label>
+          <input type="date" value={hasta} onChange={e => setHasta(e.target.value)} />
+        </div>
+        <div style={{ flex: 1 }} />
+        <button className="btn-secondary" onClick={exportar} disabled={registros.length === 0}>
+          ⬇ Exportar Excel
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="empty-state"><div className="empty-state-icon">⏳</div></div>
+      ) : registros.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-state-icon">🕵️</div>
+          <div className="empty-state-text">Sin registros de auditoría con estos filtros</div>
+          <div className="empty-state-sub">Los cambios en productos, clientes, proveedores, parámetros y usuarios se registran automáticamente</div>
+        </div>
+      ) : (
+        <div className="table-card">
+          <table className="erp-table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Usuario</th>
+                <th>Acción</th>
+                <th>Entidad</th>
+                <th>Descripción</th>
+                <th>Cambios</th>
+              </tr>
+            </thead>
+            <tbody>
+              {registros.map(r => (
+                <tr key={r.id}>
+                  <td style={{ whiteSpace: 'nowrap', fontSize: 11 }}>
+                    {new Date(r.fecha + 'Z').toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })}
+                  </td>
+                  <td style={{ fontSize: 12 }}>{r.usuario_email ?? '—'}</td>
+                  <td>
+                    <span className="badge" style={{ background: `${ACCION_COLOR[r.accion] || '#6b7280'}22`, color: ACCION_COLOR[r.accion] || '#9ca3af' }}>
+                      {r.accion}
+                    </span>
+                  </td>
+                  <td style={{ fontSize: 12 }}>{r.entidad}</td>
+                  <td style={{ fontSize: 12 }}>{r.descripcion}</td>
+                  <td>
+                    {r.cambios ? (
+                      expandido === r.id ? (
+                        <div style={{ fontSize: 11, cursor: 'pointer' }} onClick={() => setExpandido(null)}>
+                          {Object.entries(r.cambios).map(([campo, c]) => (
+                            <div key={campo}>
+                              <strong>{campo}</strong>: <span style={{ color: '#ef4444', textDecoration: 'line-through' }}>{String(c.antes ?? '—')}</span>
+                              {' → '}
+                              <span style={{ color: '#22c55e' }}>{String(c.despues ?? '—')}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <button className="btn-icon" style={{ fontSize: 11 }} onClick={() => setExpandido(r.id)}>
+                          {Object.keys(r.cambios).length} campo{Object.keys(r.cambios).length === 1 ? '' : 's'} ▸
+                        </button>
+                      )
+                    ) : (
+                      <span style={{ color: '#888', fontSize: 11 }}>—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ══════════════════════════════════════════════════════════
 
@@ -771,6 +923,7 @@ export default function ReportesView() {
     { id: 'balance', label: '⚖️ Balance General' },
     { id: 'diario', label: '📖 Libro Diario' },
     { id: 'auxiliar', label: '👥 Auxiliar por Tercero' },
+    { id: 'auditoria', label: '🕵️ Auditoría' },
   ];
 
   return (
@@ -794,6 +947,7 @@ export default function ReportesView() {
       {tab === 'balance' && <BalanceGeneralTab />}
       {tab === 'diario' && <LibroDiarioTab />}
       {tab === 'auxiliar' && <AuxiliarTerceroTab />}
+      {tab === 'auditoria' && <AuditoriaTab />}
     </div>
   );
 }

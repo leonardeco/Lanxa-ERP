@@ -15,6 +15,7 @@ from app.modules.usuarios.models import Usuario, RefreshToken, ROLES_VALIDOS
 from app.modules.usuarios.schemas import (
     Token, UsuarioCreate, UsuarioUpdate, UsuarioPasswordChange, UsuarioPasswordReset, UsuarioResponse,
 )
+from app.modules.auditoria.service import registrar_auditoria, diff_cambios
 
 router = APIRouter()
 settings = get_settings()
@@ -151,7 +152,7 @@ async def list_usuarios(session: SessionDep, _: SuperuserDep):
 
 
 @router.post("/v1/usuarios", response_model=UsuarioResponse, status_code=status.HTTP_201_CREATED)
-async def create_usuario(body: UsuarioCreate, session: SessionDep, _: SuperuserDep):
+async def create_usuario(body: UsuarioCreate, session: SessionDep, admin: SuperuserDep):
     if body.rol not in ROLES_VALIDOS:
         raise HTTPException(400, f"Rol inválido. Opciones: {', '.join(sorted(ROLES_VALIDOS))}")
     existing = await session.scalar(select(Usuario).where(Usuario.email == body.email))
@@ -165,13 +166,16 @@ async def create_usuario(body: UsuarioCreate, session: SessionDep, _: SuperuserD
         hashed_password=get_password_hash(body.password),
     )
     session.add(user)
+    await session.flush()
+    registrar_auditoria(session, admin, "Crear", "Usuario", user.id,
+                        f"Usuario {user.email} (rol {user.rol})")
     await session.commit()
     await session.refresh(user)
     return user
 
 
 @router.put("/v1/usuarios/{user_id}", response_model=UsuarioResponse)
-async def update_usuario(user_id: int, body: UsuarioUpdate, session: SessionDep, _: SuperuserDep):
+async def update_usuario(user_id: int, body: UsuarioUpdate, session: SessionDep, admin: SuperuserDep):
     user = await session.get(Usuario, user_id)
     if not user:
         raise HTTPException(404, "Usuario no encontrado")
@@ -181,12 +185,16 @@ async def update_usuario(user_id: int, body: UsuarioUpdate, session: SessionDep,
     pierde_admin = (body.rol is not None and body.rol != "Admin") or body.is_active is False
     if pierde_admin and await _es_ultimo_admin_activo(session, user):
         raise HTTPException(400, "No se puede quitar el rol o desactivar al último Admin activo del sistema")
+    cambios = diff_cambios(user, body.model_dump(exclude_none=True))
     if body.nombre_completo is not None:
         user.nombre_completo = body.nombre_completo
     if body.rol is not None:
         user.rol = body.rol
     if body.is_active is not None:
         user.is_active = body.is_active
+    if cambios:
+        registrar_auditoria(session, admin, "Actualizar", "Usuario", user.id,
+                            f"Usuario {user.email}", cambios)
     await session.commit()
     await session.refresh(user)
     return user
@@ -202,6 +210,8 @@ async def toggle_usuario(user_id: int, session: SessionDep, current_user: Curren
     if user.is_active and await _es_ultimo_admin_activo(session, user):
         raise HTTPException(400, "No se puede desactivar al último Admin activo del sistema")
     user.is_active = not user.is_active
+    registrar_auditoria(session, current_user, "Activar" if user.is_active else "Desactivar",
+                        "Usuario", user.id, f"Usuario {user.email}")
     await session.commit()
     await session.refresh(user)
     return user
@@ -210,7 +220,7 @@ async def toggle_usuario(user_id: int, session: SessionDep, current_user: Curren
 @router.put("/v1/usuarios/{user_id}/reset-password")
 @limiter.limit("5/minute")
 async def reset_usuario_password(
-    request: Request, user_id: int, body: UsuarioPasswordReset, session: SessionDep, _: SuperuserDep
+    request: Request, user_id: int, body: UsuarioPasswordReset, session: SessionDep, admin: SuperuserDep
 ):
     """Resetea la contraseña de un usuario sin acceso. Solo Admin."""
     user = await session.get(Usuario, user_id)
@@ -219,6 +229,9 @@ async def reset_usuario_password(
     if len(body.new_password) < 8:
         raise HTTPException(400, "La nueva contraseña debe tener al menos 8 caracteres")
     user.hashed_password = get_password_hash(body.new_password)
+    # Se registra el hecho, nunca la contraseña
+    registrar_auditoria(session, admin, "Resetear contraseña", "Usuario", user.id,
+                        f"Usuario {user.email}")
     await session.commit()
     return {"message": "Contraseña restablecida correctamente"}
 

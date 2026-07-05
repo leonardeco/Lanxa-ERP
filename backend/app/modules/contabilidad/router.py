@@ -23,6 +23,7 @@ from app.modules.contabilidad.models import (
 from app.modules.compras.models import CompraDocumento
 from app.modules.contabilidad.models import AsientoContable, MovimientoAsiento
 from app.modules.contabilidad.asientos import asiento_abono_cxc, asiento_abono_cxp, reversar_asientos
+from app.modules.auditoria.service import registrar_auditoria, diff_cambios
 from app.modules.contabilidad.schemas import (
     PlanCuentasCreate, PlanCuentasUpdate, PlanCuentasResponse,
     CentroCostoCreate, CentroCostoUpdate, CentroCostoResponse,
@@ -194,16 +195,20 @@ async def create_periodo(body: PeriodoContableCreate, _: AdminOrAdministradoraDe
 
 
 @router.patch("/periodos/{periodo_id}/toggle", response_model=PeriodoContableResponse)
-async def toggle_periodo(periodo_id: int, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def toggle_periodo(periodo_id: int, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
     periodo = await db.get(PeriodoContable, periodo_id)
     if not periodo:
         raise HTTPException(404, "Período no encontrado")
     if periodo.estado == EstadoPeriodo.ABIERTO:
         periodo.estado = EstadoPeriodo.CERRADO
         periodo.fecha_cierre = date.today()
+        accion = "Cerrar"
     else:
         periodo.estado = EstadoPeriodo.ABIERTO
         periodo.fecha_cierre = None
+        accion = "Reabrir"
+    registrar_auditoria(db, current, accion, "PeriodoContable", periodo.id,
+                        f"Período contable {periodo.periodo}")
     await db.commit()
     await db.refresh(periodo)
     return periodo
@@ -236,24 +241,35 @@ async def list_parametros_tributarios(
 
 @router.put("/parametros-tributarios/{param_id}", response_model=ParametroTributarioResponse)
 async def update_parametro_tributario(
-    param_id: int, body: ParametroTributarioUpdate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+    param_id: int, body: ParametroTributarioUpdate, current: AdminOrAdministradoraDep,
+    db: AsyncSession = Depends(get_db),
 ):
     param = await db.get(ParametroTributario, param_id)
     if not param:
         raise HTTPException(404, "Parámetro tributario no encontrado")
-    for field, value in body.model_dump(exclude_none=True).items():
+    update_data = body.model_dump(exclude_none=True)
+    cambios = diff_cambios(param, update_data)
+    for field, value in update_data.items():
         setattr(param, field, value)
+    if cambios:
+        registrar_auditoria(db, current, "Actualizar", "ParametroTributario", param.id,
+                            f"Parámetro tributario: {param.concepto}", cambios)
     await db.commit()
     await db.refresh(param)
     return param
 
 
 @router.patch("/parametros-tributarios/{param_id}/toggle", response_model=ParametroTributarioResponse)
-async def toggle_parametro_tributario(param_id: int, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def toggle_parametro_tributario(
+    param_id: int, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+):
     param = await db.get(ParametroTributario, param_id)
     if not param:
         raise HTTPException(404, "Parámetro tributario no encontrado")
     param.activo = not param.activo
+    registrar_auditoria(db, current, "Activar" if param.activo else "Desactivar",
+                        "ParametroTributario", param.id,
+                        f"Parámetro tributario: {param.concepto}")
     await db.commit()
     await db.refresh(param)
     return param
@@ -275,24 +291,32 @@ async def list_parametros_nomina(
 
 @router.put("/parametros-nomina/{param_id}", response_model=ParametroNominaResponse)
 async def update_parametro_nomina(
-    param_id: int, body: ParametroNominaUpdate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+    param_id: int, body: ParametroNominaUpdate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
 ):
     param = await db.get(ParametroNomina, param_id)
     if not param:
         raise HTTPException(404, "Parámetro de nómina no encontrado")
-    for field, value in body.model_dump(exclude_none=True).items():
+    update_data = body.model_dump(exclude_none=True)
+    cambios = diff_cambios(param, update_data)
+    for field, value in update_data.items():
         setattr(param, field, value)
+    if cambios:
+        registrar_auditoria(db, current, "Actualizar", "ParametroNomina", param.id,
+                            f"Parámetro de nómina: {param.concepto}", cambios)
     await db.commit()
     await db.refresh(param)
     return param
 
 
 @router.patch("/parametros-nomina/{param_id}/toggle", response_model=ParametroNominaResponse)
-async def toggle_parametro_nomina(param_id: int, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def toggle_parametro_nomina(param_id: int, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
     param = await db.get(ParametroNomina, param_id)
     if not param:
         raise HTTPException(404, "Parámetro de nómina no encontrado")
     param.activo = not param.activo
+    registrar_auditoria(db, current, "Activar" if param.activo else "Desactivar",
+                        "ParametroNomina", param.id,
+                        f"Parámetro de nómina: {param.concepto}")
     await db.commit()
     await db.refresh(param)
     return param
