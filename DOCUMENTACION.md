@@ -741,6 +741,7 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | 32 | Auxiliar por tercero (estado de cuenta con saldo corrido) + logs rotados en backend/logs/ | ✅ Completado 2026-07-03 |
 | 33 | passlib → bcrypt 5 directo (compat verificada), DV del NIT (algoritmo DIAN), stock decimal y flags visibles | ✅ Completado 2026-07-03 |
 | 34 | Devoluciones: nota crédito NC- (full-stack) y devolución a proveedor ND- (API) con cuenta 417501 | ✅ Completado 2026-07-03 |
+| 35 | Cotizaciones COT- (full-stack): Borrador→Enviada→Aprobada/Rechazada→Convertida, vigencia, conversión a venta, PDF | ✅ Completado 2026-07-05 |
 
 ### Deuda técnica / mejoras pendientes
 
@@ -755,5 +756,5 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 - Plataformas & Marketing
 - Nómina electrónica
 - ~~P&L y Balance General~~ → ✅ **Completado 2026-07-02**: motor de asientos contables (`contabilidad/asientos.py`, partida doble automática con reverso al anular y terceros vinculados por NIT) + `GET /reportes/estado-resultados` y `/reportes/balance-general` + UI (pestañas P&L, Balance con "✓ Cuadrado" y Libro Diario) + export a Excel. **Mapeo PUC en borrador — validar con la contadora.** Falta el asiento de costo de venta (6135/1435, requiere definir costeo).
-- Devoluciones (notas crédito/débito) y cotizaciones — siguientes features funcionales
+- ~~Devoluciones (notas crédito/débito) y cotizaciones~~ → ✅ **Completados** (devoluciones 2026-07-03, cotizaciones 2026-07-05)
 - Auditoría de cambios (audit log) y Electron — Fase 4
