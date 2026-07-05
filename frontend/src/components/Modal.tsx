@@ -29,12 +29,15 @@ export default function Modal({ title, onClose, children, wide, confirmDiscard }
   useUnsavedChanges(!!confirmDiscard)
 
   // requestClose vive en un ref para que el efecto de foco/teclado no se
-  // re-ejecute (y robe el foco) cada vez que cambia el estado dirty del padre
+  // re-ejecute (y robe el foco) cada vez que cambia el estado dirty del padre.
+  // Se actualiza en un efecto (sin deps) para mantener la última closure.
   const requestCloseRef = useRef(() => {})
-  requestCloseRef.current = () => {
-    if (confirmDiscard && !confirm(MENSAJE_DESCARTAR)) return
-    onClose()
-  }
+  useEffect(() => {
+    requestCloseRef.current = () => {
+      if (confirmDiscard && !confirm(MENSAJE_DESCARTAR)) return
+      onClose()
+    }
+  })
   const requestClose = () => requestCloseRef.current()
 
   useEffect(() => {
