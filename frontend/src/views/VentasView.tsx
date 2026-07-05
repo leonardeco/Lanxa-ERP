@@ -289,6 +289,7 @@ function ProductoFormModal({ producto, onSave, onClose }: {
     registro_ica: producto?.registro_ica || '',
     notas: producto?.notas || '',
   });
+  const [formInicial] = useState(() => JSON.stringify(form));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -306,7 +307,8 @@ function ProductoFormModal({ producto, onSave, onClose }: {
     setForm(prev => ({ ...prev, [field]: e.target.value }));
 
   return (
-    <Modal title={producto ? 'Editar Producto' : 'Nuevo Producto'} onClose={onClose}>
+    <Modal title={producto ? 'Editar Producto' : 'Nuevo Producto'} onClose={onClose}
+      confirmDiscard={JSON.stringify(form) !== formInicial}>
       <form onSubmit={handleSubmit} className="modal-form">
         <div className="form-row">
           <div className="form-group">
@@ -589,6 +591,7 @@ function ClienteFormModal({ cliente, onSave, onClose }: {
     tarifa_reteica: cliente?.tarifa_reteica != null ? String(cliente.tarifa_reteica) : '',
     notas: cliente?.notas || '',
   });
+  const [formInicial] = useState(() => JSON.stringify(form));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -607,7 +610,8 @@ function ClienteFormModal({ cliente, onSave, onClose }: {
     setForm(prev => ({ ...prev, [field]: e.target.checked }));
 
   return (
-    <Modal title={cliente ? 'Editar Cliente' : 'Nuevo Cliente'} onClose={onClose} wide>
+    <Modal title={cliente ? 'Editar Cliente' : 'Nuevo Cliente'} onClose={onClose} wide
+      confirmDiscard={JSON.stringify(form) !== formInicial}>
       <form onSubmit={handleSubmit} className="modal-form">
         <div className="form-row">
           <div className="form-group" style={{ flex: 2 }}>
@@ -1038,8 +1042,10 @@ function NuevaCotizacionModal({ onClose, onCreated }: { onClose: () => void; onC
     }
   };
 
+  const dirty = !saving && (!!clienteId || lineas.length > 0 || vendedor !== '' || observaciones !== '');
+
   return (
-    <Modal title="📋 Nueva Cotización" onClose={onClose} wide>
+    <Modal title="📋 Nueva Cotización" onClose={onClose} wide confirmDiscard={dirty}>
       <div className="modal-form">
         {error && <div className="form-error fade-in">{error}</div>}
 
@@ -1195,7 +1201,8 @@ function DevolucionModal({ venta, onClose, onDone }: {
   };
 
   return (
-    <Modal title={`Devolución — ${venta.numero}`} onClose={onClose} wide>
+    <Modal title={`Devolución — ${venta.numero}`} onClose={onClose} wide
+      confirmDiscard={!saving && (motivo !== '' || Object.values(cantidades).some(c => Number(c) > 0))}>
       <p style={{ fontSize: '0.85rem', color: 'var(--neutral-400)', marginBottom: 12 }}>
         La mercancía reingresa al inventario, el saldo por cobrar se reduce y se genera la nota crédito contable.
       </p>
@@ -1531,8 +1538,10 @@ function NuevaVentaModal({ onClose, onCreated }: { onClose: () => void; onCreate
     }
   };
 
+  const dirty = !saving && (!!clienteId || lineas.length > 0 || vendedor !== '' || observaciones !== '');
+
   return (
-    <Modal title="🧾 Nueva Venta" onClose={onClose} wide>
+    <Modal title="🧾 Nueva Venta" onClose={onClose} wide confirmDiscard={dirty}>
       <div className="modal-form">
         {error && <div className="form-error fade-in">{error}</div>}
 

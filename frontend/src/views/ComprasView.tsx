@@ -8,6 +8,7 @@ import {
 } from '../services/comprasApi';
 import { ventasApi, type Producto } from '../services/ventasApi';
 import { printCompra } from '../utils/printCompra';
+import { useUnsavedChanges, confirmarDescartar } from '../utils/unsavedGuard';
 import Toast from '../components/Toast';
 import Modal from '../components/Modal';
 
@@ -127,6 +128,7 @@ function ProveedoresTab({ onToast }: { onToast: (msg: string, type: 'success' | 
   const [modal, setModal] = useState<'crear' | 'editar' | null>(null);
   const [selected, setSelected] = useState<Proveedor | null>(null);
   const [form, setForm] = useState({ ...PROVEEDOR_EMPTY });
+  const [formInicial, setFormInicial] = useState(() => JSON.stringify({ ...PROVEEDOR_EMPTY }));
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(() => {
@@ -144,17 +146,25 @@ function ProveedoresTab({ onToast }: { onToast: (msg: string, type: 'success' | 
     p.nit_cc.includes(search)
   );
 
-  const openCrear = () => { setForm({ ...PROVEEDOR_EMPTY }); setSelected(null); setModal('crear'); };
+  const openCrear = () => {
+    const inicial = { ...PROVEEDOR_EMPTY };
+    setForm(inicial);
+    setFormInicial(JSON.stringify(inicial));
+    setSelected(null);
+    setModal('crear');
+  };
   const openEditar = (p: Proveedor) => {
     setSelected(p);
-    setForm({
+    const inicial = {
       nit_cc: p.nit_cc, razon_social: p.razon_social, nombre_comercial: p.nombre_comercial ?? '',
       tipo_persona: p.tipo_persona, regimen_iva: p.regimen_iva, categoria: p.categoria ?? '',
       direccion: p.direccion ?? '', ciudad: p.ciudad ?? '', departamento: p.departamento ?? '',
       telefono: p.telefono ?? '', celular: p.celular ?? '', email: p.email ?? '',
       contacto_nombre: p.contacto_nombre ?? '', contacto_cargo: p.contacto_cargo ?? '',
       dias_credito: p.dias_credito, notas: p.notas ?? '',
-    });
+    };
+    setForm(inicial);
+    setFormInicial(JSON.stringify(inicial));
     setModal('editar');
   };
 
@@ -253,7 +263,9 @@ function ProveedoresTab({ onToast }: { onToast: (msg: string, type: 'success' | 
       </div>
 
       {modal && (
-        <Modal title={modal === 'crear' ? 'Nuevo Proveedor' : `Editar: ${selected?.razon_social}`} onClose={() => setModal(null)} wide>
+        <Modal title={modal === 'crear' ? 'Nuevo Proveedor' : `Editar: ${selected?.razon_social}`}
+          onClose={() => setModal(null)} wide
+          confirmDiscard={!saving && JSON.stringify(form) !== formInicial}>
           <div className="form-grid-2">
             <div className="form-group">
               <label>NIT / CC *</label>
@@ -370,7 +382,8 @@ function DevolucionCompraModal({ compra, onClose, onDone }: {
   };
 
   return (
-    <Modal title={`Devolución a proveedor — ${compra.numero}`} onClose={onClose} wide>
+    <Modal title={`Devolución a proveedor — ${compra.numero}`} onClose={onClose} wide
+      confirmDiscard={!saving && (motivo !== '' || Object.values(cantidades).some(c => Number(c) > 0))}>
       <p style={{ fontSize: '0.85rem', color: 'var(--neutral-400)', marginBottom: 12 }}>
         La mercancía sale del inventario (requiere stock disponible), la cuenta por pagar se reduce y se genera el asiento contable.
       </p>
@@ -646,6 +659,14 @@ function NuevaCompraTab({
   });
   const [detalles, setDetalles] = useState<CompraDetalleInput[]>([{ ...DETALLE_EMPTY }]);
   const [saving, setSaving] = useState(false);
+
+  // #17: el formulario tiene trabajo digitado si hay proveedor, ref, notas
+  // o algún ítem con descripción/precio — protegerlo al navegar o cerrar
+  const dirty = !saving && (
+    form.proveedor_id !== 0 || form.ref_proveedor !== '' || form.observaciones !== '' ||
+    detalles.some(d => d.descripcion !== '' || Number(d.precio_unitario) > 0)
+  );
+  useUnsavedChanges(dirty);
 
   useEffect(() => {
     comprasApi.getProveedores().then(r => setProveedores(r.data)).catch(() => {});
@@ -934,7 +955,7 @@ export default function ComprasView() {
           <button
             key={t.id}
             className={`tab-btn ${tab === t.id ? 'active' : ''}`}
-            onClick={() => setTab(t.id)}
+            onClick={() => { if (t.id !== tab && !confirmarDescartar()) return; setTab(t.id); }}
           >
             {t.label}
           </button>
