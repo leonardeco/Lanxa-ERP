@@ -33,6 +33,9 @@ export default defineConfig({
         SECRET_KEY: 'clave-solo-para-e2e-0123456789abcdef0123456789abcdef',
         DEBUG: 'true',
         CORS_ORIGINS: 'http://localhost:5273',
+        // Clave del admin sembrado que usa smoke.spec.ts (determinista,
+        // no depende del .env del dev). DEBUG=true tolera el default.
+        SEED_ADMIN_PASSWORD: 'Admin2026!',
       },
     },
     {

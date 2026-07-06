@@ -1,4 +1,5 @@
 import type { Cotizacion } from '../services/ventasApi';
+import { esc } from './htmlEscape';
 
 const COP = (n: number | string) =>
   Number(n).toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -15,8 +16,8 @@ export function printCotizacion(cot: Cotizacion) {
 
   const filasDetalle = cot.detalles.map(d => `
     <tr>
-      <td class="code">${d.producto_sku ?? ''}</td>
-      <td>${d.producto_nombre ?? ''}</td>
+      <td class="code">${esc(d.producto_sku ?? '')}</td>
+      <td>${esc(d.producto_nombre ?? '')}</td>
       <td class="num">${Number(d.cantidad)}</td>
       <td class="num">${COP(d.precio_unitario)}</td>
       <td class="num">${Number(d.descuento_porcentaje)}%</td>
@@ -92,10 +93,10 @@ export function printCotizacion(cot: Cotizacion) {
     </div>
     <div class="doc-box">
       <div class="doc-tipo">Cotización</div>
-      <div class="doc-numero">${cot.numero}</div>
+      <div class="doc-numero">${esc(cot.numero)}</div>
       <div class="doc-fecha">Fecha: ${fmt(cot.fecha)}</div>
-      ${cot.vendedor ? `<div class="doc-fecha">Vendedor: ${cot.vendedor}</div>` : ''}
-      <div class="doc-estado">${cot.estado}</div>
+      ${cot.vendedor ? `<div class="doc-fecha">Vendedor: ${esc(cot.vendedor)}</div>` : ''}
+      <div class="doc-estado">${esc(cot.estado)}</div>
     </div>
   </div>
 
@@ -104,11 +105,11 @@ export function printCotizacion(cot: Cotizacion) {
     <div class="cliente-grid">
       <div>
         <div class="campo-label">Razón Social</div>
-        <div class="campo-valor">${cot.cliente_razon_social ?? '—'}</div>
+        <div class="campo-valor">${esc(cot.cliente_razon_social ?? '—')}</div>
       </div>
       <div>
         <div class="campo-label">NIT / CC</div>
-        <div class="campo-valor">${cot.cliente_nit ?? '—'}</div>
+        <div class="campo-valor">${esc(cot.cliente_nit ?? '—')}</div>
       </div>
     </div>
   </div>
@@ -151,7 +152,7 @@ export function printCotizacion(cot: Cotizacion) {
     </div>
   </div>
 
-  ${cot.observaciones ? `<div class="seccion"><div class="seccion-titulo">Observaciones</div><div class="obs">${cot.observaciones}</div></div>` : ''}
+  ${cot.observaciones ? `<div class="seccion"><div class="seccion-titulo">Observaciones</div><div class="obs">${esc(cot.observaciones)}</div></div>` : ''}
 
   <div class="firmas">
     <div class="firma-linea">Elaborada por — ${EMPRESA.nombre}</div>

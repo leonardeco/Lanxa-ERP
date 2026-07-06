@@ -1,15 +1,21 @@
-import pytest_asyncio
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-from httpx import AsyncClient, ASGITransport
+import os
+# #33: el validator de config exige override de SEED_ADMIN_PASSWORD cuando
+# DEBUG=false. La suite corre con la BD real .env (DEBUG=false), así que se
+# provee un valor propio ANTES de importar la app (que instancia Settings).
+os.environ.setdefault("SEED_ADMIN_PASSWORD", "test-admin-pass-no-produccion")
 
-from decimal import Decimal
+import pytest_asyncio  # noqa: E402
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker  # noqa: E402
+from httpx import AsyncClient, ASGITransport  # noqa: E402
 
-from app.main import app
-from app.core.database import Base, get_db
-from app.core.limiter import limiter
-from app.modules.usuarios.models import Usuario
-from app.modules.contabilidad.models import ParametroTributario
-from app.core.security import get_password_hash
+from decimal import Decimal  # noqa: E402
+
+from app.main import app  # noqa: E402
+from app.core.database import Base, get_db  # noqa: E402
+from app.core.limiter import limiter  # noqa: E402
+from app.modules.usuarios.models import Usuario  # noqa: E402
+from app.modules.contabilidad.models import ParametroTributario  # noqa: E402
+from app.core.security import get_password_hash  # noqa: E402
 
 limiter.enabled = False
 

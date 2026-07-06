@@ -7,6 +7,10 @@ from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
+# Contraseña por defecto del admin sembrado. Es pública (vive en el repo), así
+# que en producción DEBE sobrescribirse por .env — el validator lo exige.
+_DEFAULT_SEED_ADMIN_PASSWORD = "Admin2026!"
+
 
 class Settings(BaseSettings):
     # Database
@@ -36,7 +40,7 @@ class Settings(BaseSettings):
 
     # Seed — usuario administrador inicial (override vía .env en producción)
     SEED_ADMIN_EMAIL: str = "admin@superozonoglobal.com"
-    SEED_ADMIN_PASSWORD: str = "Admin2026!"
+    SEED_ADMIN_PASSWORD: str = _DEFAULT_SEED_ADMIN_PASSWORD
 
     # Empresa
     EMPRESA_NIT: str = "901841798-5"
@@ -66,6 +70,20 @@ class Settings(BaseSettings):
             raise ValueError(
                 "CORS_ORIGINS no admite '*' en producción (DEBUG=false) — "
                 "listar los orígenes exactos separados por coma"
+            )
+        return v
+
+    @field_validator("SEED_ADMIN_PASSWORD")
+    @classmethod
+    def _seed_admin_no_default_en_produccion(cls, v: str, info) -> str:
+        # #33: la contraseña por defecto es pública (está en el repo). En
+        # producción (DEBUG=false) obliga a sobrescribirla por .env, para que
+        # nadie despliegue con la clave conocida por accidente.
+        if not info.data.get("DEBUG", False) and v == _DEFAULT_SEED_ADMIN_PASSWORD:
+            raise ValueError(
+                "SEED_ADMIN_PASSWORD usa el valor por defecto (público en el "
+                "repo). Define uno propio en el .env del servidor antes de "
+                "desplegar con DEBUG=false."
             )
         return v
 

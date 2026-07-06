@@ -44,6 +44,9 @@ pierden conexión durante la actualización).
 - [ ] **Actualización de julio 2026**: renombrar en `backend\.env`:
   `ACCESS_TOKEN_EXPIRE_HOURS=1` → `ACCESS_TOKEN_EXPIRE_MINUTES=15`
 - [ ] Nunca poner `CORS_ORIGINS=*` (con `DEBUG=false` la app no arranca a propósito)
+- [ ] **Desde v0.3.0 — `SEED_ADMIN_PASSWORD` obligatorio**: definir una clave propia
+  en `backend\.env` (con `DEBUG=false` la app **no arranca** si se deja la clave por
+  defecto del repo). El admin debe volver a cambiarla desde la UI tras el primer login.
 
 ## Migraciones de base de datos
 

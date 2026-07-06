@@ -1,4 +1,5 @@
 import type { Compra } from '../services/comprasApi';
+import { esc } from './htmlEscape';
 
 const COP = (n: number | string) =>
   Number(n).toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -15,7 +16,7 @@ export function printCompra(compra: Compra) {
 
   const filasDetalle = compra.detalles.map(d => `
     <tr>
-      <td>${d.descripcion}</td>
+      <td>${esc(d.descripcion)}</td>
       <td class="num">${Number(d.cantidad)}</td>
       <td class="num">${COP(d.precio_unitario)}</td>
       <td class="num">${Number(d.descuento_porcentaje)}%</td>
@@ -90,10 +91,10 @@ export function printCompra(compra: Compra) {
     </div>
     <div class="doc-box">
       <div class="doc-tipo">Documento de Compra</div>
-      <div class="doc-numero">${compra.numero}</div>
+      <div class="doc-numero">${esc(compra.numero)}</div>
       <div class="doc-fecha">Fecha: ${fechaFmt}</div>
-      ${compra.ref_proveedor ? `<div class="doc-fecha">Ref. Proveedor: ${compra.ref_proveedor}</div>` : ''}
-      <div class="doc-estado">${compra.estado}</div>
+      ${compra.ref_proveedor ? `<div class="doc-fecha">Ref. Proveedor: ${esc(compra.ref_proveedor)}</div>` : ''}
+      <div class="doc-estado">${esc(compra.estado)}</div>
     </div>
   </div>
 
@@ -102,11 +103,11 @@ export function printCompra(compra: Compra) {
     <div class="info-grid">
       <div>
         <div class="campo-label">Razón Social</div>
-        <div class="campo-valor">${compra.proveedor_razon_social ?? '—'}</div>
+        <div class="campo-valor">${esc(compra.proveedor_razon_social ?? '—')}</div>
       </div>
       <div>
         <div class="campo-label">NIT / CC</div>
-        <div class="campo-valor">${compra.proveedor_nit ?? '—'}</div>
+        <div class="campo-valor">${esc(compra.proveedor_nit ?? '—')}</div>
       </div>
     </div>
   </div>
@@ -142,7 +143,7 @@ export function printCompra(compra: Compra) {
     </div>
   </div>
 
-  ${compra.observaciones ? `<div class="seccion"><div class="seccion-titulo">Observaciones</div><div style="background:#f8f8f8;padding:8px 12px;font-size:10px;color:#555;border-radius:4px;">${compra.observaciones}</div></div>` : ''}
+  ${compra.observaciones ? `<div class="seccion"><div class="seccion-titulo">Observaciones</div><div style="background:#f8f8f8;padding:8px 12px;font-size:10px;color:#555;border-radius:4px;">${esc(compra.observaciones)}</div></div>` : ''}
 
   <div class="firmas">
     <div class="firma-linea">Autorizado por — ${EMPRESA.nombre}</div>
