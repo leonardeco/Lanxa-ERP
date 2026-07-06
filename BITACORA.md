@@ -826,3 +826,33 @@ Cada ítem restante se verificó contra el código (marcas "verificado 2026-07-0
 ### Pendientes tras esta sesión
 
 Ver `PENDIENTES.md` (14ª revisión, todo verificado). Lo de mayor valor ahora: **desplegar v0.3.0 al servidor (#6, con `alembic upgrade head` obligatorio)** y las respuestas de la contadora (#1-4, que desbloquean el asiento de costo #8).
+
+---
+
+## Sesión — 5 de julio 2026 (7ª parte) — Revisión profunda de código y seguridad (Claude Fable 5)
+
+### Resumen
+
+Revisión a profundidad del código (lógica de negocio, flujos cruzados y seguridad) a petición del usuario. Resultado: **3 bugs encontrados y corregidos** (`a24fad4`), **5 hallazgos nuevos al backlog** (pendientes 29-33) y verificación completa final. Tests: 234 → **240 API**.
+
+### Bugs corregidos (BUG-007/008/009)
+
+- **BUG-007 — anulación con devoluciones**: anular una venta que ya tenía notas crédito reingresaba el stock completo de cada línea (la NC ya había reingresado su parte → inventario inflado) y el asiento de la NC quedaba colgado. Igual en compras con ND. Ahora la anulación se bloquea con mensaje claro. Test verifica que el stock queda exactamente como lo dejó la devolución.
+- **BUG-008 — cartera huérfana**: anular una venta/compra dejaba su CxC/CxP viva en cartera (un cobro/pago "pendiente" de un documento anulado). Ahora la cartera se anula en cascada con nota `[ANULADA]`; y si ya hay abonos, la anulación exige anular primero los pagos (la plata recibida no puede quedar sin documento).
+- **BUG-009 — stock negativo por ajuste**: el ajuste manual de salida no validaba stock disponible — era el único camino que dejaba inventario negativo en silencio (ventas y devoluciones sí validaban). Ahora responde 400.
+
+### Hallazgos que quedaron en PENDIENTES (15ª revisión)
+
+- **29**: las utilidades de impresión inyectan datos sin escapar en `document.write` (XSS almacenado en la ventana de impresión; riesgo bajo en LAN, higiene pendiente).
+- **30**: access token en `localStorage` → moverlo a memoria (ya mitigado: 15 min + refresh HttpOnly; documentado en REPORTE_SEGURIDAD).
+- **31**: al convertir cotización las retenciones del cliente se aplican en la venta → total menor al cotizado para retenedores (correcto pero sorprende; falta aviso en UI).
+- **32**: registrar IP en el log de auditoría.
+- **33 (🔐 el más importante)**: `SEED_ADMIN_PASSWORD` tiene default hardcodeado en `config.py` visible en el repo — verificar que el admin del servidor no use esa clave y exigir override por `.env` en producción.
+
+### Lo que se revisó y quedó OK
+
+ORM sin SQL crudo (sin inyección), CORS con validator anti-wildcard, `SECRET_KEY` solo por entorno, refresh tokens rotados y revocables, rate limit en login, bcrypt con truncado explícito, race de numeración documentado (#12a), permisos por rol en endpoints de escritura, EmailStr/DV en escritura, guard de sobreventa en confirmar/devolver.
+
+### Verificación final
+
+flake8 OK · mypy 0 errores · **240/240 tests API** · 30/30 componentes · E2E 5/5 · CI verde (v0.3.0).
