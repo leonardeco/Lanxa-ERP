@@ -445,6 +445,32 @@ def test_sec_cors_wildcard_rechazado_en_produccion():
     assert "192.168.1.10" in s.CORS_ORIGINS
 
 
+# ══════════════════════════════════════════════════════════
+# #33 — SEED_ADMIN_PASSWORD por defecto bloqueada en producción
+# ══════════════════════════════════════════════════════════
+
+def test_sec_seed_admin_password_default_rechazada_en_produccion():
+    from pydantic import ValidationError
+    from app.core.config import Settings, _DEFAULT_SEED_ADMIN_PASSWORD
+
+    base = {"DATABASE_URL": "sqlite+aiosqlite:///:memory:", "SECRET_KEY": "x" * 64}
+
+    # DEBUG=false + clave por defecto (pública en el repo) → rechazada
+    with pytest.raises(ValidationError, match="SEED_ADMIN_PASSWORD"):
+        Settings(_env_file=None, DEBUG=False,
+                 SEED_ADMIN_PASSWORD=_DEFAULT_SEED_ADMIN_PASSWORD, **base)
+
+    # DEBUG=false con una clave propia → OK
+    s = Settings(_env_file=None, DEBUG=False,
+                 SEED_ADMIN_PASSWORD="una-clave-propia-del-servidor", **base)
+    assert s.SEED_ADMIN_PASSWORD == "una-clave-propia-del-servidor"
+
+    # En desarrollo (DEBUG=true) se tolera el default para no fricción local
+    s = Settings(_env_file=None, DEBUG=True,
+                 SEED_ADMIN_PASSWORD=_DEFAULT_SEED_ADMIN_PASSWORD, **base)
+    assert s.SEED_ADMIN_PASSWORD == _DEFAULT_SEED_ADMIN_PASSWORD
+
+
 @pytest.mark.asyncio
 async def test_sec_headers_de_seguridad_presentes(client: AsyncClient):
     resp = await client.get("/health")

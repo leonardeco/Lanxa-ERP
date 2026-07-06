@@ -1,4 +1,5 @@
 import type { CxC, CxP, Pago } from '../services/carteraApi';
+import { esc } from './htmlEscape';
 
 const COP = (n: number | string) =>
   Number(n).toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -74,9 +75,9 @@ export function printComprobante(tipo: 'CxC' | 'CxP', documento: CxC | CxP, pago
     </div>
     <div class="doc-box">
       <div class="doc-tipo">${docTitulo}</div>
-      <div class="doc-numero">${pago.numero_comprobante}</div>
+      <div class="doc-numero">${esc(pago.numero_comprobante)}</div>
       <div class="doc-fecha">Fecha: ${fechaFmt}</div>
-      <div class="doc-fecha">Doc. relacionado: ${numeroDocumento}</div>
+      <div class="doc-fecha">Doc. relacionado: ${esc(numeroDocumento)}</div>
       <div class="doc-estado">${estadoResultante}</div>
     </div>
   </div>
@@ -86,13 +87,13 @@ export function printComprobante(tipo: 'CxC' | 'CxP', documento: CxC | CxP, pago
     <div class="info-grid">
       <div>
         <div class="campo-label">${esCxC ? 'Cliente' : 'Proveedor'}</div>
-        <div class="campo-valor">${terceroNombre ?? '—'}</div>
+        <div class="campo-valor">${esc(terceroNombre ?? '—')}</div>
       </div>
       <div>
         <div class="campo-label">NIT / CC</div>
-        <div class="campo-valor">${terceroNit ?? '—'}</div>
+        <div class="campo-valor">${esc(terceroNit ?? '—')}</div>
       </div>
-      ${concepto ? `<div style="grid-column: 1 / -1;"><div class="campo-label">Concepto</div><div class="campo-valor">${concepto}</div></div>` : ''}
+      ${concepto ? `<div style="grid-column: 1 / -1;"><div class="campo-label">Concepto</div><div class="campo-valor">${esc(concepto)}</div></div>` : ''}
     </div>
   </div>
 
@@ -111,11 +112,11 @@ export function printComprobante(tipo: 'CxC' | 'CxP', documento: CxC | CxP, pago
     </div>
   </div>
 
-  ${pago.notas ? `<div class="seccion"><div class="seccion-titulo">Notas / Referencia de pago</div><div style="background:#f8f8f8;padding:8px 12px;font-size:10px;color:#555;border-radius:4px;">${pago.notas}</div></div>` : ''}
+  ${pago.notas ? `<div class="seccion"><div class="seccion-titulo">Notas / Referencia de pago</div><div style="background:#f8f8f8;padding:8px 12px;font-size:10px;color:#555;border-radius:4px;">${esc(pago.notas)}</div></div>` : ''}
 
   <div class="firmas">
     <div class="firma-linea">${esCxC ? `Recibido por — ${EMPRESA.nombre}` : 'Firma de quien autoriza el pago'}</div>
-    <div class="firma-linea">${esCxC ? 'Firma de quien entrega' : `Recibido por — ${terceroNombre ?? ''}`}</div>
+    <div class="firma-linea">${esCxC ? 'Firma de quien entrega' : `Recibido por — ${esc(terceroNombre ?? '')}`}</div>
   </div>
 
   <div class="footer">

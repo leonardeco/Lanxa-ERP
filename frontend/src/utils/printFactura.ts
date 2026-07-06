@@ -1,4 +1,5 @@
 import type { Venta } from '../services/ventasApi';
+import { esc } from './htmlEscape';
 
 const COP = (n: number | string) =>
   Number(n).toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -15,8 +16,8 @@ export function printFactura(venta: Venta) {
 
   const filasDetalle = venta.detalles.map(d => `
     <tr>
-      <td class="code">${d.producto_sku ?? ''}</td>
-      <td>${d.producto_nombre ?? ''}</td>
+      <td class="code">${esc(d.producto_sku ?? '')}</td>
+      <td>${esc(d.producto_nombre ?? '')}</td>
       <td class="num">${Number(d.cantidad)}</td>
       <td class="num">${COP(d.precio_unitario)}</td>
       <td class="num">${Number(d.descuento_porcentaje)}%</td>
@@ -107,10 +108,10 @@ export function printFactura(venta: Venta) {
     </div>
     <div class="doc-box">
       <div class="doc-tipo">Documento de Venta</div>
-      <div class="doc-numero">${venta.numero}</div>
+      <div class="doc-numero">${esc(venta.numero)}</div>
       <div class="doc-fecha">Fecha: ${fechaFmt}</div>
-      ${venta.vendedor ? `<div class="doc-fecha">Vendedor: ${venta.vendedor}</div>` : ''}
-      <div class="doc-estado">${venta.estado}</div>
+      ${venta.vendedor ? `<div class="doc-fecha">Vendedor: ${esc(venta.vendedor)}</div>` : ''}
+      <div class="doc-estado">${esc(venta.estado)}</div>
     </div>
   </div>
 
@@ -120,11 +121,11 @@ export function printFactura(venta: Venta) {
     <div class="cliente-grid">
       <div class="campo">
         <div class="campo-label">Razón Social</div>
-        <div class="campo-valor">${venta.cliente_razon_social ?? '—'}</div>
+        <div class="campo-valor">${esc(venta.cliente_razon_social ?? '—')}</div>
       </div>
       <div class="campo">
         <div class="campo-label">NIT / CC</div>
-        <div class="campo-valor">${venta.cliente_nit ?? '—'}</div>
+        <div class="campo-valor">${esc(venta.cliente_nit ?? '—')}</div>
       </div>
     </div>
   </div>
@@ -163,7 +164,7 @@ export function printFactura(venta: Venta) {
     </div>
   </div>
 
-  ${venta.observaciones ? `<div class="seccion"><div class="seccion-titulo">Observaciones</div><div class="obs">${venta.observaciones}</div></div>` : ''}
+  ${venta.observaciones ? `<div class="seccion"><div class="seccion-titulo">Observaciones</div><div class="obs">${esc(venta.observaciones)}</div></div>` : ''}
 
   <!-- Firmas -->
   <div class="firmas">
