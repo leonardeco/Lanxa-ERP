@@ -44,10 +44,16 @@ async def lifespan(app: FastAPI):
         empresa=settings.EMPRESA_RAZON_SOCIAL,
     )
 
-    # Create tables
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("[DB] Tablas de base de datos verificadas")
+    # Esquema de BD (#11): en desarrollo create_all agiliza el arranque; en
+    # producción el esquema lo gobierna únicamente Alembic (alembic upgrade
+    # head, ver DESPLIEGUE.md) — antes convivían y el que corriera primero
+    # ganaba el día que discreparan.
+    if settings.DEBUG:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("[DB] Tablas verificadas con create_all (solo desarrollo)")
+    else:
+        logger.info("[DB] Producción: esquema gobernado por Alembic (alembic upgrade head)")
 
     # Run seeders
     try:

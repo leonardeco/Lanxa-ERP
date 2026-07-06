@@ -52,10 +52,13 @@ pierden conexión durante la actualización).
   cd backend
   venv\Scripts\python.exe -m alembic stamp 99c028642b89
   ```
-- [ ] En cada actualización:
+- [ ] En cada actualización (**obligatorio desde v0.3.0**):
   ```bat
   venv\Scripts\python.exe -m alembic upgrade head
   ```
+  > Desde v0.3.0 el backend en producción (`DEBUG=false`) ya **no** crea tablas
+  > al arrancar: el esquema lo gobierna únicamente Alembic. Si se omite este
+  > paso tras actualizar, los módulos nuevos fallarán con "no such table".
 
 ## Arrancar y verificar
 

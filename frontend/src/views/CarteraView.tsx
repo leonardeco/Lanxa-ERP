@@ -306,6 +306,21 @@ export default function CarteraView() {
 
   const ESTADOS = ['', 'Pendiente', 'Parcial', 'Pagado', 'Vencido', 'Anulado'];
 
+  // Búsqueda por texto (nice-to-have): número, tercero, NIT o concepto
+  const [search, setSearch] = useState('');
+  const q = search.toLowerCase();
+  const cxcFiltered = cxcList.filter(c =>
+    c.numero_factura.toLowerCase().includes(q) ||
+    (c.nombre_cliente ?? '').toLowerCase().includes(q) ||
+    c.cliente_nit.includes(search)
+  );
+  const cxpFiltered = cxpList.filter(p =>
+    p.numero_documento.toLowerCase().includes(q) ||
+    (p.razon_social ?? '').toLowerCase().includes(q) ||
+    p.proveedor_nit.includes(search) ||
+    (p.concepto ?? '').toLowerCase().includes(q)
+  );
+
   return (
     <div>
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
@@ -346,6 +361,15 @@ export default function CarteraView() {
           ))}
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input
+            className="form-input"
+            style={{ width: 220, padding: '6px 10px' }}
+            type="search"
+            placeholder={tab === 'cxc' ? 'Buscar factura, cliente o NIT…' : 'Buscar documento, proveedor o NIT…'}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            aria-label="Buscar en cartera"
+          />
           <select className="form-input" style={{ width: 'auto', padding: '6px 10px' }} value={filterEstado} onChange={e => setFilterEstado(e.target.value)}>
             {ESTADOS.map(e => <option key={e} value={e}>{e || 'Todos los estados'}</option>)}
           </select>
@@ -376,9 +400,9 @@ export default function CarteraView() {
                 </tr>
               </thead>
               <tbody>
-                {cxcList.length === 0
+                {cxcFiltered.length === 0
                   ? <tr><td colSpan={9} style={{ textAlign: 'center', padding: 32, color: 'var(--neutral-500)' }}>Sin registros</td></tr>
-                  : cxcList.map(c => (
+                  : cxcFiltered.map(c => (
                     <tr key={c.id} style={{ background: rowColor(c.dias_vencido, c.estado) }}>
                       <td style={{ fontWeight: 600, color: 'var(--neutral-100)' }}>{c.numero_factura}</td>
                       <td>
@@ -443,9 +467,9 @@ export default function CarteraView() {
                 </tr>
               </thead>
               <tbody>
-                {cxpList.length === 0
+                {cxpFiltered.length === 0
                   ? <tr><td colSpan={10} style={{ textAlign: 'center', padding: 32, color: 'var(--neutral-500)' }}>Sin registros</td></tr>
-                  : cxpList.map(p => (
+                  : cxpFiltered.map(p => (
                     <tr key={p.id} style={{ background: rowColor(p.dias_vencido, p.estado) }}>
                       <td style={{ fontWeight: 600, color: 'var(--neutral-100)', fontFamily: 'monospace', fontSize: '0.82rem' }}>{p.numero_documento}</td>
                       <td>

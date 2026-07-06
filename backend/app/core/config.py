@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # App
     DEBUG: bool = False
     APP_NAME: str = "Super Ozono Global ERP"
-    APP_VERSION: str = "0.2.0"
+    APP_VERSION: str = "0.3.0"
 
     # Retenciones en ventas — VERIFICAR/ACTUALIZAR con el contador cada año.
     # La aplicabilidad depende del perfil del cliente (flags retiene_*); estos son

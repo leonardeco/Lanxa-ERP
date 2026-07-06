@@ -85,12 +85,17 @@ async def get_cuenta_puc(codigo: str, _: AdminOrAdministradoraDep, db: AsyncSess
 
 
 @router.post("/puc", response_model=PlanCuentasResponse, status_code=201)
-async def create_cuenta_puc(body: PlanCuentasCreate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def create_cuenta_puc(
+    body: PlanCuentasCreate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+):
     existing = await db.scalar(select(PlanCuentas).where(PlanCuentas.codigo_puc == body.codigo_puc))
     if existing:
         raise HTTPException(400, f"Ya existe la cuenta PUC {body.codigo_puc}")
     cuenta = PlanCuentas(**body.model_dump())
     db.add(cuenta)
+    await db.flush()
+    registrar_auditoria(db, current, "Crear", "PlanCuentas", cuenta.id,
+                        f"Cuenta PUC {cuenta.codigo_puc} — {cuenta.nombre}")
     await db.commit()
     await db.refresh(cuenta)
     return cuenta
@@ -98,24 +103,32 @@ async def create_cuenta_puc(body: PlanCuentasCreate, _: AdminOrAdministradoraDep
 
 @router.put("/puc/{cuenta_id}", response_model=PlanCuentasResponse)
 async def update_cuenta_puc(
-    cuenta_id: int, body: PlanCuentasUpdate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+    cuenta_id: int, body: PlanCuentasUpdate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
 ):
     cuenta = await db.get(PlanCuentas, cuenta_id)
     if not cuenta:
         raise HTTPException(404, "Cuenta PUC no encontrada")
-    for field, value in body.model_dump(exclude_none=True).items():
+    update_data = body.model_dump(exclude_none=True)
+    cambios = diff_cambios(cuenta, update_data)
+    for field, value in update_data.items():
         setattr(cuenta, field, value)
+    if cambios:
+        registrar_auditoria(db, current, "Actualizar", "PlanCuentas", cuenta.id,
+                            f"Cuenta PUC {cuenta.codigo_puc} — {cuenta.nombre}", cambios)
     await db.commit()
     await db.refresh(cuenta)
     return cuenta
 
 
 @router.patch("/puc/{cuenta_id}/toggle", response_model=PlanCuentasResponse)
-async def toggle_cuenta_puc(cuenta_id: int, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def toggle_cuenta_puc(cuenta_id: int, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
     cuenta = await db.get(PlanCuentas, cuenta_id)
     if not cuenta:
         raise HTTPException(404, "Cuenta PUC no encontrada")
     cuenta.activo = not cuenta.activo
+    registrar_auditoria(db, current, "Activar" if cuenta.activo else "Desactivar",
+                        "PlanCuentas", cuenta.id,
+                        f"Cuenta PUC {cuenta.codigo_puc} — {cuenta.nombre}")
     await db.commit()
     await db.refresh(cuenta)
     return cuenta
@@ -130,12 +143,17 @@ async def list_centros_costo(_: AdminOrAdministradoraDep, db: AsyncSession = Dep
 
 
 @router.post("/centros-costo", response_model=CentroCostoResponse, status_code=201)
-async def create_centro_costo(body: CentroCostoCreate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def create_centro_costo(
+    body: CentroCostoCreate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+):
     existing = await db.scalar(select(CentroCosto).where(CentroCosto.codigo == body.codigo))
     if existing:
         raise HTTPException(400, f"Ya existe el centro de costo {body.codigo}")
     cc = CentroCosto(**body.model_dump())
     db.add(cc)
+    await db.flush()
+    registrar_auditoria(db, current, "Crear", "CentroCosto", cc.id,
+                        f"Centro de costo {cc.codigo} — {cc.nombre}")
     await db.commit()
     await db.refresh(cc)
     return cc
@@ -143,24 +161,31 @@ async def create_centro_costo(body: CentroCostoCreate, _: AdminOrAdministradoraD
 
 @router.put("/centros-costo/{cc_id}", response_model=CentroCostoResponse)
 async def update_centro_costo(
-    cc_id: int, body: CentroCostoUpdate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+    cc_id: int, body: CentroCostoUpdate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
 ):
     cc = await db.get(CentroCosto, cc_id)
     if not cc:
         raise HTTPException(404, "Centro de costo no encontrado")
-    for field, value in body.model_dump(exclude_none=True).items():
+    update_data = body.model_dump(exclude_none=True)
+    cambios = diff_cambios(cc, update_data)
+    for field, value in update_data.items():
         setattr(cc, field, value)
+    if cambios:
+        registrar_auditoria(db, current, "Actualizar", "CentroCosto", cc.id,
+                            f"Centro de costo {cc.codigo} — {cc.nombre}", cambios)
     await db.commit()
     await db.refresh(cc)
     return cc
 
 
 @router.patch("/centros-costo/{cc_id}/toggle", response_model=CentroCostoResponse)
-async def toggle_centro_costo(cc_id: int, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def toggle_centro_costo(cc_id: int, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
     cc = await db.get(CentroCosto, cc_id)
     if not cc:
         raise HTTPException(404, "Centro de costo no encontrado")
     cc.activo = not cc.activo
+    registrar_auditoria(db, current, "Activar" if cc.activo else "Desactivar",
+                        "CentroCosto", cc.id, f"Centro de costo {cc.codigo} — {cc.nombre}")
     await db.commit()
     await db.refresh(cc)
     return cc
