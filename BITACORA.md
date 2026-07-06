@@ -795,3 +795,34 @@ Componente compartido `components/ErrorState.tsx` (`role="alert"`). Cubiertos 21
 ### Pendientes tras esta sesión
 
 Ver `PENDIENTES.md` (12ª revisión). Deuda restante de calado: #10 nulabilidad legacy (necesita la BD real), #13 servicios de dominio, #14a unificar terceros; #12/12a solo aplican multi-worker. Funcional: #18/#20/#21 requieren insumos externos.
+
+---
+
+## Sesión — 5 de julio 2026 (6ª parte) — Release v0.3.0 y auditoría del backlog (Claude Fable 5)
+
+### Resumen
+
+Cierre de la jornada con el **release v0.3.0** (`237bdd8`, tag `v0.3.0`): #11 (`create_all` solo en desarrollo), pulido de UI (módulos 🚧 fuera del menú, búsqueda en Cartera, top morosos en el Dashboard) y extensión de la auditoría a PUC/Centros de Costo. Además, **auditoría completa del backlog**: todos los ítems restantes de `PENDIENTES.md` se verificaron contra el código y se agregaron 4 pendientes nuevos (25-28). Tests: 233 → **234 API**.
+
+### Lo que se hizo
+
+**#11** — con `DEBUG=false` el lifespan ya no ejecuta `create_all`: el esquema en producción lo gobierna solo `alembic upgrade head`. `DESPLIEGUE.md` advierte que el paso es **obligatorio desde v0.3.0** (si se omite: "no such table" en los módulos nuevos). En desarrollo y E2E (`DEBUG=true`) el comportamiento no cambia.
+
+**UI** — Sidebar sin RRHH/Plataformas (las rutas siguen en App.tsx para la Fase 2); buscador en CxC/CxP (número/tercero/NIT/concepto); el panel "Plan de Desarrollo por Fases" del Dashboard es ahora "🔴 Top Clientes Morosos" (top 5 por saldo vencido, sale del aging que ya se cargaba). `APP_VERSION` 0.2.0 → 0.3.0.
+
+**Auditoría PUC/CC** — la revisión detectó que los CRUD de PUC y Centros de Costo no estaban instrumentados (hueco del #19 de la 2ª parte): ahora Crear/Actualizar/Activar/Desactivar quedan en el log con diff, con test propio y las entidades en el filtro de la pestaña.
+
+### Verificación final (todo corrido tras el último cambio)
+
+- Backend: **flake8 OK, mypy 0 errores, 234/234 tests** (5m02s)
+- Frontend: **ESLint OK, tsc OK, 30/30 componentes**
+- E2E local: **5/5** (valida además que `create_all` gated funciona con `DEBUG=true`)
+- CI: verde (ver run del push de `237bdd8`)
+
+### Auditoría del backlog (14ª revisión de PENDIENTES.md)
+
+Cada ítem restante se verificó contra el código (marcas "verificado 2026-07-05" en el archivo): UVT sigue placeholder, no hay `with_for_update`, `confirmar_venta` sigue inline, `cliente_nit` sigue sin FK, el drift de nulabilidad sigue documentado. Pendientes nuevos: **25** editar/eliminar cotizaciones en Borrador, **26** el logout no pasa por el guard de datos sin guardar, **27** revisar manualmente el job E2E del CI en cada release (es `continue-on-error`), **28** purga/archivado del log de auditoría.
+
+### Pendientes tras esta sesión
+
+Ver `PENDIENTES.md` (14ª revisión, todo verificado). Lo de mayor valor ahora: **desplegar v0.3.0 al servidor (#6, con `alembic upgrade head` obligatorio)** y las respuestas de la contadora (#1-4, que desbloquean el asiento de costo #8).

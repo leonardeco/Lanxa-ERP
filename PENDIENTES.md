@@ -1,47 +1,49 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **5 de julio de 2026** (12ª revisión — ✅ #16, #19, #17, #14c, #14d, #13a, #13b y ✅ #14 manejo de errores consistente en frontend con `ErrorState` + reintento). **Este archivo es la fuente única de pendientes.**.
-Estado general: 233 tests API (95% cobertura) + 30 componentes + 5 E2E (local y CI), CI verde, 0 CVEs.
+Backlog vivo del proyecto. Actualizado: **5 de julio de 2026** (14ª revisión — **auditoría completa del backlog**: cada ítem restante fue verificado contra el código en esta fecha; se agregaron los pendientes 25-28 detectados en la revisión). **Este archivo es la fuente única de pendientes.**
+Estado general: 234 tests API (95% cobertura) + 30 componentes + 5 E2E (local y CI), CI verde, 0 CVEs. Versión: **v0.3.0**.
 
 ---
 
 ## 🔴 Bloqueados por el negocio (no son de código)
 
-| # | Pendiente | Quién | Notas |
+| # | Pendiente | Quién | Notas (verificado 2026-07-05) |
 |---|---|---|---|
-| 1 | **Validar el mapeo PUC** del motor contable | Contadora | Documento listo: [`MAPEO-PUC-PARA-CONTADOR.md`](./MAPEO-PUC-PARA-CONTADOR.md) — tiene las preguntas concretas (4135 vs 4120, Caja vs Bancos, compras de gasto) |
-| 2 | **Datos maestros reales**: PUC definitivo, inventario inicial, saldos de apertura | Contadora + empresa | Las tablas ya existen (`SaldoInicial`, seeds); solo falta la información |
-| 3 | Definir **método de costeo** (promedio ponderado recomendado con el kardex actual) | Contadora | Prerequisito del ítem 7 |
-| 4 | Confirmar **`UVT_VALOR` 2026** y activar flags `retiene_*` en clientes retenedores | Contadora | Hoy placeholder = 49799; afecta el umbral de retefuente en ventas |
+| 1 | **Validar el mapeo PUC** del motor contable | Contadora | ✔ Documento listo: [`MAPEO-PUC-PARA-CONTADOR.md`](./MAPEO-PUC-PARA-CONTADOR.md) — tiene las preguntas concretas (4135 vs 4120, Caja vs Bancos, compras de gasto) |
+| 2 | **Datos maestros reales**: PUC definitivo, inventario inicial, saldos de apertura | Contadora + empresa | ✔ Las tablas ya existen (`SaldoInicial`, seeds); solo falta la información |
+| 3 | Definir **método de costeo** (promedio ponderado recomendado con el kardex actual) | Contadora | ✔ Prerequisito del ítem 8 (asiento de costo de venta) |
+| 4 | Confirmar **`UVT_VALOR` 2026** y activar flags `retiene_*` en clientes retenedores | Contadora | ✔ Verificado: sigue el placeholder 49799 en `config.py`; afecta el umbral de retefuente en ventas |
 
 ## 🟠 Operativo (administrador del PC servidor)
 
-| # | Pendiente | Notas |
+| # | Pendiente | Notas (verificado 2026-07-05) |
 |---|---|---|
 | 5 | **Copiar backups fuera del PC servidor** (NAS/nube/otro PC) + guardar `BACKUP_ENCRYPTION_KEY` en un gestor de contraseñas | Riesgo #1: hoy BD, backups y clave viven en el mismo disco. El restore ya está verificado con simulacro (2026-07-02) |
-| 6 | Desplegar la actualización al servidor siguiendo [`DESPLIEGUE.md`](./DESPLIEGUE.md) | Incluye: `pip install`, rename `ACCESS_TOKEN_EXPIRE_HOURS`→`ACCESS_TOKEN_EXPIRE_MINUTES=15`, `alembic stamp` (una vez), instalar CA en PCs cliente nuevos |
-| 7 | Entregar [`MANUAL-DE-USUARIO.md`](./MANUAL-DE-USUARIO.md) a los 4 usuarios y que cambien su contraseña inicial | |
+| 6 | Desplegar **v0.3.0** al servidor siguiendo [`DESPLIEGUE.md`](./DESPLIEGUE.md) | ⚠ **Desde v0.3.0 `alembic upgrade head` es obligatorio en cada actualización** (producción ya no hace `create_all`). Incluye además: `pip install`, rename `ACCESS_TOKEN_EXPIRE_*`, `alembic stamp` (una sola vez), CA en PCs cliente nuevos |
+| 7 | Entregar [`MANUAL-DE-USUARIO.md`](./MANUAL-DE-USUARIO.md) a los 4 usuarios y que cambien su contraseña inicial | ✔ Manual existe y está vigente |
 | 7a | **Drill de restore trimestral** (calendarizarlo) | El procedimiento se verificó una vez (2026-07-02); un backup solo es confiable si se prueba periódicamente |
 | 7b | Documentar la vigencia del certificado TLS local y cuándo regenerarlo | `scripts/generate_tls_cert.py` — nadie sabe hoy la fecha de expiración |
+| 27 | **Revisar el job E2E del CI al hacer release** | Nuevo 2026-07-05: el job "E2E — smoke Playwright" es informativo (`continue-on-error`) — sus fallos NO bloquean el merge, hay que mirarlos a mano en Actions |
 
 ## 🟡 Técnico — deuda puntual (dev)
 
-| # | Pendiente | Notas |
+| # | Pendiente | Notas (verificado 2026-07-05) |
 |---|---|---|
 | 8 | **Asiento de costo de venta** (DB 6135 / CR 1435 al confirmar venta) | Depende del ítem 3. Sin esto el P&L muestra ingresos, no margen |
-| 10 | Migración Alembic de **nulabilidad legacy** (BD creadas pre-tipado vs modelos 2.0) | Drift documentado en `alembic/versions/72f7b9fae762`. Requiere backfill revisado contra la BD real del servidor |
-| 11 | Quitar `create_all` del lifespan en producción (dejar solo `alembic upgrade head`) | Hoy conviven; el día que discrepen gana el que corra primero |
-| 12 | Locks de concurrencia (`with_for_update`) en abonos y stock | **Solo si** el despliegue pasa a multi-worker; con uvicorn single-worker en LAN no aplica |
-| 12a | Race en numeración de documentos (BUG-004/005: `MAX+1` sin lock en SOG-V/SOG-CP/RC/CE) | Mismo escenario que #12: solo aplica multi-worker. Resolver junto con #12 (lock o secuencia de BD) |
-| 13 | Extraer servicios de dominio (`confirmar_venta` orquesta stock+CxC+asiento inline en el router) | Incluye unificar el patrón commit/flush entre módulos (BUG-006) y `estado` Enum vs String (ventas usa SAEnum, compras string) |
-| 14a | Unificar Cliente/Proveedor/Tercero a nivel de modelo | CxC guarda `cliente_nit` como texto sin FK; la materialización por NIT (2026-07-02) es el puente, falta la FK real |
+| 10 | Migración Alembic de **nulabilidad legacy** (BD creadas pre-tipado vs modelos 2.0) | ✔ Drift sigue documentado en `alembic/versions/72f7b9fae762`. Requiere backfill revisado contra la BD real del servidor |
+| 12 | Locks de concurrencia (`with_for_update`) en abonos y stock | ✔ Verificado: no hay ningún `with_for_update` en el código. **Solo si** el despliegue pasa a multi-worker; con uvicorn single-worker en LAN no aplica |
+| 12a | Race en numeración de documentos (`MAX+1` sin lock en SOG-V/SOG-CP/RC/CE/COT/NC/ND) | ✔ Verificado en `core/numbering.py` (la nota en el docstring sigue vigente y ahora cubre también COT/NC/ND). Mismo escenario que #12: solo multi-worker |
+| 13 | Extraer servicios de dominio (`confirmar_venta` orquesta stock+CxC+asiento inline en el router) | ✔ Verificado: sigue inline en `ventas/router.py` (y `convertir_cotizacion` ahora también llama `create_venta` directo). Incluye unificar commit/flush (BUG-006) y `estado` Enum vs String |
+| 14a | Unificar Cliente/Proveedor/Tercero a nivel de modelo | ✔ Verificado: `CuentaPorCobrar.cliente_nit` sigue siendo `String(20)` sin FK; la materialización por NIT es el puente |
+| 25 | **Editar/eliminar cotizaciones en Borrador** | Nuevo 2026-07-05: hoy una cotización solo tiene transiciones (enviar/aprobar/rechazar/convertir) — para corregir un borrador con un error toca rechazarlo y crear otro |
+| 26 | El **logout no pasa por el guard de datos sin guardar** | Nuevo 2026-07-05: `Sidebar` llama `onLogout` directo; si hay un formulario a medias, cerrar sesión lo descarta sin preguntar (el guard #17 cubre navegación y cierre del navegador, no el logout) |
 
 ## 🟢 Funcional — siguientes features (por prioridad de negocio)
 
-| # | Feature | Alcance |
+| # | Feature | Alcance (verificado 2026-07-05) |
 |---|---|---|
 | 18 | **RRHH y nómina** (Fase 2) | Empleados, contratos, liquidación — requiere definiciones de negocio propias |
-| 20 | Activación Alegra con facturación electrónica DIAN | La integración está construida y testeada con mocks; falta cuenta/token real y rotación documentada (SEC-002) |
+| 20 | Activación Alegra con facturación electrónica DIAN | ✔ La integración está construida y testeada con mocks; falta cuenta/token real y rotación documentada (SEC-002) |
 | 21 | Empaquetado Electron (Fase 4) | App de escritorio .exe |
 | 21a | Entorno de staging (aunque sea una carpeta paralela con BD copia en el mismo servidor) | Hoy todo cambio va directo a producción — riesgo de proceso, no de código |
 | 21b | ¿Multi-bodega? — **pregunta de negocio** | El inventario es global; si Super Ozono maneja planta + punto de venta separados, el kardex actual no lo distingue. Confirmar con la empresa antes de diseñar |
@@ -57,13 +59,11 @@ Estado general: 233 tests API (95% cobertura) + 30 componentes + 5 E2E (local y 
 ## 🔵 Nice-to-have
 
 - Seeder de datos demo (50 clientes, 200 ventas) para probar rendimiento de UI
-- Tests de los utilitarios de impresión (`printFactura.ts`, etc.)
-- Tags de release (`v0.3.0`) y `APP_VERSION` desde el tag
-- Reemplazar el panel "Plan de Desarrollo por Fases" del Dashboard por un KPI de negocio (margen del mes / top morosos)
-- Ocultar del menú los módulos "🚧 en desarrollo" (RRHH, Plataformas) hasta que existan
-- Búsqueda por texto también en tablas de Cartera e Inventario (productos/clientes/proveedores ya la tienen)
+- Tests de los utilitarios de impresión (`printFactura.ts`, `printCotizacion.ts`, etc.)
+- **28 — Purga/archivado del log de auditoría** (nuevo 2026-07-05): la tabla `auditoria` crece sin límite; definir retención (p. ej. exportar y depurar > 2 años) cuando haya volumen real
+- `APP_VERSION` se mantiene manual en `config.py` — recordar alinearla con el tag en cada release (v0.3.0 ✔)
 - Política de contraseñas (complejidad/expiración) — hoy solo mínimo 8 caracteres; aceptable en LAN
-- Blacklist de JTI en Redis para revocación inmediata de access tokens — innecesario con vida de 15 min (REPORTE_SEGURIDAD)
+- Blacklist de JTI en Redis para revocación inmediata de access tokens — innecesario con vida de 15 min; además desde v0.3.0 el Admin puede revocar los refresh tokens (14c)
 
 ---
 
