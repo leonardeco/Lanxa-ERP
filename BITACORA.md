@@ -856,3 +856,29 @@ ORM sin SQL crudo (sin inyección), CORS con validator anti-wildcard, `SECRET_KE
 ### Verificación final
 
 flake8 OK · mypy 0 errores · **240/240 tests API** · 30/30 componentes · E2E 5/5 · CI verde (v0.3.0).
+
+---
+
+## Sesión — 5 de julio 2026 (8ª parte) — Hallazgos de seguridad #29 y #33 (Claude Opus 4.8)
+
+### Resumen
+
+Se resolvieron los dos hallazgos de seguridad de la revisión profunda (`cb65d77`): XSS en las utilidades de impresión (#29) y la clave por defecto del admin sembrado (#33). Tests: 240 → **241 API + 32 componentes** (2 nuevos de `esc()`).
+
+### Lo que se hizo
+
+**#29 — XSS en impresión**: nuevo helper `utils/htmlEscape.ts` con `esc()` (escapa `& < > " '`). Aplicado a todo campo de texto libre en las 4 utilidades (`printFactura`, `printCotizacion`, `printCompra`, `printComprobante`): razón social, NIT, observaciones, motivos, notas, concepto, vendedor, ref. proveedor, SKU/nombre de producto, número y estado. Antes se inyectaban crudos en `document.write`, así que un dato guardado con `<script>` se ejecutaba al imprimir (XSS almacenado). Los números (`COP`/`Number`), fechas y constantes de empresa no pasan por `esc()` porque son seguros. 2 tests.
+
+**#33 — clave admin por defecto**: `config.py` gana un validator que rechaza `SEED_ADMIN_PASSWORD` con el valor por defecto (`Admin2026!`, público en el repo) cuando `DEBUG=false` — la app no arranca en producción con la clave conocida. El default se movió a la constante `_DEFAULT_SEED_ADMIN_PASSWORD`. `.env.servidor` trae `SEED_ADMIN_EMAIL/PASSWORD` con nota, y `DESPLIEGUE.md` lo marca obligatorio. Como la suite y el dev corren con `DEBUG=false` (BD real, cookies Secure), se proveyó la clave en 4 frentes: `conftest.py` (os.environ antes de importar la app), el job pytest de CI, el `.env` local (gitignoreado) y `playwright.config.ts` (fija `Admin2026!` para el smoke, que corre con `DEBUG=true`). 1 test siguiendo el patrón del validator de CORS.
+
+### Nota de proceso
+
+El E2E se cayó a la primera: agregar `SEED_ADMIN_PASSWORD` al `.env` cambió la clave del admin sembrado y el smoke seguía usando `Admin2026!`. Se fijó la clave explícitamente en el `env` del webserver de Playwright → E2E determinista e independiente del `.env` del dev.
+
+### Estado
+
+`#33` queda como **33op** en PENDIENTES: el código está resuelto; falta la acción **operativa** (poner la clave propia en el `.env` del servidor y rotarla desde la UI), que es parte del despliegue #6/#7.
+
+### Verificación
+
+flake8 OK · mypy 0 · **241/241 tests API** · 32/32 componentes · E2E 5/5 · pre-commit verde.

@@ -749,6 +749,8 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | 40 | Release v0.3.0: create_all solo en desarrollo (#11), módulos 🚧 fuera del menú, búsqueda en Cartera, top morosos en Dashboard, auditoría extendida a PUC y Centros de Costo | ✅ Completado 2026-07-05 |
 | 41 | BUG-007/008: anular venta/compra ahora anula su CxC/CxP y se bloquea si hay abonos o devoluciones (antes quedaba cartera huérfana y doble reverso de stock) | ✅ Completado 2026-07-05 |
 | 42 | BUG-009: el ajuste manual de salida ya no puede dejar stock negativo (era el único camino sin validación) | ✅ Completado 2026-07-05 |
+| 43 | Seguridad #29: `esc()` compartido escapa HTML en las 4 utilidades de impresión (evita XSS en la ventana de impresión) | ✅ Completado 2026-07-05 |
+| 44 | Seguridad #33: validator bloquea la clave por defecto del admin sembrado con `DEBUG=false` (config.py + .env.servidor + DESPLIEGUE.md) | ✅ Completado 2026-07-05 |
 
 ### Deuda técnica / mejoras pendientes
 

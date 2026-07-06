@@ -1,7 +1,7 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **5 de julio de 2026** (15ª revisión — **revisión profunda de código y seguridad**: se encontraron y CORRIGIERON los bugs BUG-007/008 de anulación↔cartera↔devoluciones, y se agregaron los pendientes 29-32; la 14ª revisión ya había verificado todo el backlog contra código). **Este archivo es la fuente única de pendientes.**
-Estado general: 240 tests API (95% cobertura) + 30 componentes + 5 E2E (local y CI), CI verde, 0 CVEs. Versión: **v0.3.0**.
+Backlog vivo del proyecto. Actualizado: **5 de julio de 2026** (16ª revisión — resueltos ✅ #29 XSS en impresión (helper `esc()`) y ✅ #33 validator que bloquea la clave por defecto del admin en producción; pendientes de la revisión profunda 15ª ya en curso). **Este archivo es la fuente única de pendientes.**
+Estado general: 241 tests API (95% cobertura) + 32 componentes + 5 E2E (local y CI), CI verde, 0 CVEs. Versión: **v0.3.0**.
 
 ---
 
@@ -24,7 +24,7 @@ Estado general: 240 tests API (95% cobertura) + 30 componentes + 5 E2E (local y 
 | 7a | **Drill de restore trimestral** (calendarizarlo) | El procedimiento se verificó una vez (2026-07-02); un backup solo es confiable si se prueba periódicamente |
 | 7b | Documentar la vigencia del certificado TLS local y cuándo regenerarlo | `scripts/generate_tls_cert.py` — nadie sabe hoy la fecha de expiración |
 | 27 | **Revisar el job E2E del CI al hacer release** | Nuevo 2026-07-05: el job "E2E — smoke Playwright" es informativo (`continue-on-error`) — sus fallos NO bloquean el merge, hay que mirarlos a mano en Actions |
-| 33 | **🔐 Rotar la contraseña del admin sembrado y definir `SEED_ADMIN_PASSWORD` en el `.env` del servidor** | Revisión de seguridad 2026-07-05: el default `Admin2026!` está hardcodeado en `config.py` (visible en el repo). Verificar que el admin del servidor NO use esa clave; a futuro, validator que exija override con `DEBUG=false` (relacionado con #7: cambio de contraseñas iniciales) |
+| 33op | **🔐 (OPERATIVO) Definir `SEED_ADMIN_PASSWORD` en el `.env` del servidor y rotar la clave del admin** | ✅ **Código resuelto 2026-07-05**: con `DEBUG=false` la app ya NO arranca con la clave por defecto (validator en `config.py`), y `.env.servidor` trae el campo con nota. **Queda la acción operativa**: el admin del servidor debe poner su clave propia en `.env` (parte del #6 despliegue) y cambiarla desde la UI tras el primer login (parte del #7) |
 
 ## 🟡 Técnico — deuda puntual (dev)
 
@@ -38,7 +38,6 @@ Estado general: 240 tests API (95% cobertura) + 30 componentes + 5 E2E (local y 
 | 14a | Unificar Cliente/Proveedor/Tercero a nivel de modelo | ✔ Verificado: `CuentaPorCobrar.cliente_nit` sigue siendo `String(20)` sin FK; la materialización por NIT es el puente |
 | 25 | **Editar/eliminar cotizaciones en Borrador** | Nuevo 2026-07-05: hoy una cotización solo tiene transiciones (enviar/aprobar/rechazar/convertir) — para corregir un borrador con un error toca rechazarlo y crear otro |
 | 26 | El **logout no pasa por el guard de datos sin guardar** | Nuevo 2026-07-05: `Sidebar` llama `onLogout` directo; si hay un formulario a medias, cerrar sesión lo descarta sin preguntar (el guard #17 cubre navegación y cierre del navegador, no el logout) |
-| 29 | **Escapar HTML en las utilidades de impresión** (`printFactura/printCotizacion/printCompra/printComprobante`) | Nuevo 2026-07-05 (revisión de seguridad): razón social, observaciones, motivos, etc. se inyectan en `document.write` sin escapar — un dato con `<script>` se ejecutaría en la ventana de impresión (XSS almacenado). Riesgo bajo en LAN con usuarios autenticados, pero es higiene básica: función `esc()` común |
 | 31 | Aviso de retenciones al **convertir cotización** | Nuevo 2026-07-05: la cotización no incluye retenciones; al convertir, `create_venta` las sugiere según el perfil del cliente → para clientes retenedores el total de la venta será menor que el cotizado. Comportamiento correcto pero sorprende: mostrar aviso en la UI al convertir |
 
 ## 🟢 Funcional — siguientes features (por prioridad de negocio)
