@@ -357,3 +357,36 @@ async def test_email_invalido_en_proveedor_da_422(client: AsyncClient, auth_head
         headers=auth_headers,
     )
     assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_ajuste_salida_no_deja_stock_negativo(client: AsyncClient, auth_headers: dict):
+    """Revisión 2026-07-05: el ajuste manual era el único camino que permitía
+    stock negativo en silencio."""
+    prod = (await client.post(
+        "/api/v1/ventas/productos",
+        json={"sku": "AJU-NEG", "nombre": "Producto Ajuste", "marca": "Superozono",
+              "precio_venta": "1000", "stock_actual": 5},
+        headers=auth_headers,
+    )).json()
+
+    # Salida mayor al stock → 400
+    resp = await client.post(
+        "/api/v1/inventario/ajustes",
+        json={"producto_id": prod["id"], "tipo": "Salida", "cantidad": "8",
+              "motivo": "prueba"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 400
+    assert "Stock insuficiente" in resp.json()["detail"]
+
+    # Salida exacta del stock disponible → OK (queda en 0)
+    resp = await client.post(
+        "/api/v1/inventario/ajustes",
+        json={"producto_id": prod["id"], "tipo": "Salida", "cantidad": "5",
+              "motivo": "prueba"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201
+    resp = await client.get(f"/api/v1/ventas/productos/{prod['id']}", headers=auth_headers)
+    assert float(resp.json()["stock_actual"]) == 0.0
