@@ -385,9 +385,38 @@ async def anular_compra(
     if c.estado == "Anulada":
         raise HTTPException(status_code=400, detail="La compra ya está anulada")
 
+    # BUG-007 (espejo de ventas): con devoluciones a proveedor no se puede
+    # anular — el reverso duplicaría la salida de stock ya hecha por la ND.
+    tiene_nd = await session.scalar(
+        select(DevolucionCompra.id).where(DevolucionCompra.compra_id == c.id).limit(1)
+    )
+    if tiene_nd:
+        raise HTTPException(
+            status_code=400,
+            detail="La compra tiene devoluciones a proveedor asociadas y no se "
+                   "puede anular. El saldo ya fue ajustado por las devoluciones.",
+        )
+
+    # BUG-008 (espejo): si la CxP ya tiene abonos, primero se anulan los pagos
+    cxp = await session.scalar(
+        select(CuentaPorPagar).where(CuentaPorPagar.numero_documento == c.numero)
+    )
+    if cxp and (cxp.abonos or Decimal("0")) > 0:
+        raise HTTPException(
+            status_code=400,
+            detail="La compra tiene pagos registrados. Anula primero los pagos "
+                   "en Cartera y vuelve a intentar.",
+        )
+
     estado_anterior = c.estado
     c.estado = "Anulada"
     c.estado_pago = "Anulado"
+
+    # La CxP generada al confirmar también se anula (antes quedaba viva
+    # mostrando un pago pendiente de una compra anulada)
+    if cxp and cxp.estado != EstadoDocumento.ANULADO:
+        cxp.estado = EstadoDocumento.ANULADO
+        cxp.notas = ((cxp.notas or "") + f"\n[ANULADA] junto con la compra {c.numero}").strip()
 
     # Si la compra ya había generado entradas de inventario, revertirlas
     if estado_anterior == "Confirmada":

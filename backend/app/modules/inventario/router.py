@@ -148,6 +148,17 @@ async def crear_ajuste(
 
     tipo = TipoMovimientoInventario.ENTRADA if data.tipo == "Entrada" else TipoMovimientoInventario.SALIDA
 
+    # Un ajuste de salida no puede dejar stock negativo (ventas y devoluciones
+    # ya validan; este era el único camino que permitía negativo en silencio)
+    if tipo == TipoMovimientoInventario.SALIDA:
+        disponible = producto.stock_actual if producto.stock_actual is not None else Decimal("0")
+        if data.cantidad > disponible:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Stock insuficiente para el ajuste: disponible {disponible}, "
+                       f"salida solicitada {data.cantidad}",
+            )
+
     mov = await registrar_movimiento(
         session,
         producto_id=data.producto_id,

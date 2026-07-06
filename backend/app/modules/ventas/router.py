@@ -923,8 +923,39 @@ async def anular_venta(venta_id: int, current: AdminOrAdministradoraDep, db: Asy
     if venta.estado == EstadoVenta.ANULADA:
         raise HTTPException(status_code=400, detail="La venta ya está anulada")
 
+    # BUG-007: una venta con notas crédito no se puede anular — el reverso
+    # duplicaría el reingreso de stock ya hecho por la NC y su asiento
+    # quedaría colgado. Primero se gestionan/eliminan las devoluciones.
+    tiene_nc = await db.scalar(
+        select(DevolucionVenta.id).where(DevolucionVenta.venta_id == venta.id).limit(1)
+    )
+    if tiene_nc:
+        raise HTTPException(
+            status_code=400,
+            detail="La venta tiene notas crédito asociadas y no se puede anular. "
+                   "El saldo ya fue ajustado por las devoluciones.",
+        )
+
+    # BUG-008: si la CxC ya tiene abonos, anular dejaría plata recibida sin
+    # documento — primero se anulan los pagos (⛔ en el historial de Cartera).
+    cxc = await db.scalar(
+        select(CuentaPorCobrar).where(CuentaPorCobrar.numero_factura == venta.numero)
+    )
+    if cxc and (cxc.abonos or Decimal("0")) > 0:
+        raise HTTPException(
+            status_code=400,
+            detail="La factura tiene abonos registrados. Anula primero los pagos "
+                   "en Cartera y vuelve a intentar.",
+        )
+
     estado_anterior = venta.estado
     venta.estado = EstadoVenta.ANULADA
+
+    # La CxC generada al confirmar también se anula (antes quedaba viva
+    # mostrando un cobro pendiente de una venta anulada)
+    if cxc and cxc.estado != EstadoDocumento.ANULADO:
+        cxc.estado = EstadoDocumento.ANULADO
+        cxc.notas = ((cxc.notas or "") + f"\n[ANULADA] junto con la venta {venta.numero}").strip()
 
     # Si la venta ya había generado salidas de inventario, revertirlas
     if estado_anterior in (EstadoVenta.CONFIRMADA, EstadoVenta.FACTURADA):
