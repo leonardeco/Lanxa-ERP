@@ -747,6 +747,8 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | 38 | Deuda técnica: revocación de sesiones por Admin (14c), E2E Playwright en CI (14d), EmailStr en cliente/proveedor (13a), `_enrich_cxc/cxp` explícitos (13b) | ✅ Completado 2026-07-05 |
 | 39 | Manejo de errores consistente en frontend: `ErrorState` compartido con reintento en 21 sitios que fallaban en silencio | ✅ Completado 2026-07-05 |
 | 40 | Release v0.3.0: create_all solo en desarrollo (#11), módulos 🚧 fuera del menú, búsqueda en Cartera, top morosos en Dashboard, auditoría extendida a PUC y Centros de Costo | ✅ Completado 2026-07-05 |
+| 41 | BUG-007/008: anular venta/compra ahora anula su CxC/CxP y se bloquea si hay abonos o devoluciones (antes quedaba cartera huérfana y doble reverso de stock) | ✅ Completado 2026-07-05 |
+| 42 | BUG-009: el ajuste manual de salida ya no puede dejar stock negativo (era el único camino sin validación) | ✅ Completado 2026-07-05 |
 
 ### Deuda técnica / mejoras pendientes
 

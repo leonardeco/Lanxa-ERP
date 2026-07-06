@@ -1,7 +1,7 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **5 de julio de 2026** (14ª revisión — **auditoría completa del backlog**: cada ítem restante fue verificado contra el código en esta fecha; se agregaron los pendientes 25-28 detectados en la revisión). **Este archivo es la fuente única de pendientes.**
-Estado general: 234 tests API (95% cobertura) + 30 componentes + 5 E2E (local y CI), CI verde, 0 CVEs. Versión: **v0.3.0**.
+Backlog vivo del proyecto. Actualizado: **5 de julio de 2026** (15ª revisión — **revisión profunda de código y seguridad**: se encontraron y CORRIGIERON los bugs BUG-007/008 de anulación↔cartera↔devoluciones, y se agregaron los pendientes 29-32; la 14ª revisión ya había verificado todo el backlog contra código). **Este archivo es la fuente única de pendientes.**
+Estado general: 240 tests API (95% cobertura) + 30 componentes + 5 E2E (local y CI), CI verde, 0 CVEs. Versión: **v0.3.0**.
 
 ---
 
@@ -24,6 +24,7 @@ Estado general: 234 tests API (95% cobertura) + 30 componentes + 5 E2E (local y 
 | 7a | **Drill de restore trimestral** (calendarizarlo) | El procedimiento se verificó una vez (2026-07-02); un backup solo es confiable si se prueba periódicamente |
 | 7b | Documentar la vigencia del certificado TLS local y cuándo regenerarlo | `scripts/generate_tls_cert.py` — nadie sabe hoy la fecha de expiración |
 | 27 | **Revisar el job E2E del CI al hacer release** | Nuevo 2026-07-05: el job "E2E — smoke Playwright" es informativo (`continue-on-error`) — sus fallos NO bloquean el merge, hay que mirarlos a mano en Actions |
+| 33 | **🔐 Rotar la contraseña del admin sembrado y definir `SEED_ADMIN_PASSWORD` en el `.env` del servidor** | Revisión de seguridad 2026-07-05: el default `Admin2026!` está hardcodeado en `config.py` (visible en el repo). Verificar que el admin del servidor NO use esa clave; a futuro, validator que exija override con `DEBUG=false` (relacionado con #7: cambio de contraseñas iniciales) |
 
 ## 🟡 Técnico — deuda puntual (dev)
 
@@ -37,6 +38,8 @@ Estado general: 234 tests API (95% cobertura) + 30 componentes + 5 E2E (local y 
 | 14a | Unificar Cliente/Proveedor/Tercero a nivel de modelo | ✔ Verificado: `CuentaPorCobrar.cliente_nit` sigue siendo `String(20)` sin FK; la materialización por NIT es el puente |
 | 25 | **Editar/eliminar cotizaciones en Borrador** | Nuevo 2026-07-05: hoy una cotización solo tiene transiciones (enviar/aprobar/rechazar/convertir) — para corregir un borrador con un error toca rechazarlo y crear otro |
 | 26 | El **logout no pasa por el guard de datos sin guardar** | Nuevo 2026-07-05: `Sidebar` llama `onLogout` directo; si hay un formulario a medias, cerrar sesión lo descarta sin preguntar (el guard #17 cubre navegación y cierre del navegador, no el logout) |
+| 29 | **Escapar HTML en las utilidades de impresión** (`printFactura/printCotizacion/printCompra/printComprobante`) | Nuevo 2026-07-05 (revisión de seguridad): razón social, observaciones, motivos, etc. se inyectan en `document.write` sin escapar — un dato con `<script>` se ejecutaría en la ventana de impresión (XSS almacenado). Riesgo bajo en LAN con usuarios autenticados, pero es higiene básica: función `esc()` común |
+| 31 | Aviso de retenciones al **convertir cotización** | Nuevo 2026-07-05: la cotización no incluye retenciones; al convertir, `create_venta` las sugiere según el perfil del cliente → para clientes retenedores el total de la venta será menor que el cotizado. Comportamiento correcto pero sorprende: mostrar aviso en la UI al convertir |
 
 ## 🟢 Funcional — siguientes features (por prioridad de negocio)
 
@@ -61,6 +64,8 @@ Estado general: 234 tests API (95% cobertura) + 30 componentes + 5 E2E (local y 
 - Seeder de datos demo (50 clientes, 200 ventas) para probar rendimiento de UI
 - Tests de los utilitarios de impresión (`printFactura.ts`, `printCotizacion.ts`, etc.)
 - **28 — Purga/archivado del log de auditoría** (nuevo 2026-07-05): la tabla `auditoria` crece sin límite; definir retención (p. ej. exportar y depurar > 2 años) cuando haya volumen real
+- **30 — Access token de `localStorage` a memoria** (revisión de seguridad 2026-07-05): un XSS podría leerlo; ya está mitigado (vida 15 min + refresh en cookie HttpOnly, ver REPORTE_SEGURIDAD) — reevaluar si el ERP sale de la LAN
+- **32 — Registrar IP/equipo en el log de auditoría** (2026-07-05): hoy guarda quién y qué; con la IP del request se sabría también desde cuál de los 5 PCs se hizo el cambio
 - `APP_VERSION` se mantiene manual en `config.py` — recordar alinearla con el tag en cada release (v0.3.0 ✔)
 - Política de contraseñas (complejidad/expiración) — hoy solo mínimo 8 caracteres; aceptable en LAN
 - Blacklist de JTI en Redis para revocación inmediata de access tokens — innecesario con vida de 15 min; además desde v0.3.0 el Admin puede revocar los refresh tokens (14c)
