@@ -25,13 +25,6 @@ function calcularAlertas(aging: AgingCarteraResponse): AlertaVencimiento[] {
     .sort((a, b) => (b.dias_vencido - a.dias_vencido) || ((a.diasParaVencer ?? 99) - (b.diasParaVencer ?? 99)));
 }
 
-const PHASES = [
-  { fase: 'Fase 1', desc: 'Setup, RBAC, Contabilidad, Ventas, Inventario', estado: 'En progreso', color: 'green' },
-  { fase: 'Fase 2', desc: 'Finanzas, RRHH, Nómina, Alegra sandbox', estado: 'Pendiente', color: 'neutral' },
-  { fase: 'Fase 3', desc: 'Mercado Libre, Devoluciones, Proveedores', estado: 'Pendiente', color: 'neutral' },
-  { fase: 'Fase 4', desc: 'Reportes BI, Electron, Auditoría final', estado: 'Pendiente', color: 'neutral' },
-];
-
 const MARCA_COLORS = ['green', 'blue', 'amber', 'purple', 'cyan', 'red', 'green', 'blue', 'amber', 'purple'];
 
 function formatCOP(value: number): string {
@@ -58,6 +51,7 @@ export default function DashboardView() {
   const [contab, setContab] = useState<ContabilidadStats | null>(null);
   const [ventas, setVentas] = useState<VentasStats | null>(null);
   const [alertas, setAlertas] = useState<AlertaVencimiento[]>([]);
+  const [morosos, setMorosos] = useState<AgingDetalle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,7 +66,16 @@ export default function DashboardView() {
 
     // Las alertas cargan aparte: si fallan, el dashboard sigue funcionando
     reportesApi.getAgingCartera()
-      .then(aging => setAlertas(calcularAlertas(aging)))
+      .then(aging => {
+        setAlertas(calcularAlertas(aging));
+        // KPI de negocio: top 5 clientes morosos por saldo vencido
+        setMorosos(
+          [...aging.cxc.detalle]
+            .filter(d => d.dias_vencido > 0)
+            .sort((a, b) => b.saldo_pendiente - a.saldo_pendiente)
+            .slice(0, 5)
+        );
+      })
       .catch(() => {});
   }, []);
 
@@ -236,29 +239,46 @@ export default function DashboardView() {
           )}
         </div>
 
-        {/* Plan de Desarrollo + Empresa */}
+        {/* Top morosos + Empresa */}
         <div className="chart-card fade-in">
-          <div className="chart-card-title">🗓️ Plan de Desarrollo por Fases</div>
-          <div className="table-container" style={{ border: 'none' }}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Fase</th>
-                  <th>Módulos</th>
-                  <th>Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {PHASES.map((p) => (
-                  <tr key={p.fase}>
-                    <td><strong style={{ color: 'var(--neutral-100)' }}>{p.fase}</strong></td>
-                    <td>{p.desc}</td>
-                    <td><span className={`badge ${p.color}`}>{p.estado}</span></td>
+          <div className="chart-card-title">🔴 Top Clientes Morosos (cartera vencida)</div>
+          {morosos.length === 0 ? (
+            <div className="empty-state" style={{ minHeight: 140 }}>
+              <div className="empty-state-icon">🎉</div>
+              <div className="empty-state-text">Sin cartera vencida</div>
+              <div className="empty-state-sub">Ningún cliente tiene facturas vencidas por cobrar.</div>
+            </div>
+          ) : (
+            <div className="table-container" style={{ border: 'none' }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Cliente</th>
+                    <th>Factura</th>
+                    <th style={{ textAlign: 'right' }}>Saldo vencido</th>
+                    <th style={{ textAlign: 'right' }}>Días</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {morosos.map(m => (
+                    <tr key={m.id}>
+                      <td>
+                        <div style={{ fontWeight: 600, color: 'var(--neutral-100)' }}>{m.tercero}</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--neutral-500)' }}>{m.nit}</div>
+                      </td>
+                      <td style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>{m.numero}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--red-400)' }}>
+                        {formatCOP(m.saldo_pendiente)}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <span className="badge red">{m.dias_vencido}d</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
           <div style={{ marginTop: 20, padding: '16px', background: 'var(--neutral-850)', borderRadius: 'var(--radius-md)', border: '1px solid var(--neutral-800)' }}>
             <div className="section-label" style={{ marginBottom: 8 }}>
               Empresa

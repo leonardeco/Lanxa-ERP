@@ -188,3 +188,41 @@ async def test_filtros_de_listado(client: AsyncClient, auth_headers: dict):
     solo_crear = (await client.get(
         "/api/v1/auditoria?accion=Crear", headers=auth_headers)).json()
     assert len(solo_crear) == 2
+
+
+@pytest.mark.asyncio
+async def test_puc_y_centro_costo_auditados(client: AsyncClient, auth_headers: dict):
+    # Cuenta PUC nueva + toggle
+    resp = await client.post(
+        "/api/v1/contabilidad/puc",
+        json={"codigo_puc": "999901", "nombre": "Cuenta Auditada",
+              "clase": "Gasto", "naturaleza": "Débito", "nivel": "Auxiliar"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201, resp.text
+    cuenta_id = resp.json()["id"]
+    await client.patch(f"/api/v1/contabilidad/puc/{cuenta_id}/toggle", headers=auth_headers)
+
+    log = (await client.get(
+        "/api/v1/auditoria?entidad=PlanCuentas", headers=auth_headers)).json()
+    assert [r["accion"] for r in log] == ["Desactivar", "Crear"]
+    assert "999901" in log[0]["descripcion"]
+
+    # Centro de costo nuevo + update con diff
+    resp = await client.post(
+        "/api/v1/contabilidad/centros-costo",
+        json={"codigo": "CC-AUD", "nombre": "Centro Auditado", "tipo": "Marca"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201, resp.text
+    cc_id = resp.json()["id"]
+    await client.put(
+        f"/api/v1/contabilidad/centros-costo/{cc_id}",
+        json={"responsable": "Leonardo"},
+        headers=auth_headers,
+    )
+
+    log = (await client.get(
+        "/api/v1/auditoria?entidad=CentroCosto", headers=auth_headers)).json()
+    assert [r["accion"] for r in log] == ["Actualizar", "Crear"]
+    assert log[0]["cambios"]["responsable"]["despues"] == "Leonardo"

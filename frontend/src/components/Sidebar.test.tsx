@@ -27,6 +27,9 @@ describe('Sidebar — gating por rol', () => {
     expect(screen.getByText('Usuarios & Accesos')).toBeInTheDocument();
     expect(screen.getByText('Reportes & BI')).toBeInTheDocument();
     expect(screen.getByText('Plan de Cuentas (PUC)')).toBeInTheDocument();
+    // Los módulos 🚧 (Fase 2+) no aparecen en el menú aunque el rol los permita
+    expect(screen.queryByText('Talento Humano')).not.toBeInTheDocument();
+    expect(screen.queryByText('Plataformas')).not.toBeInTheDocument();
   });
 
   it('Auxiliar solo ve sus 4 módulos — sin contabilidad ni usuarios', () => {

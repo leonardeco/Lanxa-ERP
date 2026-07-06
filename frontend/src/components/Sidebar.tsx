@@ -34,8 +34,8 @@ const NAV_SECTIONS = [
       { id: 'compras' as ViewId, icon: '📥', label: 'Compras & Proveedores' },
       { id: 'cartera' as ViewId, icon: '💰', label: 'Cartera CxC & CxP' },
       { id: 'inventario' as ViewId, icon: '📦', label: 'Inventario' },
-      { id: 'rrhh' as ViewId, icon: '👥', label: 'Talento Humano' },
-      { id: 'plataformas' as ViewId, icon: '🌐', label: 'Plataformas' },
+      // RRHH y Plataformas (🚧 Fase 2+) salen del menú hasta que existan;
+      // las rutas siguen vivas en App.tsx para cuando se desarrollen.
       { id: 'reportes' as ViewId, icon: '📈', label: 'Reportes & BI' },
     ],
   },

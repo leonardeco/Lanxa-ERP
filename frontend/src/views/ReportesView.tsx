@@ -793,7 +793,7 @@ function AuxiliarTerceroTab() {
 
 const ENTIDADES_AUDITORIA = [
   'Producto', 'Cliente', 'Proveedor', 'ParametroTributario',
-  'ParametroNomina', 'PeriodoContable', 'Usuario',
+  'ParametroNomina', 'PeriodoContable', 'Usuario', 'PlanCuentas', 'CentroCosto',
 ];
 
 const ACCION_COLOR: Record<string, string> = {
