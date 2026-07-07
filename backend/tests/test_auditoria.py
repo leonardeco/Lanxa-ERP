@@ -226,3 +226,17 @@ async def test_puc_y_centro_costo_auditados(client: AsyncClient, auth_headers: d
         "/api/v1/auditoria?entidad=CentroCosto", headers=auth_headers)).json()
     assert [r["accion"] for r in log] == ["Actualizar", "Crear"]
     assert log[0]["cambios"]["responsable"]["despues"] == "Leonardo"
+
+
+@pytest.mark.asyncio
+async def test_registro_guarda_la_ip_del_request(client: AsyncClient, auth_headers: dict):
+    """#32: cada registro guarda la IP del request. Con ASGITransport el host
+    del cliente es 'testclient' (no hay socket real), así que basta con
+    verificar que el campo se pobló y viaja en la respuesta."""
+    prod = await _crear_producto(client, auth_headers, sku="AUD-IP1")
+
+    log = (await client.get(
+        "/api/v1/auditoria?entidad=Producto", headers=auth_headers)).json()
+    registro = next(r for r in log if r["entidad_id"] == prod["id"])
+    assert "ip" in registro
+    assert registro["ip"]  # no vacío: el middleware lo fijó

@@ -12,6 +12,7 @@ from enum import Enum
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.auditoria.models import RegistroAuditoria
+from app.modules.auditoria.context import get_client_ip
 
 # Campos que jamás se escriben en el log (ni en claro ni hasheados)
 _CAMPOS_SENSIBLES = {"password", "hashed_password"}
@@ -60,4 +61,5 @@ def registrar_auditoria(
         entidad_id=entidad_id,
         descripcion=descripcion[:300],
         cambios=json.dumps(cambios, ensure_ascii=False) if cambios else None,
+        ip=get_client_ip(),
     ))

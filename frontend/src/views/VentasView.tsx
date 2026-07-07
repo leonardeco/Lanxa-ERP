@@ -801,8 +801,23 @@ function CotizacionesTab() {
       `Cotización ${c.numero} rechazada`);
   };
 
-  const handleConvertir = (c: Cotizacion) => {
-    if (!confirm(`¿Convertir ${c.numero} en documento de venta?\nLa venta nace en Borrador: revísala y confírmala en la pestaña Facturas.`)) return;
+  const handleConvertir = async (c: Cotizacion) => {
+    // #31: la cotización no incluye retenciones; al convertir, la venta las
+    // sugiere según el perfil del cliente. Para clientes retenedores el total
+    // de la venta será menor que el cotizado — avisarlo antes de convertir.
+    let avisoRetenciones = '';
+    try {
+      const cliente = (await ventasApi.getCliente(c.cliente_id)).data;
+      if (cliente.retiene_fuente || cliente.retiene_iva || cliente.retiene_ica) {
+        avisoRetenciones =
+          '\n\n⚠️ Este cliente practica retenciones: el total de la venta será ' +
+          'MENOR que el total cotizado (las retenciones se aplican en la factura, ' +
+          'no en la cotización). Revísalo antes de confirmar.';
+      }
+    } catch {
+      // si no se pudo verificar el perfil, se convierte igual (sin aviso)
+    }
+    if (!confirm(`¿Convertir ${c.numero} en documento de venta?\nLa venta nace en Borrador: revísala y confírmala en la pestaña Facturas.${avisoRetenciones}`)) return;
     accion(() => ventasApi.convertirCotizacion(c.id), `Cotización ${c.numero} convertida en venta`);
   };
 

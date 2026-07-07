@@ -27,6 +27,7 @@ class RegistroAuditoria(Base):
     entidad_id: Mapped[int | None] = mapped_column()
     descripcion: Mapped[str] = mapped_column(String(300))         # "Producto SOZ-001 — Biocida 1L"
     cambios: Mapped[str | None] = mapped_column(Text)             # JSON del diff (solo updates)
+    ip: Mapped[str | None] = mapped_column(String(45))            # IP del request (IPv4/IPv6)
 
     usuario = relationship("Usuario")
 
