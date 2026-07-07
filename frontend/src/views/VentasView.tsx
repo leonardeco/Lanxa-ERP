@@ -763,6 +763,7 @@ const COT_ESTADO_COLOR: Record<string, string> = {
 
 function CotizacionesTab() {
   const [cotizaciones, setCotizaciones] = useState<Cotizacion[]>([]);
+  const [editando, setEditando] = useState<Cotizacion | null>(null);
   const [loading, setLoading] = useState(true);
   const [showNueva, setShowNueva] = useState(false);
   const [showDetalle, setShowDetalle] = useState<Cotizacion | null>(null);
@@ -799,6 +800,11 @@ function CotizacionesTab() {
     if (motivo === null) return; // canceló el prompt
     accion(() => ventasApi.rechazarCotizacion(c.id, motivo.trim() || undefined),
       `Cotización ${c.numero} rechazada`);
+  };
+
+  const handleEliminar = (c: Cotizacion) => {
+    if (!confirm(`¿Eliminar la cotización ${c.numero}? Esta acción no se puede deshacer.`)) return;
+    accion(() => ventasApi.deleteCotizacion(c.id), `Cotización ${c.numero} eliminada`);
   };
 
   const handleConvertir = async (c: Cotizacion) => {
@@ -888,7 +894,11 @@ function CotizacionesTab() {
                         <button className="btn-icon" title="Ver detalle" onClick={() => setShowDetalle(c)}>👁️</button>
                         <button className="btn-icon" title="Imprimir / PDF" onClick={() => printCotizacion(c)}>🖨️</button>
                         {c.estado === 'Borrador' && (
-                          <button className="btn-icon" title="Marcar como enviada" onClick={() => handleEnviar(c)}>📤</button>
+                          <>
+                            <button className="btn-icon" title="Editar" onClick={() => setEditando(c)}>✏️</button>
+                            <button className="btn-icon" title="Marcar como enviada" onClick={() => handleEnviar(c)}>📤</button>
+                            <button className="btn-icon" title="Eliminar" onClick={() => handleEliminar(c)}>🗑️</button>
+                          </>
                         )}
                         {(c.estado === 'Borrador' || c.estado === 'Enviada') && (
                           <>
@@ -913,6 +923,14 @@ function CotizacionesTab() {
         <NuevaCotizacionModal
           onClose={() => setShowNueva(false)}
           onCreated={() => { setShowNueva(false); fetchCotizaciones(); setToast({ msg: 'Cotización creada exitosamente', type: 'success' }); }}
+        />
+      )}
+
+      {editando && (
+        <NuevaCotizacionModal
+          cotizacion={editando}
+          onClose={() => setEditando(null)}
+          onCreated={() => { setEditando(null); fetchCotizaciones(); setToast({ msg: 'Cotización actualizada', type: 'success' }); }}
         />
       )}
 
@@ -982,15 +1000,30 @@ function CotizacionesTab() {
 
 // ── Nueva Cotización Modal ──
 
-function NuevaCotizacionModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+export function NuevaCotizacionModal(
+  { onClose, onCreated, cotizacion }:
+  { onClose: () => void; onCreated: () => void; cotizacion?: Cotizacion },
+) {
+  const editMode = !!cotizacion;
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [productos, setProductos] = useState<Producto[]>([]);
-  const [clienteId, setClienteId] = useState('');
-  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
-  const [vigenciaDias, setVigenciaDias] = useState('15');
-  const [vendedor, setVendedor] = useState('');
-  const [observaciones, setObservaciones] = useState('');
-  const [lineas, setLineas] = useState<VentaDetalleInput[]>([]);
+  const [clienteId, setClienteId] = useState(cotizacion ? String(cotizacion.cliente_id) : '');
+  const [fecha, setFecha] = useState(cotizacion ? cotizacion.fecha : new Date().toISOString().split('T')[0]);
+  const [vigenciaDias, setVigenciaDias] = useState(cotizacion ? String(cotizacion.vigencia_dias) : '15');
+  const [vendedor, setVendedor] = useState(cotizacion?.vendedor ?? '');
+  const [observaciones, setObservaciones] = useState(cotizacion?.observaciones ?? '');
+  const [lineas, setLineas] = useState<VentaDetalleInput[]>(
+    cotizacion
+      ? cotizacion.detalles.map(d => ({
+          producto_id: d.producto_id,
+          cantidad: Number(d.cantidad),
+          precio_unitario: Number(d.precio_unitario),
+          descuento_porcentaje: Number(d.descuento_porcentaje),
+          iva_porcentaje: Number(d.iva_porcentaje),
+          notas: d.notas,
+        }))
+      : [],
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -1044,18 +1077,24 @@ function NuevaCotizacionModal({ onClose, onCreated }: { onClose: () => void; onC
 
     setSaving(true);
     setError('');
+    const payload = {
+      fecha,
+      vigencia_dias: parseInt(vigenciaDias) || 15,
+      cliente_id: parseInt(clienteId),
+      vendedor: vendedor || undefined,
+      observaciones: observaciones || undefined,
+      detalles: lineas,
+    };
     try {
-      await ventasApi.createCotizacion({
-        fecha,
-        vigencia_dias: parseInt(vigenciaDias) || 15,
-        cliente_id: parseInt(clienteId),
-        vendedor: vendedor || undefined,
-        observaciones: observaciones || undefined,
-        detalles: lineas,
-      });
+      if (editMode) {
+        await ventasApi.updateCotizacion(cotizacion!.id, payload);
+      } else {
+        await ventasApi.createCotizacion(payload);
+      }
       onCreated();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error al crear la cotización');
+      setError(err.response?.data?.detail
+        || (editMode ? 'Error al actualizar la cotización' : 'Error al crear la cotización'));
     } finally {
       setSaving(false);
     }
@@ -1064,7 +1103,7 @@ function NuevaCotizacionModal({ onClose, onCreated }: { onClose: () => void; onC
   const dirty = !saving && (!!clienteId || lineas.length > 0 || vendedor !== '' || observaciones !== '');
 
   return (
-    <Modal title="📋 Nueva Cotización" onClose={onClose} wide confirmDiscard={dirty}>
+    <Modal title={editMode ? '✏️ Editar Cotización' : '📋 Nueva Cotización'} onClose={onClose} wide confirmDiscard={dirty}>
       <div className="modal-form">
         {error && <div className="form-error fade-in">{error}</div>}
 
@@ -1177,7 +1216,7 @@ function NuevaCotizacionModal({ onClose, onCreated }: { onClose: () => void; onC
             onClick={handleSubmit}
             disabled={saving}
           >
-            {saving ? 'Creando...' : 'Crear Cotización'}
+            {saving ? 'Guardando...' : (editMode ? 'Guardar Cambios' : 'Crear Cotización')}
           </button>
         </div>
       </div>

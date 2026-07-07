@@ -926,3 +926,39 @@ tsc 0 · eslint 0 (App.tsx) · **34/34 componentes** (10 archivos). El backend n
 ### Nota de proceso
 
 Fix hecho con edición directa (no por el pipeline de Hydraia): la sesión se lanzó fuera del repo (System32) y el cambio era un wrapper de 4 líneas sobre un patrón ya existente. Docs actualizados según la regla de mantenimiento: DOCUMENTACION #47, PENDIENTES 18ª revisión (quitado #26), esta bitácora.
+
+---
+
+## Sesión — 6 de julio 2026 — Editar y eliminar cotizaciones en Borrador (#25) (Claude Opus 4.8 · pipeline Hydraia)
+
+### Resumen
+
+Se cerró #25: una cotización en `Borrador` ya se puede **editar** (corregir cabecera e ítems) y **eliminar**. Antes solo había transiciones (enviar/aprobar/rechazar/convertir), así que corregir un borrador con un error obligaba a rechazarlo y crear otro. Primer feature construido con el pipeline Hydraia completo (spec → plan → doble self-review → ejecución → review → verificación). Tests API: 242 → **247**; componentes: 34 → **35**.
+
+### Lo que se hizo
+
+**Backend** (`ventas/router.py`): se extrajo el cálculo de detalles+totales de `create_cotizacion` a un helper compartido `_aplicar_detalles_y_totales(db, cot, data)` (crear y editar no divergen). Dos endpoints nuevos:
+- `PUT /cotizaciones/{id}` (`update_cotizacion`): `409` si el estado ≠ Borrador, valida cliente (`404`), recalcula `fecha_vencimiento`, **reemplaza** los detalles (borra los viejos + `db.expire` para refrescar la colección) y recalcula totales; registra auditoría `Actualizar/Cotizacion`.
+- `DELETE /cotizaciones/{id}` (`delete_cotizacion`): `409` si el estado ≠ Borrador, registra auditoría `Eliminar/Cotizacion` **antes** de borrar (rastro atómico), y `db.delete` (cascade `delete-orphan` limpia los detalles). Responde `204`.
+
+Ambos usan `CurrentUser` (sin rol especial, como el resto de cotizaciones). El body del PUT reutiliza `CotizacionCreate` (no incluye `estado`/`numero`, así que no se pueden alterar).
+
+**Frontend** (`ventasApi.ts`, `VentasView.tsx`): `updateCotizacion`/`deleteCotizacion`; el modal `NuevaCotizacionModal` acepta una prop opcional `cotizacion` → precarga los campos y hace `PUT` (título "✏️ Editar Cotización", botón "Guardar Cambios") o `POST` (crear). En la fila, **solo en Borrador**, aparecen ✏️ (editar) y 🗑️ (eliminar con `confirm()`).
+
+**Tests**: 5 nuevos en `tests/test_cotizaciones.py` (editar recalcula totales, editar/eliminar no-Borrador → 409, inexistente → 404, eliminar deja auditoría) + `frontend/src/views/CotizacionesEdit.test.tsx` (el modo edición precarga y guarda con `updateCotizacion`).
+
+### Threat model
+
+Superficie: input de usuario autenticado a dos endpoints que mutan/borran un recurso propio. Mitigaciones: guard de estado `409` server-side sobre el registro releído (A01), totales recalculados en backend sin confiar en el cliente (A04), ORM parametrizado (sin inyección), auth por Bearer (sin CSRF), borrado con rastro de auditoría. Sin secretos ni PII nueva.
+
+### Verificación
+
+**247/247 tests API** · **35/35 componentes** · tsc 0 · eslint 0 · pre-commit verde. Backend (ventas/inventario/contabilidad/cartera) sin tocar salvo el módulo cotizaciones.
+
+### Artefactos Hydraia
+
+`docs/hydraia/specs/2026-07-06-editar-eliminar-cotizaciones-borrador-design.md`, `docs/hydraia/plans/2026-07-06-editar-eliminar-cotizaciones-borrador.md`, run log en `docs/hydraia/runs/`.
+
+### Nota de proceso
+
+Pipeline Hydraia ejecutado desde una sesión lanzada en System32 (fuera del repo): la mitad interactiva (spec + plan + aprobaciones) fue normal; la ejecución se hizo con edición directa sobre rutas absolutas en vez de dispatchar subagentes `hydraia-executor`, corriendo los tests reales del repo en cada paso.

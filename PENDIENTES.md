@@ -1,7 +1,7 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **6 de julio de 2026** (18ª revisión — resuelto ✅ #26 el logout pasa por el guard de datos sin guardar; en la 17ª se cerraron #32 IP en el log de auditoría y #31 aviso de retenciones al convertir cotización). **Este archivo es la fuente única de pendientes.**
-Estado general: 242 tests API (95% cobertura) + 34 componentes + 5 E2E (local y CI), CI verde, 0 CVEs. Versión: **v0.3.0**.
+Backlog vivo del proyecto. Actualizado: **6 de julio de 2026** (19ª revisión — resuelto ✅ #25 editar/eliminar cotizaciones en Borrador; en la 18ª se cerró #26 el logout pasa por el guard de datos sin guardar). **Este archivo es la fuente única de pendientes.**
+Estado general: 247 tests API (95% cobertura) + 35 componentes + 5 E2E (local y CI), CI verde, 0 CVEs. Versión: **v0.3.0**.
 
 ---
 
@@ -36,7 +36,6 @@ Estado general: 242 tests API (95% cobertura) + 34 componentes + 5 E2E (local y 
 | 12a | Race en numeración de documentos (`MAX+1` sin lock en SOG-V/SOG-CP/RC/CE/COT/NC/ND) | ✔ Verificado en `core/numbering.py` (la nota en el docstring sigue vigente y ahora cubre también COT/NC/ND). Mismo escenario que #12: solo multi-worker |
 | 13 | Extraer servicios de dominio (`confirmar_venta` orquesta stock+CxC+asiento inline en el router) | ✔ Verificado: sigue inline en `ventas/router.py` (y `convertir_cotizacion` ahora también llama `create_venta` directo). Incluye unificar commit/flush (BUG-006) y `estado` Enum vs String |
 | 14a | Unificar Cliente/Proveedor/Tercero a nivel de modelo | ✔ Verificado: `CuentaPorCobrar.cliente_nit` sigue siendo `String(20)` sin FK; la materialización por NIT es el puente |
-| 25 | **Editar/eliminar cotizaciones en Borrador** | Nuevo 2026-07-05: hoy una cotización solo tiene transiciones (enviar/aprobar/rechazar/convertir) — para corregir un borrador con un error toca rechazarlo y crear otro |
 
 ## 🟢 Funcional — siguientes features (por prioridad de negocio)
 

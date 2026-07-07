@@ -189,6 +189,9 @@ export const ventasApi = {
   rechazarCotizacion: (id: number, motivo?: string) =>
     api.post<Cotizacion>(`${BASE}/cotizaciones/${id}/rechazar`, motivo ? { motivo } : {}),
   convertirCotizacion: (id: number) => api.post<Cotizacion>(`${BASE}/cotizaciones/${id}/convertir`),
+  updateCotizacion: (id: number, data: CotizacionInput) =>
+    api.put<Cotizacion>(`${BASE}/cotizaciones/${id}`, data),
+  deleteCotizacion: (id: number) => api.delete<void>(`${BASE}/cotizaciones/${id}`),
 };
 
 // ── Cotizaciones ─────────────────────────────────────────

@@ -179,3 +179,100 @@ async def test_validaciones_de_creacion(client: AsyncClient, auth_headers: dict)
     resp = await client.get("/api/v1/ventas/cotizaciones?estado=Borrador", headers=auth_headers)
     assert resp.status_code == 200
     assert len(resp.json()) == 1
+
+
+@pytest.mark.asyncio
+async def test_editar_cotizacion_borrador_recalcula_totales(client: AsyncClient, auth_headers: dict):
+    cli, prod = await _cliente_y_producto(client, auth_headers)
+    cot = await _crear_cotizacion(client, auth_headers, cli, prod)  # 5 uds, 10% desc
+
+    # Editar: subir a 10 unidades, sin descuento, y cambiar el vendedor.
+    resp = await client.put(
+        f"/api/v1/ventas/cotizaciones/{cot['id']}",
+        json={"fecha": date.today().isoformat(), "vigencia_dias": 30,
+              "cliente_id": cli["id"], "vendedor": "Editado",
+              "detalles": [{"producto_id": prod["id"], "cantidad": "10",
+                            "precio_unitario": "20000.00", "descuento_porcentaje": "0"}]},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200, resp.text
+    editada = resp.json()
+    assert editada["numero"] == cot["numero"]         # el número se conserva
+    assert editada["estado"] == "Borrador"
+    assert editada["vendedor"] == "Editado"
+    # 10 × 20.000 = 200.000; sin desc; IVA 19% = 38.000; total 238.000
+    assert float(editada["subtotal"]) == 200000.0
+    assert float(editada["descuento_total"]) == 0.0
+    assert float(editada["iva_total"]) == 38000.0
+    assert float(editada["total"]) == 238000.0
+    assert len(editada["detalles"]) == 1
+    assert float(editada["detalles"][0]["cantidad"]) == 10.0
+    # Vigencia recalculada a 30 días
+    assert editada["fecha_vencimiento"] == (date.today() + timedelta(days=30)).isoformat()
+
+
+@pytest.mark.asyncio
+async def test_editar_cotizacion_no_borrador_da_409(client: AsyncClient, auth_headers: dict):
+    cli, prod = await _cliente_y_producto(client, auth_headers)
+    cot = await _crear_cotizacion(client, auth_headers, cli, prod)
+    # Enviar → ya no es Borrador
+    await client.post(f"/api/v1/ventas/cotizaciones/{cot['id']}/enviar", headers=auth_headers)
+
+    resp = await client.put(
+        f"/api/v1/ventas/cotizaciones/{cot['id']}",
+        json={"fecha": date.today().isoformat(), "vigencia_dias": 15,
+              "cliente_id": cli["id"],
+              "detalles": [{"producto_id": prod["id"], "cantidad": "1",
+                            "precio_unitario": "20000.00", "descuento_porcentaje": "0"}]},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 409, resp.text
+
+
+@pytest.mark.asyncio
+async def test_editar_cotizacion_inexistente_da_404(client: AsyncClient, auth_headers: dict):
+    cli, prod = await _cliente_y_producto(client, auth_headers)
+    resp = await client.put(
+        "/api/v1/ventas/cotizaciones/999999",
+        json={"fecha": date.today().isoformat(), "vigencia_dias": 15,
+              "cliente_id": cli["id"],
+              "detalles": [{"producto_id": prod["id"], "cantidad": "1",
+                            "precio_unitario": "20000.00", "descuento_porcentaje": "0"}]},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 404, resp.text
+
+
+@pytest.mark.asyncio
+async def test_eliminar_cotizacion_borrador_deja_auditoria(client: AsyncClient, auth_headers: dict):
+    cli, prod = await _cliente_y_producto(client, auth_headers)
+    cot = await _crear_cotizacion(client, auth_headers, cli, prod)
+
+    resp = await client.delete(f"/api/v1/ventas/cotizaciones/{cot['id']}", headers=auth_headers)
+    assert resp.status_code == 204, resp.text
+
+    # Ya no existe
+    resp = await client.get(f"/api/v1/ventas/cotizaciones/{cot['id']}", headers=auth_headers)
+    assert resp.status_code == 404
+
+    # Quedó registro de auditoría "Eliminar/Cotizacion"
+    resp = await client.get(
+        "/api/v1/auditoria", params={"entidad": "Cotizacion", "accion": "Eliminar"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200, resp.text
+    registros = resp.json()
+    assert any(r["entidad_id"] == cot["id"] for r in registros)
+
+
+@pytest.mark.asyncio
+async def test_eliminar_cotizacion_no_borrador_da_409(client: AsyncClient, auth_headers: dict):
+    cli, prod = await _cliente_y_producto(client, auth_headers)
+    cot = await _crear_cotizacion(client, auth_headers, cli, prod)
+    await client.post(f"/api/v1/ventas/cotizaciones/{cot['id']}/enviar", headers=auth_headers)
+
+    resp = await client.delete(f"/api/v1/ventas/cotizaciones/{cot['id']}", headers=auth_headers)
+    assert resp.status_code == 409, resp.text
+    # Sigue existiendo
+    resp = await client.get(f"/api/v1/ventas/cotizaciones/{cot['id']}", headers=auth_headers)
+    assert resp.status_code == 200
