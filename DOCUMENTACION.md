@@ -753,6 +753,7 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | 44 | Seguridad #33: validator bloquea la clave por defecto del admin sembrado con `DEBUG=false` (config.py + .env.servidor + DESPLIEGUE.md) | ✅ Completado 2026-07-05 |
 | 45 | #32: IP del request en el log de auditoría (middleware ASGI + ContextVar, migración f1a2b3c4d5e6, columna en UI/CSV) | ✅ Completado 2026-07-06 |
 | 46 | #31: aviso al convertir cotización de un cliente retenedor (el total de la venta será menor que el cotizado) | ✅ Completado 2026-07-06 |
+| 47 | #26: el logout pasa por el guard de datos sin guardar (`handleLogout` consulta `confirmarDescartar()`, igual que el cambio de módulo de #17) + test `App.test.tsx` | ✅ Completado 2026-07-06 |
 
 ### Deuda técnica / mejoras pendientes
 

@@ -109,6 +109,12 @@ function App() {
     }
   }
 
+  const handleLogout = () => {
+    // #26: cerrar sesión también pasa por el guard de datos sin guardar
+    if (!confirmarDescartar()) return
+    logout()
+  }
+
   const renderView = () => {
     switch (activeView) {
       case 'dashboard':
@@ -156,7 +162,7 @@ function App() {
         activeRole={activeRole}
         allowedViews={allowedViews}
         onViewChange={handleViewChange}
-        onLogout={logout}
+        onLogout={handleLogout}
         userName={userName}
       />
       <div className="main-content">

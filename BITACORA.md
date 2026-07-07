@@ -904,3 +904,25 @@ flake8 OK · mypy 0 · **242/242 tests API** · 32/32 componentes · E2E 5/5 · 
 ### Estado del backlog
 
 Con #31/#32 cerrados, de los hallazgos de la revisión profunda quedan solo cosas menores o dependientes de contexto: #28 purga del log de auditoría y #30 token localStorage→memoria (ambos nice-to-have, #30 ya mitigado), #25 editar cotización en Borrador, #26 logout sin guard, #27 revisar E2E del CI a mano. Lo de mayor valor sigue siendo operativo (desplegar v0.3.0 #6, backups #5) y de negocio (contadora: #1-4 → costo de venta #8).
+
+---
+
+## Sesión — 6 de julio 2026 — El logout pasa por el guard de datos sin guardar (#26) (Claude Opus 4.8)
+
+### Resumen
+
+Se cerró #26: cerrar sesión con un formulario a medias descartaba los cambios sin preguntar. El guard de datos sin guardar (#17) ya cubría el cambio de módulo y el cierre/refresh del navegador, pero **no el logout**. Tests de frontend: 32 → **34 componentes**.
+
+### Lo que se hizo
+
+**#26 — guard en el logout**: `App.tsx` pasaba `onLogout={logout}` (el `logout` crudo del `useAuth()`) directo al `Sidebar`. Se añadió `handleLogout`, que consulta `confirmarDescartar()` antes de cerrar sesión — exactamente el mismo patrón que `handleViewChange` ya usaba para el cambio de módulo (#17) — y la prop pasó a `onLogout={handleLogout}`. Si hay un formulario sucio, el usuario ve el `confirm` de descarte y puede cancelar; si no hay nada sucio, cierra sesión sin fricción.
+
+Test nuevo `frontend/src/App.test.tsx` (primer test a nivel App del repo): mockea `useAuth` y `confirmarDescartar` y stubea las vistas pesadas (DashboardView/HeaderBar/StatusBar) para renderizar barato. Cubre los dos caminos: guard=false → `logout` NO se llama; guard=true → `logout` se llama una vez. 2 tests.
+
+### Verificación
+
+tsc 0 · eslint 0 (App.tsx) · **34/34 componentes** (10 archivos). El backend no se tocó.
+
+### Nota de proceso
+
+Fix hecho con edición directa (no por el pipeline de Hydraia): la sesión se lanzó fuera del repo (System32) y el cambio era un wrapper de 4 líneas sobre un patrón ya existente. Docs actualizados según la regla de mantenimiento: DOCUMENTACION #47, PENDIENTES 18ª revisión (quitado #26), esta bitácora.
