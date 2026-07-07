@@ -1,7 +1,7 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **6 de julio de 2026** (17ª revisión — resueltos ✅ #32 IP en el log de auditoría y ✅ #31 aviso de retenciones al convertir cotización; en la 16ª se cerraron #29 XSS en impresión y #33 validator del admin). **Este archivo es la fuente única de pendientes.**
-Estado general: 242 tests API (95% cobertura) + 32 componentes + 5 E2E (local y CI), CI verde, 0 CVEs. Versión: **v0.3.0**.
+Backlog vivo del proyecto. Actualizado: **6 de julio de 2026** (18ª revisión — resuelto ✅ #26 el logout pasa por el guard de datos sin guardar; en la 17ª se cerraron #32 IP en el log de auditoría y #31 aviso de retenciones al convertir cotización). **Este archivo es la fuente única de pendientes.**
+Estado general: 242 tests API (95% cobertura) + 34 componentes + 5 E2E (local y CI), CI verde, 0 CVEs. Versión: **v0.3.0**.
 
 ---
 
@@ -37,7 +37,6 @@ Estado general: 242 tests API (95% cobertura) + 32 componentes + 5 E2E (local y 
 | 13 | Extraer servicios de dominio (`confirmar_venta` orquesta stock+CxC+asiento inline en el router) | ✔ Verificado: sigue inline en `ventas/router.py` (y `convertir_cotizacion` ahora también llama `create_venta` directo). Incluye unificar commit/flush (BUG-006) y `estado` Enum vs String |
 | 14a | Unificar Cliente/Proveedor/Tercero a nivel de modelo | ✔ Verificado: `CuentaPorCobrar.cliente_nit` sigue siendo `String(20)` sin FK; la materialización por NIT es el puente |
 | 25 | **Editar/eliminar cotizaciones en Borrador** | Nuevo 2026-07-05: hoy una cotización solo tiene transiciones (enviar/aprobar/rechazar/convertir) — para corregir un borrador con un error toca rechazarlo y crear otro |
-| 26 | El **logout no pasa por el guard de datos sin guardar** | Nuevo 2026-07-05: `Sidebar` llama `onLogout` directo; si hay un formulario a medias, cerrar sesión lo descarta sin preguntar (el guard #17 cubre navegación y cierre del navegador, no el logout) |
 
 ## 🟢 Funcional — siguientes features (por prioridad de negocio)
 
