@@ -1,7 +1,7 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **5 de julio de 2026** (16ª revisión — resueltos ✅ #29 XSS en impresión (helper `esc()`) y ✅ #33 validator que bloquea la clave por defecto del admin en producción; pendientes de la revisión profunda 15ª ya en curso). **Este archivo es la fuente única de pendientes.**
-Estado general: 241 tests API (95% cobertura) + 32 componentes + 5 E2E (local y CI), CI verde, 0 CVEs. Versión: **v0.3.0**.
+Backlog vivo del proyecto. Actualizado: **6 de julio de 2026** (17ª revisión — resueltos ✅ #32 IP en el log de auditoría y ✅ #31 aviso de retenciones al convertir cotización; en la 16ª se cerraron #29 XSS en impresión y #33 validator del admin). **Este archivo es la fuente única de pendientes.**
+Estado general: 242 tests API (95% cobertura) + 32 componentes + 5 E2E (local y CI), CI verde, 0 CVEs. Versión: **v0.3.0**.
 
 ---
 
@@ -38,7 +38,6 @@ Estado general: 241 tests API (95% cobertura) + 32 componentes + 5 E2E (local y 
 | 14a | Unificar Cliente/Proveedor/Tercero a nivel de modelo | ✔ Verificado: `CuentaPorCobrar.cliente_nit` sigue siendo `String(20)` sin FK; la materialización por NIT es el puente |
 | 25 | **Editar/eliminar cotizaciones en Borrador** | Nuevo 2026-07-05: hoy una cotización solo tiene transiciones (enviar/aprobar/rechazar/convertir) — para corregir un borrador con un error toca rechazarlo y crear otro |
 | 26 | El **logout no pasa por el guard de datos sin guardar** | Nuevo 2026-07-05: `Sidebar` llama `onLogout` directo; si hay un formulario a medias, cerrar sesión lo descarta sin preguntar (el guard #17 cubre navegación y cierre del navegador, no el logout) |
-| 31 | Aviso de retenciones al **convertir cotización** | Nuevo 2026-07-05: la cotización no incluye retenciones; al convertir, `create_venta` las sugiere según el perfil del cliente → para clientes retenedores el total de la venta será menor que el cotizado. Comportamiento correcto pero sorprende: mostrar aviso en la UI al convertir |
 
 ## 🟢 Funcional — siguientes features (por prioridad de negocio)
 
@@ -64,7 +63,6 @@ Estado general: 241 tests API (95% cobertura) + 32 componentes + 5 E2E (local y 
 - Tests de los utilitarios de impresión (`printFactura.ts`, `printCotizacion.ts`, etc.)
 - **28 — Purga/archivado del log de auditoría** (nuevo 2026-07-05): la tabla `auditoria` crece sin límite; definir retención (p. ej. exportar y depurar > 2 años) cuando haya volumen real
 - **30 — Access token de `localStorage` a memoria** (revisión de seguridad 2026-07-05): un XSS podría leerlo; ya está mitigado (vida 15 min + refresh en cookie HttpOnly, ver REPORTE_SEGURIDAD) — reevaluar si el ERP sale de la LAN
-- **32 — Registrar IP/equipo en el log de auditoría** (2026-07-05): hoy guarda quién y qué; con la IP del request se sabría también desde cuál de los 5 PCs se hizo el cambio
 - `APP_VERSION` se mantiene manual en `config.py` — recordar alinearla con el tag en cada release (v0.3.0 ✔)
 - Política de contraseñas (complejidad/expiración) — hoy solo mínimo 8 caracteres; aceptable en LAN
 - Blacklist de JTI en Redis para revocación inmediata de access tokens — innecesario con vida de 15 min; además desde v0.3.0 el Admin puede revocar los refresh tokens (14c)
