@@ -13,14 +13,18 @@
 - Estados: solo `Borrador`.
 
 ## Run-controls (Fase 3 step 6)
-- Review depth: _(pendiente de responder por el humano)_
-- Summary depth: _(pendiente)_
+- Review depth: **Full**
+- Summary depth: **Brief**
+
+## Resultado
+- Backend: **247/247** pytest. Frontend: **35/35** vitest. tsc 0, eslint 0, pre-commit verde.
+- Endpoints: `PUT`/`DELETE /cotizaciones/{id}` (guard 409 + auditoría). Front: modal edición + ✏️/🗑️.
 
 ## Checklist de fases
 - [x] Phase 0 — Contexto (codegraph ausente → lectura dirigida)
 - [x] Phase 1 — Think (karpathy)
 - [x] Phase 2 — Design + threat model + spec commiteado (d12b4b1)
 - [x] Phase 3 — Plan + doble self-review + freeze
-- [ ] Phase 4 — Ejecución
-- [ ] Phase 5 — Doble review + security gate
-- [ ] Phase 6 — Verify & close
+- [x] Phase 4 — Ejecución (edición directa, tests reales por paso)
+- [x] Phase 5 — Doble review inline + security gate (sin hallazgos bloqueantes)
+- [x] Phase 6 — Verify & close

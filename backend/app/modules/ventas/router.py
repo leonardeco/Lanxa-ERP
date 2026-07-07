@@ -436,6 +436,47 @@ _COTIZACION_EAGER = (
 )
 
 
+async def _aplicar_detalles_y_totales(
+    db: AsyncSession, cot: Cotizacion, data: CotizacionCreate
+) -> None:
+    """Crea los detalles de la cotización (validando cada producto) y recalcula
+    sus totales. `cot` ya debe estar en la sesión con su id (flush hecho). Al
+    editar, los detalles previos deben haberse borrado antes de llamar aquí."""
+    subtotal_total = Decimal("0.00")
+    descuento_total = Decimal("0.00")
+    iva_total = Decimal("0.00")
+    for det_data in data.detalles:
+        producto = await db.get(Producto, det_data.producto_id)
+        if not producto:
+            raise HTTPException(
+                status_code=404, detail=f"Producto ID {det_data.producto_id} no encontrado")
+
+        calc = _calcular_detalle(det_data)
+        db.add(CotizacionDetalle(
+            cotizacion_id=cot.id,
+            producto_id=det_data.producto_id,
+            cantidad=det_data.cantidad,
+            precio_unitario=det_data.precio_unitario,
+            descuento_porcentaje=det_data.descuento_porcentaje,
+            subtotal_linea=calc["subtotal_linea"],
+            iva_porcentaje=det_data.iva_porcentaje,
+            iva_valor=calc["iva_valor"],
+            total_linea=calc["total_linea"],
+            notas=det_data.notas,
+        ))
+        linea_bruta = det_data.cantidad * det_data.precio_unitario
+        subtotal_total += linea_bruta
+        descuento_total += linea_bruta * (det_data.descuento_porcentaje / Decimal("100"))
+        iva_total += calc["iva_valor"]
+
+    base_gravable = subtotal_total - descuento_total
+    cot.subtotal = round(subtotal_total, 2)
+    cot.descuento_total = round(descuento_total, 2)
+    cot.base_gravable = round(base_gravable, 2)
+    cot.iva_total = round(iva_total, 2)
+    cot.total = round(base_gravable + iva_total, 2)
+
+
 def _build_cotizacion_response(cot: Cotizacion) -> CotizacionResponse:
     """Requiere cliente, venta y detalles (con .producto) precargados."""
     estado = cot.estado.value if hasattr(cot.estado, "value") else cot.estado
@@ -546,42 +587,69 @@ async def create_cotizacion(
     db.add(cot)
     await db.flush()
 
-    subtotal_total = Decimal("0.00")
-    descuento_total = Decimal("0.00")
-    iva_total = Decimal("0.00")
-    for det_data in data.detalles:
-        producto = await db.get(Producto, det_data.producto_id)
-        if not producto:
-            raise HTTPException(
-                status_code=404, detail=f"Producto ID {det_data.producto_id} no encontrado")
-
-        calc = _calcular_detalle(det_data)
-        db.add(CotizacionDetalle(
-            cotizacion_id=cot.id,
-            producto_id=det_data.producto_id,
-            cantidad=det_data.cantidad,
-            precio_unitario=det_data.precio_unitario,
-            descuento_porcentaje=det_data.descuento_porcentaje,
-            subtotal_linea=calc["subtotal_linea"],
-            iva_porcentaje=det_data.iva_porcentaje,
-            iva_valor=calc["iva_valor"],
-            total_linea=calc["total_linea"],
-            notas=det_data.notas,
-        ))
-        linea_bruta = det_data.cantidad * det_data.precio_unitario
-        subtotal_total += linea_bruta
-        descuento_total += linea_bruta * (det_data.descuento_porcentaje / Decimal("100"))
-        iva_total += calc["iva_valor"]
-
-    base_gravable = subtotal_total - descuento_total
-    cot.subtotal = round(subtotal_total, 2)
-    cot.descuento_total = round(descuento_total, 2)
-    cot.base_gravable = round(base_gravable, 2)
-    cot.iva_total = round(iva_total, 2)
-    cot.total = round(base_gravable + iva_total, 2)
+    await _aplicar_detalles_y_totales(db, cot, data)
 
     await db.flush()
     return _build_cotizacion_response(await _get_cotizacion_or_404(db, cot.id))
+
+
+@router.put("/cotizaciones/{cotizacion_id}", response_model=CotizacionResponse)
+async def update_cotizacion(
+    cotizacion_id: int, data: CotizacionCreate, current: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """Editar una cotización en Borrador: reemplaza cabecera y detalles y
+    recalcula totales. Solo Borrador (409 en cualquier otro estado)."""
+    cot = await _get_cotizacion_or_404(db, cotizacion_id)
+    if cot.estado != EstadoCotizacion.BORRADOR:
+        raise HTTPException(
+            status_code=409, detail="Solo se pueden editar cotizaciones en Borrador")
+
+    cliente = await db.get(Cliente, data.cliente_id)
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+
+    cot.fecha = data.fecha
+    cot.vigencia_dias = data.vigencia_dias
+    cot.fecha_vencimiento = data.fecha + timedelta(days=data.vigencia_dias)
+    cot.cliente_id = data.cliente_id
+    cot.vendedor = data.vendedor
+    cot.observaciones = data.observaciones
+
+    # Reemplazar los detalles: borrar los viejos explícitamente, luego recrear.
+    for det in list(cot.detalles):
+        await db.delete(det)
+    await db.flush()
+
+    await _aplicar_detalles_y_totales(db, cot, data)
+
+    registrar_auditoria(
+        db, current, "Actualizar", "Cotizacion", cot.id,
+        f"Editó la cotización {cot.numero} (total {cot.total})",
+    )
+    await db.flush()
+    db.expire(cot, ["detalles"])
+    return _build_cotizacion_response(await _get_cotizacion_or_404(db, cot.id))
+
+
+@router.delete("/cotizaciones/{cotizacion_id}", status_code=204)
+async def delete_cotizacion(
+    cotizacion_id: int, current: CurrentUser, db: AsyncSession = Depends(get_db),
+):
+    """Eliminar una cotización en Borrador (borrado real; cascade borra los
+    detalles). Deja rastro en auditoría. Solo Borrador (409 en otro estado)."""
+    cot = await _get_cotizacion_or_404(db, cotizacion_id)
+    if cot.estado != EstadoCotizacion.BORRADOR:
+        raise HTTPException(
+            status_code=409, detail="Solo se pueden eliminar cotizaciones en Borrador")
+
+    registrar_auditoria(
+        db, current, "Eliminar", "Cotizacion", cot.id,
+        f"Eliminó la cotización {cot.numero} "
+        f"(cliente {cot.cliente_id}, total {cot.total})",
+    )
+    await db.delete(cot)
+    await db.flush()
 
 
 @router.post("/cotizaciones/{cotizacion_id}/enviar", response_model=CotizacionResponse)
