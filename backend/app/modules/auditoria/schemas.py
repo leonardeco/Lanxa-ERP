@@ -18,5 +18,6 @@ class RegistroAuditoriaResponse(BaseModel):
     entidad_id: Optional[int] = None
     descripcion: str
     cambios: Optional[dict] = None  # {"campo": {"antes": ..., "despues": ...}}
+    ip: Optional[str] = None
 
     model_config = {"from_attributes": True}

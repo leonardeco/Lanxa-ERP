@@ -62,6 +62,7 @@ async def list_auditoria(
             entidad_id=r.entidad_id,
             descripcion=r.descripcion,
             cambios=json.loads(r.cambios) if r.cambios else None,
+            ip=r.ip,
         )
         for r in rows
     ]

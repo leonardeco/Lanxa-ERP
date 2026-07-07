@@ -19,6 +19,7 @@ export interface RegistroAuditoria {
   entidad_id?: number;
   descripcion: string;
   cambios?: Record<string, CambioCampo> | null;
+  ip?: string | null;
 }
 
 export interface AuditoriaFiltros {

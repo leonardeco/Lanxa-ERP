@@ -830,10 +830,11 @@ function AuditoriaTab() {
   const exportar = () => {
     descargarCsv(
       'auditoria',
-      ['Fecha', 'Usuario', 'Acción', 'Entidad', 'Descripción', 'Cambios'],
+      ['Fecha', 'Usuario', 'IP', 'Acción', 'Entidad', 'Descripción', 'Cambios'],
       registros.map(r => [
         new Date(r.fecha + 'Z').toLocaleString('es-CO'),
         r.usuario_email ?? '',
+        r.ip ?? '',
         r.accion,
         r.entidad,
         r.descripcion,
@@ -892,6 +893,7 @@ function AuditoriaTab() {
               <tr>
                 <th>Fecha</th>
                 <th>Usuario</th>
+                <th>IP</th>
                 <th>Acción</th>
                 <th>Entidad</th>
                 <th>Descripción</th>
@@ -905,6 +907,7 @@ function AuditoriaTab() {
                     {new Date(r.fecha + 'Z').toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })}
                   </td>
                   <td style={{ fontSize: 12 }}>{r.usuario_email ?? '—'}</td>
+                  <td style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--neutral-500)' }}>{r.ip ?? '—'}</td>
                   <td>
                     <span className="badge" style={{ background: `${ACCION_COLOR[r.accion] || '#6b7280'}22`, color: ACCION_COLOR[r.accion] || '#9ca3af' }}>
                       {r.accion}

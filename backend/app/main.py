@@ -23,6 +23,7 @@ from app.modules.compras.router import router as compras_router
 from app.modules.inventario.router import router as inventario_router
 from app.modules.reportes.router import router as reportes_router
 from app.modules.auditoria.router import router as auditoria_router
+from app.modules.auditoria.context import set_client_ip
 from app.modules.contabilidad.schemas import HealthResponse
 
 # ── Logging: consola + archivo rotado backend/logs/erp.log ──
@@ -138,6 +139,31 @@ class SecurityHeadersMiddleware:
 
 
 app.add_middleware(SecurityHeadersMiddleware)
+
+
+# ── IP del cliente para auditoría (#32) ──────────────────
+# Middleware ASGI puro: fija la IP en un ContextVar al inicio del request para
+# que registrar_auditoria() la registre sin pasar el Request por cada endpoint.
+# (BaseHTTPMiddleware rompe las escrituras async de SQLAlchemy — ver arriba.)
+class ClientIPMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            ip = None
+            # X-Forwarded-For (primer salto) si algún día hay proxy; si no, el peer directo
+            for name, value in scope.get("headers", []):
+                if name == b"x-forwarded-for":
+                    ip = value.decode("latin-1").split(",")[0].strip()
+                    break
+            if not ip and scope.get("client"):
+                ip = scope["client"][0]
+            set_client_ip(ip)
+        await self.app(scope, receive, send)
+
+
+app.add_middleware(ClientIPMiddleware)
 
 
 # ── Health Check ─────────────────────────────────────────
