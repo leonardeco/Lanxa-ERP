@@ -882,3 +882,25 @@ El E2E se cayó a la primera: agregar `SEED_ADMIN_PASSWORD` al `.env` cambió la
 ### Verificación
 
 flake8 OK · mypy 0 · **241/241 tests API** · 32/32 componentes · E2E 5/5 · pre-commit verde.
+
+---
+
+## Sesión — 6 de julio 2026 — Auditoría con IP (#32) y aviso de retenciones (#31) (Claude Opus 4.8)
+
+### Resumen
+
+Se cerraron los dos últimos hallazgos accionables de la revisión profunda (`40d84df`): la IP del request en el log de auditoría (#32) y el aviso de retenciones al convertir una cotización (#31). Tests: 241 → **242 API**.
+
+### Lo que se hizo
+
+**#32 — IP en auditoría**: `RegistroAuditoria` gana la columna `ip` (String(45), IPv4/IPv6). Un middleware ASGI **puro** (`ClientIPMiddleware`, no `BaseHTTPMiddleware` — este rompe las escrituras async de SQLAlchemy) fija la IP en un `ContextVar` (`auditoria/context.py`) al inicio de cada request; `registrar_auditoria()` la lee sin tener que pasar el `Request` por la firma de los ~18 endpoints instrumentados. La IP se toma de `X-Forwarded-For` (primer salto, por si algún día hay proxy) o del peer directo del scope. Migración `f1a2b3c4d5e6`. La columna IP se muestra en la pestaña Auditoría y va en el export CSV. 1 test (con ASGITransport el host es `testclient`, así que el test valida que el campo se pobló).
+
+**#31 — aviso de retenciones**: `handleConvertir` ahora es async; consulta el perfil del cliente y, si practica retención (fuente/IVA/ICA), el `confirm` avisa que el total de la venta será **menor** que el cotizado (las retenciones se aplican en la factura, no en la cotización). Si no se puede verificar el perfil, convierte igual sin aviso.
+
+### Verificación
+
+flake8 OK · mypy 0 · **242/242 tests API** · 32/32 componentes · E2E 5/5 · pre-commit verde.
+
+### Estado del backlog
+
+Con #31/#32 cerrados, de los hallazgos de la revisión profunda quedan solo cosas menores o dependientes de contexto: #28 purga del log de auditoría y #30 token localStorage→memoria (ambos nice-to-have, #30 ya mitigado), #25 editar cotización en Borrador, #26 logout sin guard, #27 revisar E2E del CI a mano. Lo de mayor valor sigue siendo operativo (desplegar v0.3.0 #6, backups #5) y de negocio (contadora: #1-4 → costo de venta #8).
