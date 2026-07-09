@@ -962,3 +962,32 @@ Superficie: input de usuario autenticado a dos endpoints que mutan/borran un rec
 ### Nota de proceso
 
 Pipeline Hydraia ejecutado desde una sesión lanzada en System32 (fuera del repo): la mitad interactiva (spec + plan + aprobaciones) fue normal; la ejecución se hizo con edición directa sobre rutas absolutas en vez de dispatchar subagentes `hydraia-executor`, corriendo los tests reales del repo en cada paso.
+
+## Sesión — 9 de julio 2026
+
+### Resumen
+
+Se resolvió **#28 — purga/archivado del log de auditoría** por el pipeline Hydraia (spec → plan → TDD → doble revisión → verificación). La tabla `auditoria` crecía sin límite; ahora un script programable archiva y depura los registros antiguos de forma segura y trazable.
+
+### Lo que se hizo
+
+**Purga/archivado del log de auditoría (#28)**
+
+- `backend/app/modules/auditoria/purge.py` — `purgar_auditoria(db, corte, archive_dir, encryption_key)`: selecciona los registros con `fecha < corte`, los exporta a JSON **cifrado con Fernet** en `{BACKUP_DIR}/auditoria/auditoria_purga_<fecha>.json.enc`, **verifica** el archivo (descifra y cuenta) y solo entonces ejecuta el `DELETE`. La propia purga se auto-audita (`Purgar/Auditoria`, usuario del sistema). Export-antes-de-borrar → reversible.
+- `backend/app/core/config.py` — `AUDITORIA_RETENTION_DAYS = 1825` (~5 años, cubre la firmeza fiscal DIAN; editable por `.env`). Reusa `BACKUP_ENCRYPTION_KEY` + `BACKUP_DIR`.
+- `backend/scripts/purge_auditoria.py` — wrapper CLI espejo de `backup_db.py`, para el Programador de tareas de Windows. Registra los modelos como `alembic/env.py` (si no, la relación `RegistroAuditoria→Usuario` no resuelve en un proceso standalone).
+- Si falta `BACKUP_ENCRYPTION_KEY` con registros por purgar, aborta sin borrar nada (nunca PII en claro).
+- Tests: `backend/tests/test_purge_auditoria.py` (4 async) — viejos borrados / recientes intactos, archivo cifrado descifra a los registros, caso sin registros (no crea archivo), falta de clave (aborta sin borrar).
+- Docs: `DESPLIEGUE.md` (tarea programada mensual), `PENDIENTES.md` (20ª rev.), `DOCUMENTACION.md` (item 49).
+
+### Artefactos Hydraia
+
+- Spec: `docs/hydraia/specs/2026-07-09-purga-auditoria-design.md`
+- Plan: `docs/hydraia/plans/2026-07-09-purga-auditoria.md`
+- QA: `docs/hydraia/qa/2026-07-09-purga-auditoria-cases.md`
+
+### Verificación y PR
+
+- **251 tests** pasan (247 base + 4 nuevos), **mypy** limpio en los archivos nuevos, smoke CLI OK, sin secretos ni dependencias nuevas.
+- Rama `feat/28-purga-auditoria` → **PR #9**: https://github.com/leonardeco/superozono-erp/pull/9
+- Commits: `fd5a34c` (spec) · `b9594e4` (plan+runlog) · `1078b66` (código) · `949d117` (docs+QA) · `e1f6616` (run log cierre).

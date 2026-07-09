@@ -59,6 +59,10 @@ class Settings(BaseSettings):
     BACKUP_ENCRYPTION_KEY: str = ""
     BACKUP_RETENTION_DAYS: int = 30
 
+    # Auditoría — retención antes de archivar+purgar (#28). ≈5 años cubre la
+    # firmeza fiscal DIAN. El archivo exportado se cifra con BACKUP_ENCRYPTION_KEY.
+    AUDITORIA_RETENTION_DAYS: int = 1825
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @field_validator("CORS_ORIGINS")

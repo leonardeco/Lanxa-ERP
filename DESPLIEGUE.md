@@ -93,6 +93,14 @@ pierden conexión durante la actualización).
 | Tarea | Programación | Comando |
 |---|---|---|
 | `SuperOzonoERP-BackupDB` | Diario 2:00am | `backend\venv\Scripts\python.exe backend\scripts\backup_db.py` |
+| `SuperOzonoERP-PurgaAuditoria` | Mensual (día 1, 3:00am) | `backend\venv\Scripts\python.exe backend\scripts\purge_auditoria.py` |
+
+> **Purga de auditoría (#28):** archiva y borra los registros del log de auditoría
+> anteriores a `AUDITORIA_RETENTION_DAYS` (por defecto 1825 ≈ 5 años, editable en
+> `.env`). Antes de borrar, exporta los registros **cifrados** a
+> `C:\SuperOzono-Backups\auditoria\auditoria_purga_<fecha>.json.enc` — por eso
+> **requiere `BACKUP_ENCRYPTION_KEY` definida** (si falta, aborta sin borrar nada).
+> La propia purga queda registrada en el log de auditoría.
 
 ## Contactos / referencias
 

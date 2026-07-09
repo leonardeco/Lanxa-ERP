@@ -755,6 +755,7 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | 46 | #31: aviso al convertir cotización de un cliente retenedor (el total de la venta será menor que el cotizado) | ✅ Completado 2026-07-06 |
 | 47 | #26: el logout pasa por el guard de datos sin guardar (`handleLogout` consulta `confirmarDescartar()`, igual que el cambio de módulo de #17) + test `App.test.tsx` | ✅ Completado 2026-07-06 |
 | 48 | #25: editar y eliminar cotizaciones en Borrador — `PUT`/`DELETE /cotizaciones/{id}` con guard `409` de estado, borrado real + auditoría (`Eliminar/Cotizacion`), helper `_aplicar_detalles_y_totales` compartido con create; front reutiliza el modal en modo edición + botones ✏️/🗑️. Tests: 5 API + 1 componente | ✅ Completado 2026-07-06 |
+| 49 | #28: purga/archivado del log de auditoría — `scripts/purge_auditoria.py` (wrapper CLI para Task Scheduler) + `purgar_auditoria()`; exporta cifrado (Fernet) a `{BACKUP_DIR}/auditoria/`, **verifica** el archivo y solo entonces borra los registros con `fecha < corte`. `AUDITORIA_RETENTION_DAYS=1825` (~5 años, `.env`), la purga se auto-audita (`Purgar/Auditoria`). Tests: 4 async | ✅ Completado 2026-07-09 |
 
 ### Deuda técnica / mejoras pendientes
 
