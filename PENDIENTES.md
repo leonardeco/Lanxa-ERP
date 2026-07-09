@@ -1,6 +1,6 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **9 de julio de 2026** (21ª revisión — 🚧 en progreso módulo lote+vencimiento (capa 1/4 lista); resueltos ✅ #2-parcial importador de inventario y ✅ #28 purga de auditoría). **Este archivo es la fuente única de pendientes.**
+Backlog vivo del proyecto. Actualizado: **9 de julio de 2026** (22ª revisión — 🚧 en progreso módulo lote+vencimiento (capas 1-2 de 4 listas: modelo + servicio FEFO); resueltos ✅ #2-parcial importador de inventario y ✅ #28 purga de auditoría). **Este archivo es la fuente única de pendientes.**
 Estado general: 247 tests API (95% cobertura) + 35 componentes + 5 E2E (local y CI), CI verde, 0 CVEs. Versión: **v0.3.0**.
 
 ---
@@ -41,7 +41,7 @@ Estado general: 247 tests API (95% cobertura) + 35 componentes + 5 E2E (local y 
 
 | # | Feature | Alcance (verificado 2026-07-05) |
 |---|---|---|
-| 🚧 Lotes | **Trazabilidad por lote + vencimiento** (EN PROGRESO 2026-07-09) | Módulo por capas — ✅ **Capa 1** (modelo `Lote`, flag `controla_lote`, `kardex.lote_id`, migración `a1b2c3d4e5f6`) · ⏳ Capa 2 (servicio `entrada_lote`/`consumir_fefo`) · Capa 3 (enganche compras/ventas/ajuste/importador) · Capa 4 (alertas + frontend). Opt-in por producto, **FEFO**, sin producción (MVP). Rama `feat/lotes-vencimiento` |
+| 🚧 Lotes | **Trazabilidad por lote + vencimiento** (EN PROGRESO 2026-07-09, 2/4 capas) | Módulo por capas — ✅ **Capa 1** (modelo `Lote`, flag `controla_lote`, `kardex.lote_id`, migración `a1b2c3d4e5f6`) · ✅ **Capa 2** (servicio `entrada_lote` + `consumir_fefo` con FEFO, invariante `stock_actual == Σ lotes`, 5 tests) · ⏳ **Capa 3** (enganche compras/ventas/ajuste/importador — SIGUIENTE) · Capa 4 (alertas de vencimiento + existencias por lote + UI). Opt-in por producto, **FEFO**, sin producción (MVP). Rama `feat/lotes-vencimiento` (en GitHub, sin PR aún) |
 | 18 | **RRHH y nómina** (Fase 2) | Empleados, contratos, liquidación — requiere definiciones de negocio propias |
 | 20 | Activación Alegra con facturación electrónica DIAN | ✔ La integración está construida y testeada con mocks; falta cuenta/token real y rotación documentada (SEC-002) |
 | 21 | Empaquetado Electron (Fase 4) | App de escritorio .exe |
