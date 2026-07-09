@@ -369,7 +369,7 @@ async def run_seeds():
 
     logger.info("[DB] Tablas creadas correctamente")
 
-    # Run seeders
+    # Run seeders — SIEMPRE la config esencial (estructura contable + admin)
     async with async_session() as session:
         await seed_plan_cuentas(session)
         await seed_centros_costo(session)
@@ -377,8 +377,16 @@ async def run_seeds():
         await seed_parametros_tributarios(session)
         await seed_parametros_nomina(session)
         await seed_usuarios(session)
-        await seed_productos(session)
-        await seed_clientes(session)
+
+    # Datos DEMO (productos/clientes de ejemplo) SOLO si SEED_DEMO está activo.
+    # En producción/uso real el inventario se carga con datos verdaderos (importador).
+    if settings.SEED_DEMO:
+        async with async_session() as session:
+            await seed_productos(session)
+            await seed_clientes(session)
+        logger.info("[SEED] Datos DEMO cargados (SEED_DEMO=true)")
+    else:
+        logger.info("[SEED] SEED_DEMO=false: sin productos/clientes de ejemplo")
 
     logger.info("[DONE] Carga de datos base completada exitosamente")
 
