@@ -1016,3 +1016,32 @@ Se construyó (pipeline Hydraia) el **importador de inventario inicial** (#2 par
 ### Artefactos Hydraia
 - Spec: `docs/hydraia/specs/2026-07-09-importador-inventario-design.md`
 - Plan: `docs/hydraia/plans/2026-07-09-importador-inventario.md`
+
+## Sesión — 9 de julio 2026 (cont.) — Lote + Vencimiento (Capa 1)
+
+### Resumen
+
+Arranca (pipeline Hydraia) el **módulo de trazabilidad por lote + vencimiento**, la mayor brecha funcional para productos orgánicos certificados (recalls, ICA, FEFO). Se construye por capas; esta sesión cierra la **Capa 1 (fundación)**.
+
+### Contexto de diseño
+
+Investigación previa de ERPs del sector + la web de la empresa (agro-biotech, 17 países, franquicias, fabricantes de proceso). Decisiones confirmadas con Leonardo: **opt-in por producto** (los durables no llevan lote), **FEFO automático** (primero en vencer, primero en salir), y alcance **MVP** (sin producción, que aún no existe como módulo).
+
+### Lo que se hizo (Capa 1)
+
+- `Producto.controla_lote` (flag opt-in, `false` por defecto → cero cambios para lo existente).
+- Modelo **`Lote`** (tabla `lotes`): producto, `codigo_lote`, `fecha_vencimiento`, cantidad actual/inicial, costo, origen, activo. Único por `(producto, código)`. `stock_actual` se conserva como agregado (= Σ lotes).
+- `MovimientoInventario.lote_id` → trazabilidad del lote en el kardex.
+- Migración Alembic `a1b2c3d4e5f6` (down_revision `f1a2b3c4d5e6`), **batch-safe** SQLite/Postgres. Verificada **upgrade head + downgrade -1** en BD temporal (chain completo desde base).
+- 3 tests de modelo (`test_lotes_modelo.py`). Suite completa: **262 pasan**. mypy/flake8 limpios.
+
+### Diseño completo del módulo (capas siguientes)
+
+- **Capa 2:** servicio `entrada_lote()` + `consumir_fefo()` (ordena por vencimiento, salta vencidos, un movimiento por lote) + tests de la invariante `stock_actual == Σ lotes`.
+- **Capa 3:** enganche en compras/ventas/ajuste/importador (los 7 puntos de movimiento de stock).
+- **Capa 4:** alertas (próximos a vencer/vencidos), existencias por lote, widget en Dashboard y UI.
+
+### Artefactos Hydraia
+- Spec: `docs/hydraia/specs/2026-07-09-lotes-vencimiento-design.md`
+- Plan: `docs/hydraia/plans/2026-07-09-lotes-vencimiento.md`
+- Commit Capa 1: `be14e2e`
