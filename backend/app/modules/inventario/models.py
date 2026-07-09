@@ -4,9 +4,9 @@ Kardex de movimientos de stock, generado automáticamente desde Compras y Ventas
 o registrado manualmente como ajuste.
 """
 
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
-from sqlalchemy import String, DateTime, Numeric, ForeignKey, Enum as SAEnum
+from sqlalchemy import String, DateTime, Date, Numeric, ForeignKey, Enum as SAEnum, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 from app.core.time import bogota_now, utcnow
@@ -48,6 +48,8 @@ class MovimientoInventario(Base):
     compra_detalle_id: Mapped[int | None] = mapped_column()
     venta_id: Mapped[int | None] = mapped_column(index=True)
     venta_detalle_id: Mapped[int | None] = mapped_column()
+    # Lote afectado (solo productos con controla_lote) — trazabilidad del kardex
+    lote_id: Mapped[int | None] = mapped_column(ForeignKey("lotes.id"), index=True)
 
     motivo: Mapped[str | None] = mapped_column(String(300))
     usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"))
@@ -56,3 +58,31 @@ class MovimientoInventario(Base):
     created_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow)
 
     producto = relationship("Producto")
+
+
+class Lote(Base):
+    """Un lote de un producto con control de vencimiento (controla_lote=True).
+
+    El stock del producto (stock_actual) es el agregado = Σ cantidad_actual de sus
+    lotes activos. Las salidas consumen por FEFO (vencimiento más próximo primero).
+    """
+    __tablename__ = "lotes"
+    __table_args__ = (
+        UniqueConstraint("producto_id", "codigo_lote", name="uq_lote_producto_codigo"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    producto_id: Mapped[int] = mapped_column(ForeignKey("productos.id"), index=True)
+    codigo_lote: Mapped[str] = mapped_column(String(60))
+    fecha_vencimiento: Mapped[date | None] = mapped_column(Date, index=True)
+    cantidad_actual: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=Decimal("0"))
+    cantidad_inicial: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=Decimal("0"))
+    costo_unitario: Mapped[Decimal | None] = mapped_column(Numeric(18, 2))
+    origen: Mapped[str | None] = mapped_column(String(40))  # Compra / Importación / Ajuste
+    fecha_ingreso: Mapped[datetime] = mapped_column(DateTime, default=bogota_now)
+    activo: Mapped[bool] = mapped_column(default=True)
+
+    producto = relationship("Producto")
+
+    def __repr__(self):
+        return f"<Lote {self.codigo_lote} prod#{self.producto_id} x{self.cantidad_actual}>"
