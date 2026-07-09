@@ -28,6 +28,7 @@ async def registrar_movimiento(
     venta_id: Optional[int] = None,
     venta_detalle_id: Optional[int] = None,
     costo_unitario: Optional[Decimal] = None,
+    lote_id: Optional[int] = None,
 ) -> MovimientoInventario:
     """
     Registra un movimiento de inventario y actualiza Producto.stock_actual.
@@ -56,6 +57,7 @@ async def registrar_movimiento(
         compra_detalle_id=compra_detalle_id,
         venta_id=venta_id,
         venta_detalle_id=venta_detalle_id,
+        lote_id=lote_id,
         motivo=motivo,
         usuario_id=usuario_id,
     )

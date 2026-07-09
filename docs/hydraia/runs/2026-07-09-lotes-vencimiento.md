@@ -17,9 +17,13 @@
 
 ## Progreso por capas
 - [x] Capa 1 — modelo + migración + flag + tests (3 tests, mypy/flake8 limpios, migración up/down verificada)
-- [ ] Capa 2 — servicio de lotes (entrada + FEFO)
+- [x] Capa 2 — servicio de lotes (`entrada_lote` + `consumir_fefo`), 5 tests (FEFO, salta vencidos, insuficiente, invariante)
 - [ ] Capa 3 — enganche compras/ventas/ajuste/importador
 - [ ] Capa 4 — alertas + frontend
+
+## Capa 2 — resultado
+- `registrar_movimiento` acepta `lote_id` (aditivo, backward-compat).
+- `inventario/lotes.py`: `entrada_lote()` (crea/incrementa lote + kardex) y `consumir_fefo()` (ordena por vencimiento nulls-last, salta vencidos, un movimiento por lote, LoteError si falta stock no vencido). Invariante `stock_actual == Σ lotes` verificada en tests. Sin commit (caller controla la transacción).
 
 ## Capa 1 — resultado
 - `Producto.controla_lote` (default false), modelo `Lote` (tabla `lotes`, único por producto+código), `MovimientoInventario.lote_id`.
