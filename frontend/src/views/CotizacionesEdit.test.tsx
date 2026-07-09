@@ -3,8 +3,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const { updateSpy, createSpy } = vi.hoisted(() => ({
-  updateSpy: vi.fn(() => Promise.resolve({ data: {} })),
-  createSpy: vi.fn(() => Promise.resolve({ data: {} })),
+  updateSpy: vi.fn<(id: number, payload?: unknown) => Promise<{ data: unknown }>>(() => Promise.resolve({ data: {} })),
+  createSpy: vi.fn<(payload?: unknown) => Promise<{ data: unknown }>>(() => Promise.resolve({ data: {} })),
 }));
 
 vi.mock('../services/ventasApi', () => ({

@@ -56,7 +56,11 @@ jobs:
       - name: pip-audit
         run: |
           pip install pip-audit
-          pip-audit -r requirements.txt --desc off
+          # PYSEC-2026-1325 (ecdsa 0.19.2): side-channel en firma ECDSA. Inalcanzable
+          # aqui: los JWT se firman con HS256 (HMAC) y python-jose usa el backend
+          # cryptography; ecdsa solo se importa para algoritmos ES*. Sin version con
+          # fix (0.19.2 es la ultima). Se ignora ese advisory con justificacion.
+          pip-audit -r requirements.txt --desc off --ignore-vuln PYSEC-2026-1325
 
   frontend:
     name: Frontend — lint, tipos y build
