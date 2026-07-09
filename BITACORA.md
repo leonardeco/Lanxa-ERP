@@ -991,3 +991,28 @@ Se resolvió **#28 — purga/archivado del log de auditoría** por el pipeline H
 - **251 tests** pasan (247 base + 4 nuevos), **mypy** limpio en los archivos nuevos, smoke CLI OK, sin secretos ni dependencias nuevas.
 - Rama `feat/28-purga-auditoria` → **PR #9**: https://github.com/leonardeco/superozono-erp/pull/9
 - Commits: `fd5a34c` (spec) · `b9594e4` (plan+runlog) · `1078b66` (código) · `949d117` (docs+QA) · `e1f6616` (run log cierre).
+
+## Sesión — 9 de julio 2026 (cont.) — Importador de inventario
+
+### Resumen
+
+Se construyó (pipeline Hydraia) el **importador de inventario inicial** (#2 parcial): la auxiliar llena una plantilla `.xlsx` en blanco y la Administradora la sube, valida y carga.
+
+### Lo que se hizo
+
+**Backend** (`app/modules/inventario/importador.py`)
+- `EXPECTED_HEADERS` como fuente única de columnas. `generar_plantilla()` produce el `.xlsx` (hoja Inventario con desplegables categoría/unidad/IVA + hoja Instrucciones) — la plantilla no puede desincronizarse del importador.
+- `validar(bytes, db)` valida fila por fila: requeridos, enums, números ≥0, IVA∈{19,5,0}, SKU único-en-archivo y **no existente en BD**, `centro_costo_codigo` que exista. Devuelve filas OK + errores (fila/columna/mensaje) sin escribir nada.
+- `importar(db, filas, usuario)`: crea cada `Producto` (stock 0) + `registrar_movimiento(ENTRADA, AJUSTE_MANUAL, "Inventario inicial (importación)")` → kardex veraz, + auditoría. **Atómico** (un commit).
+- Endpoints `GET /api/v1/inventario/plantilla` y `POST /api/v1/inventario/importar` (`commit=false` previsualiza / `commit=true` importa si 0 errores, si no `422`). Admin/Administradora.
+- Dependencias nuevas: `openpyxl` + `types-openpyxl`.
+
+**Frontend** (`InventarioView.tsx`): pestaña **Importar** — Descargar plantilla, elegir `.xlsx`, Validar (muestra N válidas / tabla de errores), Confirmar importación. `inventarioApi` gana `descargarPlantilla/validarImport/confirmarImport`.
+
+**Fuera de alcance:** el asiento de apertura contable (bloqueado por #3 método de costeo).
+
+**Calidad:** 8 tests (unit + endpoints), mypy limpio (49 archivos), flake8/lint/tsc/build verdes.
+
+### Artefactos Hydraia
+- Spec: `docs/hydraia/specs/2026-07-09-importador-inventario-design.md`
+- Plan: `docs/hydraia/plans/2026-07-09-importador-inventario.md`

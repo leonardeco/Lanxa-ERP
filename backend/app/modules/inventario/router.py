@@ -2,7 +2,7 @@ from decimal import Decimal
 from datetime import date
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Response
 from sqlalchemy import select, func, extract, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,9 +10,11 @@ from app.core.database import get_db
 from app.api.deps import CurrentUser, AdminOrAdministradoraDep
 from app.modules.ventas.models import Producto
 
+from . import importador
 from .models import MovimientoInventario, TipoMovimientoInventario, OrigenMovimiento
 from .schemas import (
     MovimientoResponse, AjusteInventarioInput, InventarioDashboard, TopProductoValor,
+    ErrorFilaImport, PreviewImport, ResumenImport,
 )
 from .service import registrar_movimiento
 
@@ -171,3 +173,59 @@ async def crear_ajuste(
     await session.commit()
     await session.refresh(mov)
     return _to_response(mov, producto.nombre, producto.sku)
+
+
+# ══════════════════════════════════════════════════════════
+# IMPORTADOR DE INVENTARIO INICIAL (#2)
+# ══════════════════════════════════════════════════════════
+
+_XLSX_MEDIA = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+@router.get("/plantilla")
+async def descargar_plantilla(_: AdminOrAdministradoraDep):
+    """Descarga la plantilla .xlsx en blanco para cargar el inventario inicial."""
+    contenido = importador.generar_plantilla()
+    return Response(
+        content=contenido,
+        media_type=_XLSX_MEDIA,
+        headers={"Content-Disposition": 'attachment; filename="plantilla-inventario-inicial.xlsx"'},
+    )
+
+
+@router.post("/importar")
+async def importar_inventario(
+    current: AdminOrAdministradoraDep,
+    archivo: UploadFile = File(...),
+    commit: bool = Query(False, description="false: solo previsualiza; true: importa si no hay errores"),
+    session: AsyncSession = Depends(get_db),
+):
+    """Valida el .xlsx y (con commit=true y cero errores) crea los productos con su
+    stock inicial. Todo o nada — con errores no se escribe nada."""
+    contenido = await archivo.read()
+    if len(contenido) > 5_000_000:  # ~5 MB: una plantilla real pesa pocos KB
+        raise HTTPException(status_code=400, detail="El archivo es demasiado grande (máx. 5 MB).")
+    try:
+        resultado = await importador.validar(contenido, session)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    errores = [ErrorFilaImport(fila=e.fila, columna=e.columna, mensaje=e.mensaje)
+               for e in resultado.errores]
+
+    if not commit:
+        return PreviewImport(
+            total_filas=resultado.total_filas,
+            validas=len(resultado.filas_ok),
+            errores=errores,
+        )
+
+    if errores:
+        raise HTTPException(
+            status_code=422,
+            detail={"mensaje": "El archivo tiene errores; no se importó nada.",
+                    "errores": [e.model_dump() for e in errores]},
+        )
+
+    resumen = await importador.importar(session, resultado.filas_ok, current)
+    return ResumenImport(importados=resumen["creados"])

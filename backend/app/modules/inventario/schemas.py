@@ -48,3 +48,19 @@ class InventarioDashboard(BaseModel):
     productos_stock_bajo: int
     movimientos_mes: int
     top_productos_por_valor: List[TopProductoValor]
+
+
+class ErrorFilaImport(BaseModel):
+    fila: int
+    columna: str
+    mensaje: str
+
+
+class PreviewImport(BaseModel):
+    total_filas: int
+    validas: int
+    errores: List[ErrorFilaImport]
+
+
+class ResumenImport(BaseModel):
+    importados: int

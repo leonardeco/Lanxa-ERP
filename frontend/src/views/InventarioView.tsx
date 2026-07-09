@@ -3,13 +3,14 @@ import {
   inventarioApi,
   type MovimientoInventario,
   type InventarioDashboard,
+  type PreviewImport,
 } from '../services/inventarioApi';
 import { ventasApi, type Producto } from '../services/ventasApi';
 import { useAuth } from '../contexts/auth';
 import Toast from '../components/Toast';
 import ErrorState from '../components/ErrorState';
 
-type InventarioTab = 'dashboard' | 'productos' | 'movimientos' | 'ajuste';
+type InventarioTab = 'dashboard' | 'productos' | 'movimientos' | 'ajuste' | 'importar';
 
 const COP = (n: number | string) =>
   Number(n).toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -350,6 +351,139 @@ function AjusteTab({ onToast, onSaved }: { onToast: (msg: string, type: 'success
 }
 
 // ══════════════════════════════════════════════════════════
+// IMPORTAR INVENTARIO INICIAL TAB
+// ══════════════════════════════════════════════════════════
+
+function ImportarTab({ onToast, onSaved }: { onToast: (msg: string, type: 'success' | 'error') => void; onSaved: () => void }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<PreviewImport | null>(null);
+  const [validando, setValidando] = useState(false);
+  const [importando, setImportando] = useState(false);
+
+  const descargar = async () => {
+    try {
+      const res = await inventarioApi.descargarPlantilla();
+      const url = URL.createObjectURL(res.data as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'plantilla-inventario-inicial.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      onToast('No se pudo descargar la plantilla', 'error');
+    }
+  };
+
+  const onPick = (f: File | null) => {
+    setFile(f);
+    setPreview(null);
+  };
+
+  const validar = async () => {
+    if (!file) return;
+    setValidando(true);
+    try {
+      const res = await inventarioApi.validarImport(file);
+      setPreview(res.data);
+    } catch {
+      onToast('No se pudo leer el archivo. Usa la plantilla .xlsx.', 'error');
+      setPreview(null);
+    } finally {
+      setValidando(false);
+    }
+  };
+
+  const confirmar = async () => {
+    if (!file) return;
+    setImportando(true);
+    try {
+      const res = await inventarioApi.confirmarImport(file);
+      onToast(`Importados ${res.data.importados} productos`, 'success');
+      setFile(null);
+      setPreview(null);
+      onSaved();
+    } catch {
+      onToast('No se pudo completar la importación', 'error');
+    } finally {
+      setImportando(false);
+    }
+  };
+
+  return (
+    <div className="fade-in">
+      <div className="table-card" style={{ maxWidth: 820 }}>
+        <div className="table-card-header">
+          <h3>Importar Inventario Inicial</h3>
+          <button className="btn-primary" onClick={descargar}>⬇️ Descargar plantilla</button>
+        </div>
+        <div style={{ padding: '0 20px 20px' }}>
+          <p style={{ fontSize: 13, color: '#666', marginTop: 0 }}>
+            Descarga la plantilla, llénala con los productos reales y súbela aquí. Primero se
+            valida (sin guardar nada); si no hay errores podrás confirmar la importación.
+          </p>
+          <div className="form-group">
+            <label>Archivo .xlsx</label>
+            <input
+              className="form-input"
+              type="file"
+              accept=".xlsx"
+              onChange={e => onPick(e.target.files?.[0] ?? null)}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn-primary" onClick={validar} disabled={!file || validando}>
+              {validando ? 'Validando...' : '🔍 Validar'}
+            </button>
+            {preview && preview.errores.length === 0 && preview.validas > 0 && (
+              <button
+                className="btn-primary"
+                onClick={confirmar}
+                disabled={importando}
+                style={{ background: '#16a34a' }}
+              >
+                {importando ? 'Importando...' : `✅ Confirmar importación (${preview.validas})`}
+              </button>
+            )}
+          </div>
+
+          {preview && (
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 13, marginBottom: 8 }}>
+                Filas: <strong>{preview.total_filas}</strong> · Válidas:{' '}
+                <strong style={{ color: '#16a34a' }}>{preview.validas}</strong> · Errores:{' '}
+                <strong style={{ color: preview.errores.length ? '#dc2626' : '#16a34a' }}>
+                  {preview.errores.length}
+                </strong>
+              </div>
+              {preview.errores.length === 0 ? (
+                <div style={{ color: '#16a34a', fontSize: 13 }}>
+                  ✅ Sin errores. Puedes confirmar la importación.
+                </div>
+              ) : (
+                <table className="erp-table">
+                  <thead>
+                    <tr><th>Fila</th><th>Columna</th><th>Error</th></tr>
+                  </thead>
+                  <tbody>
+                    {preview.errores.map((e, i) => (
+                      <tr key={i}>
+                        <td>{e.fila}</td>
+                        <td style={{ fontFamily: 'monospace', fontSize: 11 }}>{e.columna}</td>
+                        <td style={{ color: '#dc2626' }}>{e.mensaje}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ══════════════════════════════════════════════════════════
 
@@ -369,7 +503,10 @@ export default function InventarioView() {
     { id: 'dashboard', label: '📊 Dashboard' },
     { id: 'productos', label: '📦 Productos' },
     { id: 'movimientos', label: '📋 Movimientos' },
-    ...(puedeAjustar ? [{ id: 'ajuste' as InventarioTab, label: '+ Ajuste Manual' }] : []),
+    ...(puedeAjustar ? [
+      { id: 'ajuste' as InventarioTab, label: '+ Ajuste Manual' },
+      { id: 'importar' as InventarioTab, label: '📥 Importar' },
+    ] : []),
   ];
 
   return (
@@ -393,6 +530,9 @@ export default function InventarioView() {
       {tab === 'movimientos' && <MovimientosTab key={`mov-${refreshKey}`} />}
       {tab === 'ajuste' && puedeAjustar && (
         <AjusteTab onToast={showToast} onSaved={() => setRefreshKey(k => k + 1)} />
+      )}
+      {tab === 'importar' && puedeAjustar && (
+        <ImportarTab onToast={showToast} onSaved={() => setRefreshKey(k => k + 1)} />
       )}
     </div>
   );
