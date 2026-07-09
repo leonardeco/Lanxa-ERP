@@ -1,6 +1,6 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **6 de julio de 2026** (19ª revisión — resuelto ✅ #25 editar/eliminar cotizaciones en Borrador; en la 18ª se cerró #26 el logout pasa por el guard de datos sin guardar). **Este archivo es la fuente única de pendientes.**
+Backlog vivo del proyecto. Actualizado: **9 de julio de 2026** (20ª revisión — resuelto ✅ #28 purga/archivado del log de auditoría (script `purge_auditoria.py`); en la 19ª se cerró #25 editar/eliminar cotizaciones en Borrador). **Este archivo es la fuente única de pendientes.**
 Estado general: 247 tests API (95% cobertura) + 35 componentes + 5 E2E (local y CI), CI verde, 0 CVEs. Versión: **v0.3.0**.
 
 ---
@@ -59,7 +59,6 @@ Estado general: 247 tests API (95% cobertura) + 35 componentes + 5 E2E (local y 
 
 - Seeder de datos demo (50 clientes, 200 ventas) para probar rendimiento de UI
 - Tests de los utilitarios de impresión (`printFactura.ts`, `printCotizacion.ts`, etc.)
-- **28 — Purga/archivado del log de auditoría** (nuevo 2026-07-05): la tabla `auditoria` crece sin límite; definir retención (p. ej. exportar y depurar > 2 años) cuando haya volumen real
 - **30 — Access token de `localStorage` a memoria** (revisión de seguridad 2026-07-05): un XSS podría leerlo; ya está mitigado (vida 15 min + refresh en cookie HttpOnly, ver REPORTE_SEGURIDAD) — reevaluar si el ERP sale de la LAN
 - `APP_VERSION` se mantiene manual en `config.py` — recordar alinearla con el tag en cada release (v0.3.0 ✔)
 - Política de contraseñas (complejidad/expiración) — hoy solo mínimo 8 caracteres; aceptable en LAN
