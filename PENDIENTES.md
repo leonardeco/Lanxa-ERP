@@ -1,6 +1,6 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **9 de julio de 2026** (22ª revisión — 🚧 en progreso módulo lote+vencimiento (capas 1-2 de 4 listas: modelo + servicio FEFO); resueltos ✅ #2-parcial importador de inventario y ✅ #28 purga de auditoría). **Este archivo es la fuente única de pendientes.**
+Backlog vivo del proyecto. Actualizado: **9 de julio de 2026** (23ª revisión — nuevo 🗺️ **Roadmap estratégico enero 2027** (propuesto, del análisis de ERPs); 🚧 módulo lote+vencimiento (capas 1-2 de 4); resueltos ✅ #2-parcial importador y ✅ #28 purga). **Este archivo es la fuente única de pendientes.**
 Estado general: 247 tests API (95% cobertura) + 35 componentes + 5 E2E (local y CI), CI verde, 0 CVEs. Versión: **v0.3.0**.
 
 ---
@@ -65,6 +65,34 @@ Estado general: 247 tests API (95% cobertura) + 35 componentes + 5 E2E (local y 
 - Política de contraseñas (complejidad/expiración) — hoy solo mínimo 8 caracteres; aceptable en LAN
 - Blacklist de JTI en Redis para revocación inmediata de access tokens — innecesario con vida de 15 min; además desde v0.3.0 el Admin puede revocar los refresh tokens (14c)
 - **ecdsa / PYSEC-2026-1325** (2026-07-09): la CVE se **ignora en CI** con justificación (inalcanzable — los JWT usan HS256 + backend `cryptography`; `ecdsa` es dep transitiva de `python-jose` que solo se importa para algoritmos ES*, y no hay versión con fix). Evaluar migrar `python-jose` → `PyJWT` para eliminar la dependencia `ecdsa` por completo.
+- **Limpieza (2026-07-09):** `docs/plantillas/plantilla-inventario-inicial.xlsx` quedó redundante (el endpoint `GET /inventario/plantilla` la genera en código) — borrar del working copy.
+- **Limpieza (2026-07-09):** `backend/superozono.db.bak-20260709-150255` — backup local del reset de demo; borrar cuando ya no se necesite.
+- **Importador con lote/vencimiento (2026-07-09):** cuando avance el módulo de lotes (Capa 3), extender la plantilla/importador con columnas `codigo_lote` y `fecha_vencimiento` para los productos con `controla_lote`.
+
+---
+
+## 🗺️ Roadmap estratégico enero 2027 (propuesto — investigación 2026-07-09, por confirmar)
+
+Ítems del análisis de ERPs del sector + la web de la empresa (agro-biotech, 17 países, franquicias, fabricante de proceso). **No son decisiones cerradas** — candidatos priorizados para el despliegue de enero 2027.
+
+**Cumplimiento Colombia (obligatorio para operar legal):**
+- **Facturación electrónica DIAN — activar (amplía #20):** cuenta/token Alegra real + **resolución de numeración autorizada** + validaciones de la normativa 2026 (Res. 000227/2025 y 000202/2025). **Bloqueante del lanzamiento legal.**
+- **Nómina electrónica DIAN:** documento soporte con CUNE, transmisión en los 10 días hábiles del mes siguiente (si hay empleados en nómina).
+- **Documento soporte** en adquisiciones a no obligados a facturar.
+- **Exógena / medios magnéticos DIAN.**
+
+**Negocio específico (agro / proceso / multi-país):**
+- **Producción por fórmula/lote (process manufacturing):** BOM/receta, orden de producción, consumo de insumos → lote de producto terminado. Complementa el módulo de lotes en curso.
+- **Multi-moneda / multi-país:** hoy asume COP; el negocio opera en 17 países.
+- **Portal/red de distribuidores + comisiones (MLM)** y **ecommerce + pasarela de pago (Stripe LATAM)** — proyectos del roadmap del ecosistema.
+
+**Estándar de ERP (eficiencia/escala):**
+- **CRM ligero** (leads/asesores, pipeline B2B).
+- **Reórdenes automáticas:** sugerencia de orden de compra cuando `stock ≤ stock_minimo`.
+- **Costeo promedio ponderado** (ver #3).
+
+**Decisión de arquitectura (para hablar antes de escalar):**
+- **LAN vs cloud/web:** el negocio multi-país + ecommerce + franquicias podría necesitar acceso remoto; hoy es LAN (5 PCs). Decidir antes de conectar ecommerce/red. (Relacionado: #21a staging, #5 backups offsite, #21b multi-bodega.)
 
 ---
 
