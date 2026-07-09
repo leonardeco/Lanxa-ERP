@@ -82,6 +82,9 @@ class Producto(Base):
     stock_actual: Mapped[Decimal] = mapped_column(
         Numeric(12, 3), default=Decimal("0"))  # admite cantidades fraccionarias (litros/galones)
     stock_minimo: Mapped[int] = mapped_column(default=5)
+    # Trazabilidad por lote + vencimiento (opt-in). Los perecederos/orgánicos lo
+    # activan; los durables (generadores) siguen con stock simple.
+    controla_lote: Mapped[bool] = mapped_column(default=False)
     activo: Mapped[bool] = mapped_column(default=True)
     alegra_id: Mapped[int | None] = mapped_column(index=True)
     registro_ica: Mapped[str | None] = mapped_column(String(50))  # Registro ICA (para biocidas)
