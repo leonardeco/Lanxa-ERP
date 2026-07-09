@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     SEED_ADMIN_EMAIL: str = "admin@superozonoglobal.com"
     SEED_ADMIN_PASSWORD: str = _DEFAULT_SEED_ADMIN_PASSWORD
 
+    # Datos DEMO (productos/clientes de ejemplo). En blanco por defecto: solo se
+    # siembra la config esencial (PUC, parámetros, admin). Poner true SOLO en un
+    # entorno de demostración; en producción/uso real déjalo en false.
+    SEED_DEMO: bool = False
+
     # Empresa
     EMPRESA_NIT: str = "901841798-5"
     EMPRESA_RAZON_SOCIAL: str = "TECNOLOGIA E INNOVACION SUPER OZONO S.A.S."
