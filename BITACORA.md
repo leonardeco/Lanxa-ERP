@@ -1045,3 +1045,24 @@ Investigación previa de ERPs del sector + la web de la empresa (agro-biotech, 1
 - Spec: `docs/hydraia/specs/2026-07-09-lotes-vencimiento-design.md`
 - Plan: `docs/hydraia/plans/2026-07-09-lotes-vencimiento.md`
 - Commit Capa 1: `be14e2e`
+
+## Sesión — 9 de julio 2026 (cont.) — Lote + Vencimiento (Capa 2)
+
+### Resumen
+
+Segunda capa del módulo de lote+vencimiento: el **servicio de dominio** (entrada con lote + consumo FEFO), con la invariante de stock verificada.
+
+### Lo que se hizo (Capa 2)
+
+- `registrar_movimiento` acepta `lote_id` (cambio aditivo, backward-compatible: los llamadores existentes pasan `None`).
+- **`inventario/lotes.py`**:
+  - `entrada_lote()` — crea o incrementa el lote (por `codigo_lote`), sube `stock_actual` y registra el movimiento de kardex con `lote_id`.
+  - `consumir_fefo()` — descuenta la cantidad ordenando por vencimiento (los sin fecha van al final), **salta los lotes vencidos**, genera un movimiento por cada lote tocado, y lanza `LoteError` si no hay stock **no vencido** suficiente.
+  - Ambas sin commit (el caller controla la transacción). Mantienen `stock_actual == Σ lotes.cantidad_actual`.
+- 5 tests de servicio (`test_lotes_servicio.py`): entrada crea/incrementa, FEFO consume el que vence antes, salta vencidos, insuficiente lanza, e invariante de stock. Suite completa: **267 pasan**. mypy/flake8 limpios.
+
+### Pendiente del módulo
+- **Capa 3:** enganchar los 7 puntos de movimiento (compras/ventas/ajuste/importador) para que los productos con `controla_lote` pasen por el servicio de lotes.
+- **Capa 4:** alertas de vencimiento, existencias por lote, widget de Dashboard y UI.
+
+### Commit Capa 2: `(feat capa 2 lote+vencimiento)`

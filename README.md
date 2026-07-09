@@ -36,7 +36,8 @@ Sistema de gestión empresarial (ERP) desarrollado a medida para **TECNOLOGÍA E
 | **Compras & Proveedores** | ✅ Producción | CRUD proveedores, documentos de compra con retenciones, confirmación/anulación, impresión PDF |
 | **Cartera CxC & CxP** | ✅ Producción | Abonos con comprobante numerado (RC-/CE-), **anulación de abonos con reverso contable**, aging automático, CxP automática al confirmar compras |
 | **Devoluciones** | ✅ Producción | Nota crédito NC- (ventas, con modal) y devolución a proveedor ND- (API): reverso parcial de inventario, cartera y contabilidad con tope acumulado por línea |
-| **Inventario** | ✅ Producción | Kardex de movimientos (Entrada/Salida/Ajuste), entradas automáticas al confirmar compra, salidas automáticas al confirmar venta, reversa al anular, dashboard de valorización |
+| **Inventario** | ✅ Producción | Kardex de movimientos (Entrada/Salida/Ajuste), entradas automáticas al confirmar compra, salidas automáticas al confirmar venta, reversa al anular, dashboard de valorización, **importador de inventario inicial (.xlsx)** |
+| **Lote & Vencimiento** | 🚧 En progreso | Trazabilidad por lote con fecha de vencimiento (opt-in por producto), consumo **FEFO** (primero en vencer, primero en salir) y alertas de vencimiento. Capas 1-2 (modelo + servicio) listas; enganche en compras/ventas e interfaz en curso |
 | **Usuarios** | ✅ Producción | CRUD de usuarios, gestión de roles, cambio de contraseña |
 | **Alegra** | ✅ Construido | Integración con API de Alegra para facturación electrónica DIAN Colombia |
 | **RRHH & Nómina** | 🔄 Fase 2 | Empleados, contratos, liquidación mensual |
@@ -446,6 +447,8 @@ docker-compose up -d
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | No | Expiración del access token en minutos (default: 15) |
 | `CORS_ORIGINS` | No | Orígenes permitidos separados por coma (default: `http://localhost:5173,http://127.0.0.1:5173`). **En producción nunca usar `*`** — listar explícitamente los orígenes reales |
 | `DEBUG` | No | `true` en desarrollo, `false` en producción |
+| `SEED_DEMO` | No | `false` (default): el arranque siembra solo la config esencial (PUC, parámetros, admin). `true`: además productos/clientes de ejemplo — solo para demos |
+| `AUDITORIA_RETENTION_DAYS` | No | Días a conservar en el log de auditoría antes de archivar+purgar con `scripts/purge_auditoria.py` (default 1825 ≈ 5 años) |
 | `ALEGRA_EMAIL` | Alegra | Email de la cuenta Alegra |
 | `ALEGRA_TOKEN` | Alegra | Token API de Alegra (`Configuración → API`) |
 
