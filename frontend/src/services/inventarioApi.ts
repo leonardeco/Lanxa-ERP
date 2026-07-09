@@ -49,6 +49,22 @@ export interface AjusteInventarioInput {
   motivo?: string;
 }
 
+export interface ErrorFilaImport {
+  fila: number;
+  columna: string;
+  mensaje: string;
+}
+
+export interface PreviewImport {
+  total_filas: number;
+  validas: number;
+  errores: ErrorFilaImport[];
+}
+
+export interface ResumenImport {
+  importados: number;
+}
+
 export const inventarioApi = {
   getDashboard: () => api.get<InventarioDashboard>(`${BASE}/dashboard`),
 
@@ -60,4 +76,25 @@ export const inventarioApi = {
 
   crearAjuste: (data: AjusteInventarioInput) =>
     api.post<MovimientoInventario>(`${BASE}/ajustes`, data),
+
+  descargarPlantilla: () =>
+    api.get(`${BASE}/plantilla`, { responseType: 'blob' }),
+
+  validarImport: (file: File) => {
+    const fd = new FormData();
+    fd.append('archivo', file);
+    return api.post<PreviewImport>(`${BASE}/importar`, fd, {
+      params: { commit: false },
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  confirmarImport: (file: File) => {
+    const fd = new FormData();
+    fd.append('archivo', file);
+    return api.post<ResumenImport>(`${BASE}/importar`, fd, {
+      params: { commit: true },
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };

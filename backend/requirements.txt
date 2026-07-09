@@ -25,6 +25,9 @@ cryptography==49.0.0
 # ── Logging ──────────────────────────────────────────────
 structlog==26.1.0
 
+# ── Excel (importador de inventario) ─────────────────────
+openpyxl==3.1.5
+
 # ── CORS & Utils ─────────────────────────────────────────
 httpx==0.28.1
 tzdata==2026.2  # base IANA para ZoneInfo(America/Bogota) — Windows no la trae

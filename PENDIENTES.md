@@ -10,7 +10,7 @@ Estado general: 247 tests API (95% cobertura) + 35 componentes + 5 E2E (local y 
 | # | Pendiente | Quién | Notas (verificado 2026-07-05) |
 |---|---|---|---|
 | 1 | **Validar el mapeo PUC** del motor contable | Contadora | ✔ Documento listo: [`MAPEO-PUC-PARA-CONTADOR.md`](./MAPEO-PUC-PARA-CONTADOR.md) — tiene las preguntas concretas (4135 vs 4120, Caja vs Bancos, compras de gasto) |
-| 2 | **Datos maestros reales**: PUC definitivo, inventario inicial, saldos de apertura | Contadora + empresa | ✔ Las tablas ya existen (`SaldoInicial`, seeds); solo falta la información |
+| 2 | **Datos maestros reales**: PUC definitivo, inventario inicial, saldos de apertura | Contadora + empresa | ✔ Las tablas ya existen (`SaldoInicial`, seeds). **Importador de inventario LISTO (2026-07-09)**: plantilla `.xlsx` + validación fila-por-fila + carga atómica con entrada en el kardex (Inventario → Importar). Solo falta cargar la información real. El **asiento de apertura** contable sigue pendiente (depende de #3) |
 | 3 | Definir **método de costeo** (promedio ponderado recomendado con el kardex actual) | Contadora | ✔ Prerequisito del ítem 8 (asiento de costo de venta) |
 | 4 | Confirmar **`UVT_VALOR` 2026** y activar flags `retiene_*` en clientes retenedores | Contadora | ✔ Verificado: sigue el placeholder 49799 en `config.py`; afecta el umbral de retefuente en ventas |
 

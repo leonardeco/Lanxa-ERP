@@ -43,3 +43,8 @@ backend/.env.*.local
 # OS
 .DS_Store
 Thumbs.db
+
+# Hydraia markers transitorios
+docs/hydraia/.run-complete
+docs/hydraia/.active-plan
+docs/hydraia/.heartbeats/
