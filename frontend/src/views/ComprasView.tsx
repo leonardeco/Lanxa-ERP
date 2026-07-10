@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import {
   comprasApi,
   type Proveedor,
@@ -727,6 +727,13 @@ function NuevaCompraTab({
     if (detalles.length === 0 || detalles.some(d => !d.descripcion || !Number(d.precio_unitario))) {
       onToast('Completa todos los ítems (descripción y precio)', 'error'); return;
     }
+    const faltaLote = detalles.find(d => {
+      const p = productos.find(pr => pr.id === d.producto_id);
+      return p?.controla_lote && !(d.codigo_lote && d.codigo_lote.trim());
+    });
+    if (faltaLote) {
+      onToast('Los productos con control de lote requieren código de lote en su línea', 'error'); return;
+    }
     setSaving(true);
     try {
       await comprasApi.createCompra({
@@ -804,8 +811,11 @@ function NuevaCompraTab({
                   const desc = base * (Number(d.descuento_porcentaje) / 100);
                   const iva = (base - desc) * (Number(d.iva_porcentaje) / 100);
                   const total = base - desc + iva;
+                  const prodLinea = productos.find(p => p.id === d.producto_id);
+                  const conLote = !!prodLinea?.controla_lote;
                   return (
-                    <tr key={i}>
+                    <Fragment key={i}>
+                    <tr>
                       <td>
                         <select
                           className="form-select" style={{ margin: 0, fontSize: 11 }}
@@ -866,6 +876,29 @@ function NuevaCompraTab({
                         )}
                       </td>
                     </tr>
+                    {conLote && (
+                      <tr>
+                        <td colSpan={8} style={{ background: '#fffbeb', padding: '6px 10px' }}>
+                          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 11, color: '#b45309', fontWeight: 600 }}>🏷️ Lote (obligatorio):</span>
+                            <input
+                              className="form-input" style={{ margin: 0, fontSize: 11, width: 160 }}
+                              value={d.codigo_lote ?? ''}
+                              onChange={e => setDetalle(i, 'codigo_lote', e.target.value)}
+                              placeholder="Código de lote"
+                            />
+                            <span style={{ fontSize: 11, color: '#666' }}>Vence:</span>
+                            <input
+                              className="form-input" style={{ margin: 0, fontSize: 11, width: 150 }}
+                              type="date"
+                              value={d.fecha_vencimiento ?? ''}
+                              onChange={e => setDetalle(i, 'fecha_vencimiento', e.target.value)}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
               </tbody>

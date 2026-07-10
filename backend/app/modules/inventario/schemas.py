@@ -51,6 +51,30 @@ class InventarioDashboard(BaseModel):
     productos_stock_bajo: int
     movimientos_mes: int
     top_productos_por_valor: List[TopProductoValor]
+    lotes_por_vencer: int = 0
+    lotes_vencidos: int = 0
+
+
+class LoteResponse(BaseModel):
+    id: int
+    producto_id: int
+    producto_nombre: Optional[str] = None
+    producto_sku: Optional[str] = None
+    codigo_lote: str
+    fecha_vencimiento: Optional[date] = None
+    cantidad_actual: Decimal
+    costo_unitario: Optional[Decimal] = None
+    origen: Optional[str] = None
+    activo: bool
+    # Derivado: vigente / por_vencer / vencido / sin_vencimiento
+    estado: str
+    dias_para_vencer: Optional[int] = None
+
+    model_config = {"from_attributes": True}
+
+    @field_serializer("cantidad_actual")
+    def _serialize_cantidad(self, v: Decimal) -> float:
+        return float(v)
 
 
 class ErrorFilaImport(BaseModel):

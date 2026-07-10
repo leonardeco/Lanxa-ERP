@@ -1109,3 +1109,40 @@ lo tienen se comportan exactamente igual que antes (sin regresión).
 ### Artefactos Hydraia
 - Spec: `docs/hydraia/specs/2026-07-09-lotes-vencimiento-design.md`
 - Plan: `docs/hydraia/plans/2026-07-09-lotes-vencimiento.md`
+
+## Sesión — 10 de julio 2026 — Lote + Vencimiento (Capa 4 · alertas + UI) — MÓDULO COMPLETO
+
+### Resumen
+
+Cuarta y última capa del módulo lote+vencimiento: **consulta de existencias por
+lote, alertas de vencimiento y toda la UI**. Con esto el módulo queda **completo
+(4/4 capas)**.
+
+### Lo que se hizo (Capa 4)
+
+**Backend:**
+- `estado_lote()` / `dias_para_vencer()` en `inventario/lotes.py` (clasifica
+  vigente / por_vencer / vencido / sin_vencimiento contra un umbral de días).
+- **`GET /inventario/lotes`** — existencias por lote con estado derivado, filtros
+  `producto_id` / `estado` / `dias` / `incluir_agotados`, orden FEFO. Schema `LoteResponse`.
+- **Dashboard de inventario** extendido con `lotes_por_vencer` y `lotes_vencidos`
+  (lotes activos con existencia y fecha; umbral 30 días).
+- 2 tests de endpoint (estados/filtros y conteo de alertas). Suite API: **276 pasan**.
+
+**Frontend:**
+- `inventarioApi`: tipos `Lote`/`EstadoLote`/`LotesFiltro`, `getLotes`, campos de
+  lote en `AjusteInventarioInput`, alertas en el dashboard.
+- **InventarioView**: nueva pestaña **🏷️ Lotes** (existencias con estado de
+  vencimiento y días restantes, filtro por estado y búsqueda); KPIs de "lotes por
+  vencer" y "lotes vencidos" en el dashboard; captura de lote (código + vencimiento)
+  en el **ajuste de entrada**, con nota FEFO en la salida.
+- **ComprasView / Nueva Compra**: sub-fila de captura de lote por renglón cuando el
+  producto tiene `controla_lote` (código obligatorio + vencimiento), con validación.
+- **VentasView / Producto**: checkbox **Controlar por lote y vencimiento (FEFO)**;
+  al activarlo el stock inicial no se captura en el formulario (entra por lotes,
+  evita drift).
+- 2 tests de componente (`InventarioLotes.test.tsx`). Suite front: **37 pasan**.
+
+### Estado del módulo
+Completo. tsc/eslint/flake8/mypy limpios. Pendiente operativo: abrir el PR de la
+rama `feat/lotes-vencimiento`.
