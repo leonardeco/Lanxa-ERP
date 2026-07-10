@@ -1144,5 +1144,11 @@ lote, alertas de vencimiento y toda la UI**. Con esto el módulo queda **complet
 - 2 tests de componente (`InventarioLotes.test.tsx`). Suite front: **37 pasan**.
 
 ### Estado del módulo
-Completo. tsc/eslint/flake8/mypy limpios. Pendiente operativo: abrir el PR de la
-rama `feat/lotes-vencimiento`.
+Completo. tsc/eslint/flake8/mypy limpios.
+
+### Cierre (2026-07-10)
+- Commits Capa 3 `caabdd6` y Capa 4 `ea7c4b8` pusheados.
+- **PR [#16](https://github.com/leonardeco/superozono-erp/pull/16)** abierto
+  (`feat/lotes-vencimiento` → `main`) con el módulo completo (capas 1-4).
+- Limpieza del working copy ejecutada: borrados `backend/superozono.db.bak-20260709-150255`
+  y `docs/plantillas/plantilla-inventario-inicial.xlsx` (la genera el endpoint).

@@ -1,6 +1,6 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **10 de julio de 2026** (25ª revisión — ✅ **módulo lote+vencimiento COMPLETO (4/4 capas)**: wire-in + endpoints de existencias/alertas + UI). **Este archivo es la fuente única de pendientes.**
+Backlog vivo del proyecto. Actualizado: **10 de julio de 2026** (26ª revisión — ✅ **módulo lote+vencimiento COMPLETO (4/4 capas)**, PR [#16](https://github.com/leonardeco/superozono-erp/pull/16) abierto; limpieza de basura del working copy ejecutada). **Este archivo es la fuente única de pendientes.**
 Estado general: 276 tests API + 37 componentes + 5 E2E (local y CI), CI verde, 0 CVEs. Versión: **v0.3.0**.
 
 ---
@@ -41,7 +41,7 @@ Estado general: 276 tests API + 37 componentes + 5 E2E (local y CI), CI verde, 0
 
 | # | Feature | Alcance (verificado 2026-07-05) |
 |---|---|---|
-| ✅ Lotes | **Trazabilidad por lote + vencimiento** (COMPLETO 2026-07-10, 4/4 capas) | ✅ **Capa 1** (modelo `Lote`, flag `controla_lote`, `kardex.lote_id`, migración `a1b2c3d4e5f6`) · ✅ **Capa 2** (servicio `entrada_lote` + `consumir_fefo` FEFO, invariante `stock == Σ lotes`) · ✅ **Capa 3** (wire-in de los 7 puntos de stock + helper `revertir_por_lotes` + campos de lote + migración `b2c3d4e5f6a7`) · ✅ **Capa 4** (endpoint `GET /inventario/lotes` con estado de vencimiento derivado + alertas de vencimiento en el dashboard; frontend: pestaña **Lotes** con existencias/estado, captura de lote en Nueva Compra y Ajuste, toggle `controla_lote` en producto, KPIs de vencimiento en Dashboard). Opt-in por producto, **FEFO**, sin producción (MVP). 9 tests de integración API + 2 de componente. **Falta:** abrir PR de `feat/lotes-vencimiento` |
+| ✅ Lotes | **Trazabilidad por lote + vencimiento** (COMPLETO 2026-07-10, 4/4 capas) | ✅ **Capa 1** (modelo `Lote`, flag `controla_lote`, `kardex.lote_id`, migración `a1b2c3d4e5f6`) · ✅ **Capa 2** (servicio `entrada_lote` + `consumir_fefo` FEFO, invariante `stock == Σ lotes`) · ✅ **Capa 3** (wire-in de los 7 puntos de stock + helper `revertir_por_lotes` + campos de lote + migración `b2c3d4e5f6a7`) · ✅ **Capa 4** (endpoint `GET /inventario/lotes` con estado de vencimiento derivado + alertas de vencimiento en el dashboard; frontend: pestaña **Lotes** con existencias/estado, captura de lote en Nueva Compra y Ajuste, toggle `controla_lote` en producto, KPIs de vencimiento en Dashboard). Opt-in por producto, **FEFO**, sin producción (MVP). 9 tests de integración API + 2 de componente. **PR abierto:** [#16](https://github.com/leonardeco/superozono-erp/pull/16) (rama `feat/lotes-vencimiento` → `main`, pendiente de merge) |
 | 18 | **RRHH y nómina** (Fase 2) | Empleados, contratos, liquidación — requiere definiciones de negocio propias |
 | 20 | Activación Alegra con facturación electrónica DIAN | ✔ La integración está construida y testeada con mocks; falta cuenta/token real y rotación documentada (SEC-002) |
 | 21 | Empaquetado Electron (Fase 4) | App de escritorio .exe |
@@ -65,9 +65,6 @@ Estado general: 276 tests API + 37 componentes + 5 E2E (local y CI), CI verde, 0
 - Política de contraseñas (complejidad/expiración) — hoy solo mínimo 8 caracteres; aceptable en LAN
 - Blacklist de JTI en Redis para revocación inmediata de access tokens — innecesario con vida de 15 min; además desde v0.3.0 el Admin puede revocar los refresh tokens (14c)
 - **ecdsa / PYSEC-2026-1325** (2026-07-09): la CVE se **ignora en CI** con justificación (inalcanzable — los JWT usan HS256 + backend `cryptography`; `ecdsa` es dep transitiva de `python-jose` que solo se importa para algoritmos ES*, y no hay versión con fix). Evaluar migrar `python-jose` → `PyJWT` para eliminar la dependencia `ecdsa` por completo.
-- **Limpieza (2026-07-09):** `docs/plantillas/plantilla-inventario-inicial.xlsx` quedó redundante (el endpoint `GET /inventario/plantilla` la genera en código) — borrar del working copy.
-- **Limpieza (2026-07-09):** `backend/superozono.db.bak-20260709-150255` — backup local del reset de demo; borrar cuando ya no se necesite.
-- **Importador con lote/vencimiento (2026-07-09):** cuando avance el módulo de lotes (Capa 3), extender la plantilla/importador con columnas `codigo_lote` y `fecha_vencimiento` para los productos con `controla_lote`.
 
 ---
 
