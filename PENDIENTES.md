@@ -1,6 +1,6 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **10 de julio de 2026** (26ª revisión — ✅ **módulo lote+vencimiento COMPLETO (4/4 capas)**, PR [#16](https://github.com/leonardeco/superozono-erp/pull/16) abierto; limpieza de basura del working copy ejecutada). **Este archivo es la fuente única de pendientes.**
+Backlog vivo del proyecto. Actualizado: **10 de julio de 2026** (27ª revisión — ✅ **#13 servicios de dominio de ventas** extraídos a `ventas/services.py`; ✅ módulo lote+vencimiento completo, PR [#16](https://github.com/leonardeco/superozono-erp/pull/16); limpieza de basura ejecutada). **Este archivo es la fuente única de pendientes.**
 Estado general: 276 tests API + 37 componentes + 5 E2E (local y CI), CI verde, 0 CVEs. Versión: **v0.3.0**.
 
 ---
@@ -34,7 +34,7 @@ Estado general: 276 tests API + 37 componentes + 5 E2E (local y CI), CI verde, 0
 | 10 | Migración Alembic de **nulabilidad legacy** (BD creadas pre-tipado vs modelos 2.0) | ✔ Drift sigue documentado en `alembic/versions/72f7b9fae762`. Requiere backfill revisado contra la BD real del servidor |
 | 12 | Locks de concurrencia (`with_for_update`) en abonos y stock | ✔ Verificado: no hay ningún `with_for_update` en el código. **Solo si** el despliegue pasa a multi-worker; con uvicorn single-worker en LAN no aplica |
 | 12a | Race en numeración de documentos (`MAX+1` sin lock en SOG-V/SOG-CP/RC/CE/COT/NC/ND) | ✔ Verificado en `core/numbering.py` (la nota en el docstring sigue vigente y ahora cubre también COT/NC/ND). Mismo escenario que #12: solo multi-worker |
-| 13 | Extraer servicios de dominio (`confirmar_venta` orquesta stock+CxC+asiento inline en el router) | ✔ Verificado: sigue inline en `ventas/router.py` (y `convertir_cotizacion` ahora también llama `create_venta` directo). Incluye unificar commit/flush (BUG-006) y `estado` Enum vs String |
+| 13 | Extraer servicios de dominio (`confirmar_venta` orquesta stock+CxC+asiento inline en el router) | ✅ **Hecho 2026-07-10**: nuevo `ventas/services.py` (`confirmar_venta`/`anular_venta` + `VentaError`); los endpoints quedaron delgados (validan transición → delegan → mapean `VentaError`→400). `create_venta` reutiliza `get_venta` (elimina el builder duplicado); quitados los `hasattr(estado,'value')` (es SAEnum). Patrón transaccional documentado (servicios hacen flush, la dependencia commitea). 276 tests verdes, comportamiento idéntico. Rama `refactor/servicios-dominio-ventas` |
 | 14a | Unificar Cliente/Proveedor/Tercero a nivel de modelo | ✔ Verificado: `CuentaPorCobrar.cliente_nit` sigue siendo `String(20)` sin FK; la materialización por NIT es el puente |
 
 ## 🟢 Funcional — siguientes features (por prioridad de negocio)
