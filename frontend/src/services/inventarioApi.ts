@@ -32,6 +32,32 @@ export interface InventarioDashboard {
   productos_stock_bajo: number;
   movimientos_mes: number;
   top_productos_por_valor: TopProductoValor[];
+  lotes_por_vencer: number;
+  lotes_vencidos: number;
+}
+
+export type EstadoLote = 'vigente' | 'por_vencer' | 'vencido' | 'sin_vencimiento';
+
+export interface Lote {
+  id: number;
+  producto_id: number;
+  producto_nombre?: string;
+  producto_sku?: string;
+  codigo_lote: string;
+  fecha_vencimiento?: string;
+  cantidad_actual: number;
+  costo_unitario?: number;
+  origen?: string;
+  activo: boolean;
+  estado: EstadoLote;
+  dias_para_vencer?: number;
+}
+
+export interface LotesFiltro {
+  producto_id?: number;
+  estado?: EstadoLote;
+  dias?: number;
+  incluir_agotados?: boolean;
 }
 
 export interface MovimientosFiltro {
@@ -47,6 +73,8 @@ export interface AjusteInventarioInput {
   tipo: 'Entrada' | 'Salida';
   cantidad: number;
   motivo?: string;
+  codigo_lote?: string;
+  fecha_vencimiento?: string;
 }
 
 export interface ErrorFilaImport {
@@ -67,6 +95,9 @@ export interface ResumenImport {
 
 export const inventarioApi = {
   getDashboard: () => api.get<InventarioDashboard>(`${BASE}/dashboard`),
+
+  getLotes: (filtros?: LotesFiltro) =>
+    api.get<Lote[]>(`${BASE}/lotes`, { params: filtros ?? {} }),
 
   getMovimientos: (filtros?: MovimientosFiltro) =>
     api.get<MovimientoInventario[]>(`${BASE}/movimientos`, { params: filtros ?? {} }),

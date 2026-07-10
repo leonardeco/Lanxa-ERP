@@ -1,5 +1,5 @@
 from decimal import Decimal
-from datetime import date
+from datetime import date, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Response
@@ -11,13 +11,16 @@ from app.api.deps import CurrentUser, AdminOrAdministradoraDep
 from app.modules.ventas.models import Producto
 
 from . import importador
-from .models import MovimientoInventario, TipoMovimientoInventario, OrigenMovimiento
+from .models import MovimientoInventario, TipoMovimientoInventario, OrigenMovimiento, Lote
 from .schemas import (
     MovimientoResponse, AjusteInventarioInput, InventarioDashboard, TopProductoValor,
-    ErrorFilaImport, PreviewImport, ResumenImport,
+    ErrorFilaImport, PreviewImport, ResumenImport, LoteResponse,
 )
 from .service import registrar_movimiento
-from .lotes import entrada_lote, consumir_fefo, LoteError
+from .lotes import (
+    entrada_lote, consumir_fefo, LoteError,
+    estado_lote, dias_para_vencer, DIAS_ALERTA_DEFAULT,
+)
 
 router = APIRouter(prefix="/api/v1/inventario", tags=["Inventario"])
 
@@ -84,12 +87,82 @@ async def get_dashboard(_: CurrentUser, session: AsyncSession = Depends(get_db))
         for row in top_result.all()
     ]
 
+    # Alertas de vencimiento por lote (solo lotes activos con existencia y fecha)
+    _lote_con_saldo = (
+        Lote.activo.is_(True),
+        Lote.cantidad_actual > 0,
+        Lote.fecha_vencimiento.is_not(None),
+    )
+    lotes_por_vencer = await session.scalar(
+        select(func.count(Lote.id)).where(
+            *_lote_con_saldo,
+            Lote.fecha_vencimiento >= hoy,
+            Lote.fecha_vencimiento <= hoy + timedelta(days=DIAS_ALERTA_DEFAULT),
+        )
+    )
+    lotes_vencidos = await session.scalar(
+        select(func.count(Lote.id)).where(*_lote_con_saldo, Lote.fecha_vencimiento < hoy)
+    )
+
     return InventarioDashboard(
         valor_total_inventario=Decimal(str(valor_inventario or 0)),
         productos_stock_bajo=stock_bajo or 0,
         movimientos_mes=movimientos_mes or 0,
         top_productos_por_valor=top_productos,
+        lotes_por_vencer=lotes_por_vencer or 0,
+        lotes_vencidos=lotes_vencidos or 0,
     )
+
+
+# ══════════════════════════════════════════════════════════
+# LOTES — existencias y alertas de vencimiento (Capa 4)
+# ══════════════════════════════════════════════════════════
+
+@router.get("/lotes", response_model=List[LoteResponse])
+async def list_lotes(
+    _: CurrentUser,
+    producto_id: Optional[int] = Query(None),
+    estado: Optional[str] = Query(
+        None, description="vigente | por_vencer | vencido | sin_vencimiento"),
+    dias: int = Query(DIAS_ALERTA_DEFAULT, ge=1, le=365,
+                      description="Umbral de días para 'por_vencer'"),
+    incluir_agotados: bool = Query(False),
+    session: AsyncSession = Depends(get_db),
+):
+    """Existencias por lote con su estado de vencimiento derivado. Ordena por
+    vencimiento (los que vencen antes primero; los sin fecha al final)."""
+    hoy = date.today()
+    query = (
+        select(Lote, Producto.nombre, Producto.sku)
+        .join(Producto, Producto.id == Lote.producto_id)
+        .order_by(Lote.fecha_vencimiento.is_(None), Lote.fecha_vencimiento, Lote.id)
+    )
+    if producto_id:
+        query = query.where(Lote.producto_id == producto_id)
+    if not incluir_agotados:
+        query = query.where(Lote.activo.is_(True), Lote.cantidad_actual > 0)
+
+    filas = (await session.execute(query)).all()
+    respuestas = []
+    for lote, nombre, sku in filas:
+        est = estado_lote(lote.fecha_vencimiento, hoy, dias)
+        if estado and est != estado:
+            continue
+        respuestas.append(LoteResponse(
+            id=lote.id,
+            producto_id=lote.producto_id,
+            producto_nombre=nombre,
+            producto_sku=sku,
+            codigo_lote=lote.codigo_lote,
+            fecha_vencimiento=lote.fecha_vencimiento,
+            cantidad_actual=lote.cantidad_actual,
+            costo_unitario=lote.costo_unitario,
+            origen=lote.origen,
+            activo=lote.activo,
+            estado=est,
+            dias_para_vencer=dias_para_vencer(lote.fecha_vencimiento, hoy),
+        ))
+    return respuestas
 
 
 # ══════════════════════════════════════════════════════════

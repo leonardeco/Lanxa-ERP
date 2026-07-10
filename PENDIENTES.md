@@ -1,7 +1,7 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **10 de julio de 2026** (24ª revisión — 🚧 módulo lote+vencimiento avanza a **Capa 3/4** (wire-in de los 7 puntos de stock)). **Este archivo es la fuente única de pendientes.**
-Estado general: 274 tests API + 35 componentes + 5 E2E (local y CI), CI verde, 0 CVEs. Versión: **v0.3.0**.
+Backlog vivo del proyecto. Actualizado: **10 de julio de 2026** (25ª revisión — ✅ **módulo lote+vencimiento COMPLETO (4/4 capas)**: wire-in + endpoints de existencias/alertas + UI). **Este archivo es la fuente única de pendientes.**
+Estado general: 276 tests API + 37 componentes + 5 E2E (local y CI), CI verde, 0 CVEs. Versión: **v0.3.0**.
 
 ---
 
@@ -41,7 +41,7 @@ Estado general: 274 tests API + 35 componentes + 5 E2E (local y CI), CI verde, 0
 
 | # | Feature | Alcance (verificado 2026-07-05) |
 |---|---|---|
-| 🚧 Lotes | **Trazabilidad por lote + vencimiento** (EN PROGRESO 2026-07-10, 3/4 capas) | Módulo por capas — ✅ **Capa 1** (modelo `Lote`, flag `controla_lote`, `kardex.lote_id`, migración `a1b2c3d4e5f6`) · ✅ **Capa 2** (servicio `entrada_lote` + `consumir_fefo` con FEFO, invariante `stock_actual == Σ lotes`, 5 tests) · ✅ **Capa 3** (enganche de los 7 puntos de stock: compra confirm/anular/devolución, venta confirm/anular/devolución, ajuste + importador; helper `revertir_por_lotes`; campos `codigo_lote`/`fecha_vencimiento` en compra-detalle + ajuste + importador; `controla_lote` en la API de productos; migración `b2c3d4e5f6a7`; 7 tests de integración) · ⏳ **Capa 4** (alertas de vencimiento + existencias por lote + widget Dashboard + UI — SIGUIENTE). Opt-in por producto, **FEFO**, sin producción (MVP). Rama `feat/lotes-vencimiento` (en GitHub, sin PR aún) |
+| ✅ Lotes | **Trazabilidad por lote + vencimiento** (COMPLETO 2026-07-10, 4/4 capas) | ✅ **Capa 1** (modelo `Lote`, flag `controla_lote`, `kardex.lote_id`, migración `a1b2c3d4e5f6`) · ✅ **Capa 2** (servicio `entrada_lote` + `consumir_fefo` FEFO, invariante `stock == Σ lotes`) · ✅ **Capa 3** (wire-in de los 7 puntos de stock + helper `revertir_por_lotes` + campos de lote + migración `b2c3d4e5f6a7`) · ✅ **Capa 4** (endpoint `GET /inventario/lotes` con estado de vencimiento derivado + alertas de vencimiento en el dashboard; frontend: pestaña **Lotes** con existencias/estado, captura de lote en Nueva Compra y Ajuste, toggle `controla_lote` en producto, KPIs de vencimiento en Dashboard). Opt-in por producto, **FEFO**, sin producción (MVP). 9 tests de integración API + 2 de componente. **Falta:** abrir PR de `feat/lotes-vencimiento` |
 | 18 | **RRHH y nómina** (Fase 2) | Empleados, contratos, liquidación — requiere definiciones de negocio propias |
 | 20 | Activación Alegra con facturación electrónica DIAN | ✔ La integración está construida y testeada con mocks; falta cuenta/token real y rotación documentada (SEC-002) |
 | 21 | Empaquetado Electron (Fase 4) | App de escritorio .exe |

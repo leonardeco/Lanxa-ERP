@@ -289,6 +289,7 @@ function ProductoFormModal({ producto, onSave, onClose }: {
     tarifa_iva: producto?.tarifa_iva?.toString() || '19',
     stock_actual: producto?.stock_actual?.toString() || '0',
     stock_minimo: producto?.stock_minimo?.toString() || '5',
+    controla_lote: producto?.controla_lote ?? false,
     registro_ica: producto?.registro_ica || '',
     notas: producto?.notas || '',
   });
@@ -301,8 +302,11 @@ function ProductoFormModal({ producto, onSave, onClose }: {
       precio_venta: parseFloat(form.precio_venta) || 0,
       precio_costo: parseFloat(form.precio_costo) || 0,
       tarifa_iva: parseFloat(form.tarifa_iva) || 19,
-      stock_actual: parseFloat(form.stock_actual) || 0,  // fraccionario (litros/galones)
+      // Un producto con control de lote arranca en 0: su stock entra como lotes
+      // vía compra / ajuste / importador (evita el drift stock vs Σ lotes).
+      stock_actual: form.controla_lote ? 0 : (parseFloat(form.stock_actual) || 0),
       stock_minimo: parseInt(form.stock_minimo) || 5,
+      controla_lote: form.controla_lote,
     });
   };
 
@@ -376,7 +380,7 @@ function ProductoFormModal({ producto, onSave, onClose }: {
         <div className="form-row">
           <div className="form-group">
             <label>Stock Actual</label>
-            <input type="number" value={form.stock_actual} onChange={set('stock_actual')} min="0" step="0.001" />
+            <input type="number" value={form.controla_lote ? '0' : form.stock_actual} onChange={set('stock_actual')} min="0" step="0.001" disabled={form.controla_lote} />
           </div>
           <div className="form-group">
             <label>Stock Mínimo</label>
@@ -386,6 +390,23 @@ function ProductoFormModal({ producto, onSave, onClose }: {
             <label>Registro ICA</label>
             <input type="text" value={form.registro_ica} onChange={set('registro_ica')} placeholder="ICA-2024-XXX" />
           </div>
+        </div>
+
+        <div className="form-group">
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={form.controla_lote}
+              onChange={e => setForm(prev => ({ ...prev, controla_lote: e.target.checked }))}
+              style={{ width: 'auto' }}
+            />
+            🏷️ Controlar por lote y vencimiento (FEFO)
+          </label>
+          {form.controla_lote && (
+            <p style={{ fontSize: 11, color: '#b45309', margin: '4px 0 0' }}>
+              El stock de este producto entra por lotes (compra, ajuste o importador) con su fecha de vencimiento; las salidas se despachan por FEFO. El stock inicial no se captura aquí.
+            </p>
+          )}
         </div>
 
         <div className="form-group">

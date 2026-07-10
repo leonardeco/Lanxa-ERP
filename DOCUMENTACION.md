@@ -570,6 +570,7 @@ Base URL: `http://[host]:8000/api`
 | Método | Ruta | Descripción |
 |---|---|---|
 | GET | `/v1/inventario/dashboard` | Valor total de inventario, productos con stock bajo, movimientos del mes, top 5 productos por valor |
+| GET | `/v1/inventario/lotes` | Existencias por lote con estado de vencimiento derivado (vigente/por_vencer/vencido/sin_vencimiento); filtros `producto_id`/`estado`/`dias`/`incluir_agotados`, orden FEFO |
 | GET | `/v1/inventario/movimientos` | Kardex completo, filtros opcionales `producto_id`/`tipo`/`origen`/`fecha_desde`/`fecha_hasta` |
 | GET | `/v1/inventario/movimientos/{producto_id}` | Kardex de un producto específico |
 | POST | `/v1/inventario/ajustes` | Ajuste manual de stock (Entrada/Salida) — Admin/Administradora. En productos con `controla_lote`: la Entrada crea/incrementa un lote (requiere `codigo_lote`) y la Salida consume por FEFO |
@@ -625,8 +626,8 @@ Los asientos se generan automáticamente al confirmar ventas/compras y abonar Cx
 | Parámetros Tributarios | `tributarios` | Completa (CRUD) | IVA, retenciones, ICA — editar tarifa/cuenta PUC, activar/desactivar |
 | Parámetros Nómina | `nomina` | Completa (CRUD) | Aportes y parafiscales — editar valor/tipo, activar/desactivar |
 | Ventas | `ventas` | Completa (CRUD) | 4 pestañas: Dashboard, Productos, Clientes, Facturas |
-| Compras | `compras` | Completa (CRUD) | 4 pestañas: Dashboard, Proveedores, Compras, Nueva Compra — confirmar/anular, impresión PDF, selector opcional de producto por línea |
-| Inventario | `inventario` | Completa | 4 pestañas: Dashboard, Productos (stock, solo lectura), Movimientos (kardex filtrable), Ajuste manual (Admin/Administradora) |
+| Compras | `compras` | Completa (CRUD) | 4 pestañas: Dashboard, Proveedores, Compras, Nueva Compra — confirmar/anular, impresión PDF, selector opcional de producto por línea; captura de lote+vencimiento por renglón cuando el producto controla lote |
+| Inventario | `inventario` | Completa | Pestañas: Dashboard (con KPIs de lotes por vencer/vencidos), Productos (stock, solo lectura), **Lotes** (existencias por lote con estado de vencimiento y filtros), Movimientos (kardex filtrable), Ajuste manual con captura/FEFO de lote e Importar (Admin/Administradora) |
 | Cartera | `cartera` | Completa (CRUD) | CxC y CxP con abonos, anulaciones, origen (compra automática / manual), comprobante de pago impreso automáticamente al abonar e historial de pagos reimprimible |
 | Usuarios | `usuarios` | Completa (CRUD) | Solo visible para Admin |
 | RRHH | `rrhh` | Fase 2 — 🚧 | Sin implementar |
@@ -760,7 +761,7 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | 48 | #25: editar y eliminar cotizaciones en Borrador — `PUT`/`DELETE /cotizaciones/{id}` con guard `409` de estado, borrado real + auditoría (`Eliminar/Cotizacion`), helper `_aplicar_detalles_y_totales` compartido con create; front reutiliza el modal en modo edición + botones ✏️/🗑️. Tests: 5 API + 1 componente | ✅ Completado 2026-07-06 |
 | 49 | #28: purga/archivado del log de auditoría — `scripts/purge_auditoria.py` (wrapper CLI para Task Scheduler) + `purgar_auditoria()`; exporta cifrado (Fernet) a `{BACKUP_DIR}/auditoria/`, **verifica** el archivo y solo entonces borra los registros con `fecha < corte`. `AUDITORIA_RETENTION_DAYS=1825` (~5 años, `.env`), la purga se auto-audita (`Purgar/Auditoria`). Tests: 4 async | ✅ Completado 2026-07-09 |
 | 50 | #2 (parcial): importador de inventario inicial — `inventario/importador.py` (fuente única `EXPECTED_HEADERS`, `generar_plantilla()`, `validar()` fila-por-fila, `importar()` atómico con entrada en el kardex + auditoría). Endpoints `GET /inventario/plantilla` y `POST /inventario/importar` (preview/commit, Admin/Administradora). Frontend: pestaña **Importar** (descargar/validar/confirmar). `openpyxl` + `types-openpyxl`. Tests: 8 (unit + endpoints). Asiento de apertura queda pendiente (#3) | ✅ Completado 2026-07-09 |
-| 51 | Trazabilidad por lote + vencimiento (opt-in `controla_lote`, FEFO) — **Capa 1** modelo `Lote` + `kardex.lote_id` + migración `a1b2c3d4e5f6`; **Capa 2** servicio `entrada_lote`/`consumir_fefo` (invariante `stock == Σ lotes`); **Capa 3** enganche de los 7 puntos de stock (compra/venta confirmar-anular-devolución, ajuste, importador) + helper `revertir_por_lotes` + campos `codigo_lote`/`fecha_vencimiento` (compra-detalle/ajuste/importador) + migración `b2c3d4e5f6a7` + 7 tests de integración. Pendiente **Capa 4** (alertas de vencimiento, existencias por lote, widget Dashboard, UI) | 🚧 En progreso (3/4 capas) 2026-07-10 |
+| 51 | Trazabilidad por lote + vencimiento (opt-in `controla_lote`, FEFO) — **Capa 1** modelo `Lote` + `kardex.lote_id` + migración `a1b2c3d4e5f6`; **Capa 2** servicio `entrada_lote`/`consumir_fefo` (invariante `stock == Σ lotes`); **Capa 3** enganche de los 7 puntos de stock (compra/venta confirmar-anular-devolución, ajuste, importador) + helper `revertir_por_lotes` + campos `codigo_lote`/`fecha_vencimiento` (compra-detalle/ajuste/importador) + migración `b2c3d4e5f6a7`; **Capa 4** `GET /inventario/lotes` (existencias + estado de vencimiento) + alertas en el dashboard + UI (pestaña Lotes, captura de lote en Nueva Compra/Ajuste, toggle `controla_lote` en producto). 9 tests API + 2 de componente | ✅ Completado 2026-07-10 |
 
 ### Deuda técnica / mejoras pendientes
 

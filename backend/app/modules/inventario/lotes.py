@@ -7,7 +7,7 @@ invariante `producto.stock_actual == Σ lotes.cantidad_actual` para productos co
 que `registrar_movimiento` (que es quien mueve el stock agregado + el kardex).
 """
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -255,3 +255,27 @@ async def revertir_por_lotes(
         ))
 
     return movimientos
+
+
+# ── Consulta / alertas de vencimiento (Capa 4) ──────────────────────────────
+
+DIAS_ALERTA_DEFAULT = 30
+
+
+def estado_lote(fecha_vencimiento: date | None, hoy: date, dias_alerta: int) -> str:
+    """Clasifica un lote por su vencimiento: sin_vencimiento / vencido /
+    por_vencer (dentro de `dias_alerta`) / vigente."""
+    if fecha_vencimiento is None:
+        return "sin_vencimiento"
+    if fecha_vencimiento < hoy:
+        return "vencido"
+    if fecha_vencimiento <= hoy + timedelta(days=dias_alerta):
+        return "por_vencer"
+    return "vigente"
+
+
+def dias_para_vencer(fecha_vencimiento: date | None, hoy: date) -> int | None:
+    """Días hasta el vencimiento (negativo si ya venció). None si el lote no vence."""
+    if fecha_vencimiento is None:
+        return None
+    return (fecha_vencimiento - hoy).days

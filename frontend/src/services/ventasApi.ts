@@ -26,6 +26,7 @@ export interface Producto {
   tarifa_iva: number;
   stock_actual: number;
   stock_minimo: number;
+  controla_lote?: boolean;
   activo: boolean;
   registro_ica?: string;
   notas?: string;

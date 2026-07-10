@@ -38,6 +38,8 @@ export interface CompraDetalle {
   subtotal_linea: number;
   iva_valor: number;
   total_linea: number;
+  codigo_lote?: string;
+  fecha_vencimiento?: string;
   created_at: string;
 }
 
@@ -73,6 +75,8 @@ export interface CompraDetalleInput {
   precio_unitario: number;
   descuento_porcentaje: number;
   iva_porcentaje: number;
+  codigo_lote?: string;
+  fecha_vencimiento?: string;
 }
 
 export interface CompraInput {

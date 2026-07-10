@@ -5,6 +5,7 @@ Verifica que los productos con controla_lote pasan por el servicio de lotes
 stock_actual == Σ lotes, y que los productos sin lote no cambian de comportamiento.
 """
 import pytest
+from datetime import date, timedelta
 from decimal import Decimal
 
 from sqlalchemy import select, func
@@ -233,3 +234,57 @@ async def test_ajuste_entrada_y_salida_con_lote(client, auth_headers, db_session
     lote = await _lote(db_session, prod["id"], "AJ")
     assert lote.cantidad_actual == Decimal("10")
     assert await _suma_lotes(db_session, prod["id"]) == Decimal("10")
+
+
+# ── Consulta / alertas (Capa 4) ──────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_endpoint_lotes_estados_y_filtros(client, auth_headers):
+    prov = await _proveedor(client, auth_headers)
+    prod = await _producto_lote(client, auth_headers, sku="LOT-Q")
+    hoy = date.today()
+    await _compra_lote(client, auth_headers, prov["id"], prod["id"], "10", "PV",
+                       (hoy + timedelta(days=10)).isoformat())    # por_vencer
+    await _compra_lote(client, auth_headers, prov["id"], prod["id"], "10", "OK",
+                       (hoy + timedelta(days=300)).isoformat())   # vigente
+    await _compra_lote(client, auth_headers, prov["id"], prod["id"], "10", "OLD",
+                       (hoy - timedelta(days=5)).isoformat())     # vencido
+
+    resp = await client.get(f"/api/v1/inventario/lotes?producto_id={prod['id']}", headers=auth_headers)
+    assert resp.status_code == 200, resp.text
+    assert len(resp.json()) == 3
+
+    resp = await client.get(f"/api/v1/inventario/lotes?producto_id={prod['id']}&estado=por_vencer",
+                            headers=auth_headers)
+    data = resp.json()
+    assert len(data) == 1 and data[0]["codigo_lote"] == "PV"
+    assert data[0]["estado"] == "por_vencer" and data[0]["dias_para_vencer"] == 10
+
+    resp = await client.get(f"/api/v1/inventario/lotes?producto_id={prod['id']}&estado=vencido",
+                            headers=auth_headers)
+    data = resp.json()
+    assert len(data) == 1 and data[0]["codigo_lote"] == "OLD"
+
+    resp = await client.get(f"/api/v1/inventario/lotes?producto_id={prod['id']}&estado=vigente",
+                            headers=auth_headers)
+    data = resp.json()
+    assert len(data) == 1 and data[0]["codigo_lote"] == "OK"
+
+
+@pytest.mark.asyncio
+async def test_dashboard_cuenta_alertas_de_lote(client, auth_headers):
+    prov = await _proveedor(client, auth_headers)
+    prod = await _producto_lote(client, auth_headers, sku="LOT-DASH")
+    hoy = date.today()
+    await _compra_lote(client, auth_headers, prov["id"], prod["id"], "10", "PV",
+                       (hoy + timedelta(days=7)).isoformat())
+    await _compra_lote(client, auth_headers, prov["id"], prod["id"], "10", "OLD",
+                       (hoy - timedelta(days=1)).isoformat())
+    await _compra_lote(client, auth_headers, prov["id"], prod["id"], "10", "OK",
+                       (hoy + timedelta(days=200)).isoformat())
+
+    resp = await client.get("/api/v1/inventario/dashboard", headers=auth_headers)
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert data["lotes_por_vencer"] == 1
+    assert data["lotes_vencidos"] == 1

@@ -4,13 +4,22 @@ import {
   type MovimientoInventario,
   type InventarioDashboard,
   type PreviewImport,
+  type Lote,
+  type EstadoLote,
 } from '../services/inventarioApi';
 import { ventasApi, type Producto } from '../services/ventasApi';
 import { useAuth } from '../contexts/auth';
 import Toast from '../components/Toast';
 import ErrorState from '../components/ErrorState';
 
-type InventarioTab = 'dashboard' | 'productos' | 'movimientos' | 'ajuste' | 'importar';
+type InventarioTab = 'dashboard' | 'productos' | 'movimientos' | 'lotes' | 'ajuste' | 'importar';
+
+const LOTE_ESTADO: Record<EstadoLote, { label: string; bg: string; color: string }> = {
+  vigente: { label: 'Vigente', bg: '#dcfce7', color: '#16a34a' },
+  por_vencer: { label: 'Por vencer', bg: '#fef3c7', color: '#b45309' },
+  vencido: { label: 'Vencido', bg: '#fee2e2', color: '#dc2626' },
+  sin_vencimiento: { label: 'Sin vencimiento', bg: '#f1f5f9', color: '#64748b' },
+};
 
 const COP = (n: number | string) =>
   Number(n).toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -62,6 +71,20 @@ function InventarioDashboardTab() {
           <div className="kpi-label">Movimientos este mes</div>
           <div className="kpi-value">{stats.movimientos_mes}</div>
           <div className="kpi-change">entradas, salidas y ajustes</div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-label">Lotes por vencer</div>
+          <div className="kpi-value" style={{ color: stats.lotes_por_vencer > 0 ? '#b45309' : undefined }}>
+            {stats.lotes_por_vencer}
+          </div>
+          <div className="kpi-change">vencen dentro de 30 días</div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-label">Lotes vencidos</div>
+          <div className="kpi-value" style={{ color: stats.lotes_vencidos > 0 ? '#dc2626' : undefined }}>
+            {stats.lotes_vencidos}
+          </div>
+          <div className="kpi-change">con existencia y ya vencidos</div>
         </div>
       </div>
 
@@ -268,12 +291,118 @@ function MovimientosTab() {
 }
 
 // ══════════════════════════════════════════════════════════
+// LOTES TAB (existencias por lote + alertas de vencimiento)
+// ══════════════════════════════════════════════════════════
+
+function LotesTab() {
+  const [lotes, setLotes] = useState<Lote[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [search, setSearch] = useState('');
+  const [estadoFiltro, setEstadoFiltro] = useState<EstadoLote | ''>('');
+
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
+    inventarioApi.getLotes(estadoFiltro ? { estado: estadoFiltro } : undefined)
+      .then(r => setLotes(r.data))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, [estadoFiltro]);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (error) return <ErrorState mensaje="No se pudieron cargar los lotes" onRetry={load} />;
+
+  const filtered = lotes.filter(l =>
+    !search ||
+    (l.producto_nombre ?? '').toLowerCase().includes(search.toLowerCase()) ||
+    (l.producto_sku ?? '').toLowerCase().includes(search.toLowerCase()) ||
+    l.codigo_lote.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="fade-in">
+      <div className="table-card">
+        <div className="table-card-header">
+          <h3>Existencias por Lote ({filtered.length})</h3>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              className="search-input"
+              placeholder="Buscar por producto, SKU o lote..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            <select
+              className="form-select"
+              style={{ margin: 0 }}
+              value={estadoFiltro}
+              onChange={e => setEstadoFiltro(e.target.value as EstadoLote | '')}
+            >
+              <option value="">Todos los estados</option>
+              <option value="por_vencer">Por vencer (30 días)</option>
+              <option value="vencido">Vencidos</option>
+              <option value="vigente">Vigentes</option>
+              <option value="sin_vencimiento">Sin vencimiento</option>
+            </select>
+          </div>
+        </div>
+        {loading ? <div className="loading-spinner" style={{ margin: '40px auto' }} /> : (
+          <table className="erp-table">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Lote</th>
+                <th>Vencimiento</th>
+                <th style={{ textAlign: 'right' }}>Existencia</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr><td colSpan={5} style={{ textAlign: 'center', color: '#888', padding: 32 }}>Sin lotes con existencia</td></tr>
+              ) : filtered.map(l => {
+                const est = LOTE_ESTADO[l.estado];
+                return (
+                  <tr key={l.id}>
+                    <td>
+                      <div style={{ fontWeight: 600 }}>{l.producto_nombre ?? '—'}</div>
+                      <div style={{ fontSize: 10, color: '#888', fontFamily: 'monospace' }}>{l.producto_sku}</div>
+                    </td>
+                    <td style={{ fontFamily: 'monospace' }}>{l.codigo_lote}</td>
+                    <td style={{ fontSize: 12 }}>
+                      {l.fecha_vencimiento ? new Date(l.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-CO') : '—'}
+                      {typeof l.dias_para_vencer === 'number' && (
+                        <span style={{ fontSize: 10, color: '#888', display: 'block' }}>
+                          {l.dias_para_vencer < 0
+                            ? `hace ${Math.abs(l.dias_para_vencer)} d`
+                            : `en ${l.dias_para_vencer} d`}
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 700 }}>{Number(l.cantidad_actual)}</td>
+                    <td><span className="badge" style={{ background: est.bg, color: est.color }}>{est.label}</span></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+      <p style={{ fontSize: 11, color: '#888', marginTop: 8 }}>
+        Las salidas de los productos con control de lote se despachan por <strong>FEFO</strong> (primero en vencer, primero en salir); los lotes vencidos no se venden.
+      </p>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════
 // AJUSTE MANUAL TAB
 // ══════════════════════════════════════════════════════════
 
 function AjusteTab({ onToast, onSaved }: { onToast: (msg: string, type: 'success' | 'error') => void; onSaved: () => void }) {
   const [productos, setProductos] = useState<Producto[]>([]);
-  const [form, setForm] = useState({ producto_id: 0, tipo: 'Entrada' as 'Entrada' | 'Salida', cantidad: 1, motivo: '' });
+  const [form, setForm] = useState({ producto_id: 0, tipo: 'Entrada' as 'Entrada' | 'Salida', cantidad: 1, motivo: '', codigo_lote: '', fecha_vencimiento: '' });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -285,9 +414,17 @@ function AjusteTab({ onToast, onSaved }: { onToast: (msg: string, type: 'success
   const F = (field: keyof typeof form, value: string | number) =>
     setForm(f => ({ ...f, [field]: value }));
 
+  const productoSel = productos.find(p => p.id === Number(form.producto_id));
+  const conLote = !!productoSel?.controla_lote;
+  const pideLoteEntrada = conLote && form.tipo === 'Entrada';
+
   const handleSubmit = async () => {
     if (!form.producto_id) { onToast('Selecciona un producto', 'error'); return; }
     if (!form.cantidad || form.cantidad <= 0) { onToast('La cantidad debe ser mayor a cero', 'error'); return; }
+    if (pideLoteEntrada && !form.codigo_lote.trim()) {
+      onToast('Este producto controla lote: el código de lote es obligatorio', 'error');
+      return;
+    }
     setSaving(true);
     try {
       await inventarioApi.crearAjuste({
@@ -295,9 +432,11 @@ function AjusteTab({ onToast, onSaved }: { onToast: (msg: string, type: 'success
         tipo: form.tipo,
         cantidad: Number(form.cantidad),
         motivo: form.motivo || undefined,
+        codigo_lote: pideLoteEntrada ? form.codigo_lote.trim() : undefined,
+        fecha_vencimiento: pideLoteEntrada && form.fecha_vencimiento ? form.fecha_vencimiento : undefined,
       });
       onToast('Ajuste registrado correctamente', 'success');
-      setForm({ producto_id: 0, tipo: 'Entrada', cantidad: 1, motivo: '' });
+      setForm({ producto_id: 0, tipo: 'Entrada', cantidad: 1, motivo: '', codigo_lote: '', fecha_vencimiento: '' });
       onSaved();
     } catch {
       onToast('Error registrando el ajuste', 'error');
@@ -335,6 +474,23 @@ function AjusteTab({ onToast, onSaved }: { onToast: (msg: string, type: 'success
               <input className="form-input" type="number" min={1} value={form.cantidad} onChange={e => F('cantidad', Number(e.target.value))} />
             </div>
           </div>
+          {pideLoteEntrada && (
+            <div className="form-grid-2">
+              <div className="form-group">
+                <label>Código de lote *</label>
+                <input className="form-input" value={form.codigo_lote} onChange={e => F('codigo_lote', e.target.value)} placeholder="Ej: L-2026-07" />
+              </div>
+              <div className="form-group">
+                <label>Fecha de vencimiento</label>
+                <input className="form-input" type="date" value={form.fecha_vencimiento} onChange={e => F('fecha_vencimiento', e.target.value)} />
+              </div>
+            </div>
+          )}
+          {conLote && form.tipo === 'Salida' && (
+            <p style={{ fontSize: 12, color: '#b45309', margin: '0 0 8px' }}>
+              ⓘ Producto con control de lote: la salida se descuenta por <strong>FEFO</strong> (primero en vencer, primero en salir).
+            </p>
+          )}
           <div className="form-group">
             <label>Motivo</label>
             <input className="form-input" value={form.motivo} onChange={e => F('motivo', e.target.value)} placeholder="Ej: conteo físico, merma, devolución..." />
@@ -502,6 +658,7 @@ export default function InventarioView() {
   const TABS: { id: InventarioTab; label: string }[] = [
     { id: 'dashboard', label: '📊 Dashboard' },
     { id: 'productos', label: '📦 Productos' },
+    { id: 'lotes', label: '🏷️ Lotes' },
     { id: 'movimientos', label: '📋 Movimientos' },
     ...(puedeAjustar ? [
       { id: 'ajuste' as InventarioTab, label: '+ Ajuste Manual' },
@@ -527,6 +684,7 @@ export default function InventarioView() {
 
       {tab === 'dashboard' && <InventarioDashboardTab key={`dash-${refreshKey}`} />}
       {tab === 'productos' && <ProductosStockTab key={`prod-${refreshKey}`} />}
+      {tab === 'lotes' && <LotesTab key={`lotes-${refreshKey}`} />}
       {tab === 'movimientos' && <MovimientosTab key={`mov-${refreshKey}`} />}
       {tab === 'ajuste' && puedeAjustar && (
         <AjusteTab onToast={showToast} onSaved={() => setRefreshKey(k => k + 1)} />
