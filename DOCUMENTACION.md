@@ -356,26 +356,29 @@ certutil -addstore -f "ROOT" "C:\ruta\al\proyecto\certs\superozono-ca.crt"
 | `Admin` | Acceso total. Único que puede crear/editar/desactivar usuarios |
 | `Administradora` | Módulos contables + ventas + compras + cartera. Sin gestión de usuarios |
 | `Auxiliar` | Solo ventas, compras y cartera. Sin acceso a configuración contable |
+| `Contador` | Área contable completa: PUC, centros de costo, períodos, tributarios, cartera (con abonos/anulaciones) y reportes/estados financieros. Ventas y compras **solo consulta** (no puede anular). Sin gestión de usuarios. Permiso backend `ContableDep` (`get_area_contable`) |
 
 ### Acceso por módulo
 
-| Módulo | Admin | Administradora | Auxiliar |
-|---|---|---|---|
-| Dashboard | ✅ | ✅ | ✅ |
-| Ventas | ✅ | ✅ | ✅ |
-| Compras | ✅ | ✅ | ✅ |
-| Cartera (CxC/CxP) | ✅ | ✅ | ✅ |
-| PUC | ✅ | ✅ | ❌ |
-| Centros de Costo | ✅ | ✅ | ❌ |
-| Períodos Contables | ✅ | ✅ | ❌ |
-| Parámetros Tributarios | ✅ | ✅ | ❌ |
-| Parámetros Nómina | ✅ | ✅ | ❌ |
-| Gestión de Usuarios | ✅ | ❌ | ❌ |
-| Inventario | ✅ | ❌¹ | ❌¹ |
-| RRHH (fase 2) | ✅ | ❌ | ❌ |
-| Reportes | ✅ | ❌¹ | ❌¹ |
+| Módulo | Admin | Administradora | Auxiliar | Contador |
+|---|---|---|---|---|
+| Dashboard | ✅ | ✅ | ✅ | ✅ |
+| Ventas | ✅ | ✅ | ✅ | 👁️ consulta |
+| Compras | ✅ | ✅ | ✅ | 👁️ consulta |
+| Cartera (CxC/CxP) | ✅ | ✅ | ✅ | ✅ |
+| PUC | ✅ | ✅ | ❌ | ✅ |
+| Centros de Costo | ✅ | ✅ | ❌ | ✅ |
+| Períodos Contables | ✅ | ✅ | ❌ | ✅ |
+| Parámetros Tributarios | ✅ | ✅ | ❌ | ✅ |
+| Parámetros Nómina | ✅ | ✅ | ❌ | ❌² |
+| Gestión de Usuarios | ✅ | ❌ | ❌ | ❌ |
+| Inventario | ✅ | ❌¹ | ❌¹ | ❌¹ |
+| RRHH (fase 2) | ✅ | ❌ | ❌ | ❌ |
+| Reportes | ✅ | ❌¹ | ❌¹ | ✅ |
 
 > ¹ El backend de Inventario acepta los 3 roles en sus endpoints GET (mismo patrón que Compras/Ventas) — hoy solo no se ve porque `ROLE_VIEWS` en `App.tsx` no incluye `'inventario'` para Administradora/Auxiliar. Si se decide abrir la vista a esos roles, no requiere cambios de backend.
+>
+> ² Parámetros de Nómina: el backend (`ContableDep`) sí lo admite para Contador, pero la vista no está en su `ROLE_VIEWS` (no se pidió). Agregar `'nomina'` a `ROLE_VIEWS.Contador` lo habilita sin tocar backend.
 
 ### Implementación técnica
 

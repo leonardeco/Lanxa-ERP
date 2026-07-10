@@ -14,6 +14,7 @@ const ROL_COLORS: Record<string, string> = {
   Admin: 'red',
   Administradora: 'purple',
   Auxiliar: 'green',
+  Contador: 'blue',
 };
 
 // ── Modal Crear / Editar usuario ─────────────────────────
