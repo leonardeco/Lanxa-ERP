@@ -1,6 +1,6 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **10 de julio de 2026** (27ª revisión — ✅ **#13 servicios de dominio de ventas** extraídos a `ventas/services.py`; ✅ módulo lote+vencimiento completo, PR [#16](https://github.com/leonardeco/superozono-erp/pull/16); limpieza de basura ejecutada). **Este archivo es la fuente única de pendientes.**
+Backlog vivo del proyecto. Actualizado: **10 de julio de 2026** (28ª revisión — ✅ **nuevo rol Contador** (PR [#18](https://github.com/leonardeco/superozono-erp/pull/18), área contable; ventas/compras solo consulta); ✅ **#13 servicios de dominio de ventas** (PR [#17](https://github.com/leonardeco/superozono-erp/pull/17)); ✅ módulo lote+vencimiento completo (PR [#16](https://github.com/leonardeco/superozono-erp/pull/16)); 🔧 drift de Alembic de la BD local reconciliado (ver #10)). **Este archivo es la fuente única de pendientes.**
 Estado general: 276 tests API + 37 componentes + 5 E2E (local y CI), CI verde, 0 CVEs. Versión: **v0.3.0**.
 
 ---
@@ -31,7 +31,7 @@ Estado general: 276 tests API + 37 componentes + 5 E2E (local y CI), CI verde, 0
 | # | Pendiente | Notas (verificado 2026-07-05) |
 |---|---|---|
 | 8 | **Asiento de costo de venta** (DB 6135 / CR 1435 al confirmar venta) | Depende del ítem 3. Sin esto el P&L muestra ingresos, no margen |
-| 10 | Migración Alembic de **nulabilidad legacy** (BD creadas pre-tipado vs modelos 2.0) | ✔ Drift sigue documentado en `alembic/versions/72f7b9fae762`. Requiere backfill revisado contra la BD real del servidor |
+| 10 | Migración Alembic de **nulabilidad legacy** + **drift de versión** (BD creadas por `create_all` vs cadena Alembic) | ✔ Drift de nulabilidad documentado en `alembic/versions/72f7b9fae762`. **BD local reconciliada 2026-07-10**: estaba marcada en `c3e9a17f5d02` pero con esquema `create_all` sin las columnas de lotes (`productos.controla_lote`, `movimientos_inventario.lote_id`, `compras_detalles.codigo_lote/fecha_vencimiento`) — se agregaron por `ALTER TABLE` + `alembic stamp b2c3d4e5f6a7` + `upgrade head`. ⚠ **La BD del PC servidor casi seguro tiene el mismo drift** — aplicar el mismo procedimiento al desplegar (ver #6) |
 | 12 | Locks de concurrencia (`with_for_update`) en abonos y stock | ✔ Verificado: no hay ningún `with_for_update` en el código. **Solo si** el despliegue pasa a multi-worker; con uvicorn single-worker en LAN no aplica |
 | 12a | Race en numeración de documentos (`MAX+1` sin lock en SOG-V/SOG-CP/RC/CE/COT/NC/ND) | ✔ Verificado en `core/numbering.py` (la nota en el docstring sigue vigente y ahora cubre también COT/NC/ND). Mismo escenario que #12: solo multi-worker |
 | 13 | Extraer servicios de dominio (`confirmar_venta` orquesta stock+CxC+asiento inline en el router) | ✅ **Hecho 2026-07-10**: nuevo `ventas/services.py` (`confirmar_venta`/`anular_venta` + `VentaError`); los endpoints quedaron delgados (validan transición → delegan → mapean `VentaError`→400). `create_venta` reutiliza `get_venta` (elimina el builder duplicado); quitados los `hasattr(estado,'value')` (es SAEnum). Patrón transaccional documentado (servicios hacen flush, la dependencia commitea). 276 tests verdes, comportamiento idéntico. Rama `refactor/servicios-dominio-ventas` |
