@@ -1152,3 +1152,33 @@ Completo. tsc/eslint/flake8/mypy limpios.
   (`feat/lotes-vencimiento` → `main`) con el módulo completo (capas 1-4).
 - Limpieza del working copy ejecutada: borrados `backend/superozono.db.bak-20260709-150255`
   y `docs/plantillas/plantilla-inventario-inicial.xlsx` (la genera el endpoint).
+
+## Sesión — 10 de julio 2026 — #13 Servicios de dominio de ventas (refactor)
+
+### Resumen
+
+Deuda técnica #13: sacar la orquestación de confirmar/anular una venta (stock +
+CxC + asiento) del router a un **servicio de dominio**. Refactor sin cambio
+funcional, respaldado por los 276 tests existentes.
+
+### Lo que se hizo
+
+- **Nuevo `ventas/services.py`** con `VentaError` (regla de negocio → HTTP 400) y:
+  - `confirmar_venta(db, venta, usuario)` — valida stock, descuenta inventario
+    (FEFO en productos con lote, stock simple en el resto), crea la CxC automática
+    y genera el asiento.
+  - `anular_venta(db, venta, usuario)` — guards BUG-007 (notas crédito) / BUG-008
+    (abonos), revierte inventario, anula la CxC y reversa el asiento.
+  - Convención transaccional explícita: los servicios **hacen flush, no commit**
+    (la dependencia `get_db` commitea una vez por request) — igual que
+    `inventario/service.py` y `inventario/lotes.py`.
+- **Endpoints delgados**: `confirmar_venta`/`anular_venta` validan la transición de
+  estado (404/400), delegan al servicio y traducen `VentaError` → 400.
+- **Deduplicación**: `create_venta` ahora retorna `await get_venta(...)` en vez de
+  rearmar el `VentaResponse` a mano (elimina ~50 líneas duplicadas).
+- **estado Enum vs String**: quitados los `hasattr(estado, 'value')` en
+  `_build_venta_response` (la columna es `SAEnum`, siempre devuelve el Enum).
+
+### Verificación
+Suite API: **276 pasan** (comportamiento idéntico). flake8 y mypy limpios.
+Rama `refactor/servicios-dominio-ventas`.

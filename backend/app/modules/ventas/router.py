@@ -31,11 +31,10 @@ from app.modules.ventas.schemas import (
 )
 from app.modules.inventario.models import TipoMovimientoInventario, OrigenMovimiento
 from app.modules.inventario.service import registrar_movimiento
-from app.modules.inventario.lotes import consumir_fefo, revertir_por_lotes, LoteError
+from app.modules.inventario.lotes import revertir_por_lotes
 from app.modules.contabilidad.models import CuentaPorCobrar, EstadoDocumento, ParametroTributario
-from app.modules.contabilidad.asientos import (
-    asiento_venta_confirmada, asiento_devolucion_venta, reversar_asientos,
-)
+from app.modules.ventas import services as ventas_service
+from app.modules.contabilidad.asientos import asiento_devolucion_venta
 from app.modules.auditoria.service import registrar_auditoria, diff_cambios
 
 router = APIRouter(prefix="/api/v1/ventas", tags=["Ventas & Comercial"])
@@ -141,8 +140,8 @@ def _build_venta_response(venta: VentaDocumento) -> VentaResponse:
         reteiva=venta.reteiva,
         reteica=venta.reteica,
         total=venta.total,
-        estado=venta.estado.value if hasattr(venta.estado, 'value') else venta.estado,
-        estado_pago=venta.estado_pago.value if hasattr(venta.estado_pago, 'value') else venta.estado_pago,
+        estado=venta.estado.value,
+        estado_pago=venta.estado_pago.value,
         observaciones=venta.observaciones,
         created_at=venta.created_at,
         updated_at=venta.updated_at,
@@ -817,7 +816,6 @@ async def create_venta(data: VentaCreate, _: CurrentUser, db: AsyncSession = Dep
     subtotal_total = Decimal("0.00")
     descuento_total = Decimal("0.00")
     iva_total = Decimal("0.00")
-    detalles_resp = []
 
     for det_data in data.detalles:
         # Verificar producto
@@ -840,29 +838,12 @@ async def create_venta(data: VentaCreate, _: CurrentUser, db: AsyncSession = Dep
             notas=det_data.notas,
         )
         db.add(detalle)
-        await db.flush()
 
         linea_bruta = det_data.cantidad * det_data.precio_unitario
         subtotal_total += linea_bruta
         desc_valor = linea_bruta * (det_data.descuento_porcentaje / Decimal("100"))
         descuento_total += desc_valor
         iva_total += calc["iva_valor"]
-
-        detalles_resp.append(VentaDetalleResponse(
-            id=detalle.id,
-            producto_id=detalle.producto_id,
-            cantidad=detalle.cantidad,
-            precio_unitario=detalle.precio_unitario,
-            descuento_porcentaje=detalle.descuento_porcentaje,
-            subtotal_linea=detalle.subtotal_linea,
-            iva_porcentaje=detalle.iva_porcentaje,
-            iva_valor=detalle.iva_valor,
-            total_linea=detalle.total_linea,
-            notas=detalle.notas,
-            created_at=detalle.created_at,
-            producto_nombre=producto.nombre,
-            producto_sku=producto.sku,
-        ))
 
     base_gravable = subtotal_total - descuento_total
 
@@ -885,33 +866,10 @@ async def create_venta(data: VentaCreate, _: CurrentUser, db: AsyncSession = Dep
     venta.total = round(total, 2)
 
     await db.flush()
-    await db.refresh(venta)
 
-    return VentaResponse(
-        id=venta.id,
-        numero=venta.numero,
-        fecha=venta.fecha,
-        fecha_vencimiento=venta.fecha_vencimiento,
-        cliente_id=venta.cliente_id,
-        centro_costo_id=venta.centro_costo_id,
-        vendedor=venta.vendedor,
-        subtotal=venta.subtotal,
-        descuento_total=venta.descuento_total,
-        base_gravable=venta.base_gravable,
-        iva_total=venta.iva_total,
-        retefuente=venta.retefuente,
-        reteiva=venta.reteiva,
-        reteica=venta.reteica,
-        total=venta.total,
-        estado=venta.estado.value if hasattr(venta.estado, 'value') else venta.estado,
-        estado_pago=venta.estado_pago.value if hasattr(venta.estado_pago, 'value') else venta.estado_pago,
-        observaciones=venta.observaciones,
-        created_at=venta.created_at,
-        updated_at=venta.updated_at,
-        cliente_razon_social=cliente.razon_social,
-        cliente_nit=cliente.nit_cc,
-        detalles=detalles_resp,
-    )
+    # Respuesta unificada vía get_venta (mismo builder + eager load) — evita
+    # duplicar el armado del VentaResponse.
+    return await get_venta(venta.id, _, db)
 
 
 @router.post("/{venta_id}/confirmar", response_model=VentaResponse)
@@ -923,81 +881,11 @@ async def confirmar_venta(venta_id: int, current: CurrentUser, db: AsyncSession 
     if venta.estado != EstadoVenta.BORRADOR:
         raise HTTPException(status_code=400, detail="Solo se pueden confirmar ventas en estado Borrador")
 
-    # Validar stock disponible ANTES de confirmar y descontar (evita sobreventa)
-    detalles = (await db.execute(select(VentaDetalle).where(VentaDetalle.venta_id == venta.id))).scalars().all()
-    faltantes = []
-    for d in detalles:
-        prod = await db.get(Producto, d.producto_id)
-        requerido = d.cantidad
-        disponible = prod.stock_actual if (prod and prod.stock_actual is not None) else Decimal("0")
-        if disponible < requerido:
-            nombre = prod.nombre if prod else f"Producto {d.producto_id}"
-            faltantes.append(f"{nombre} (disponible: {disponible}, requerido: {requerido})")
-    if faltantes:
-        raise HTTPException(
-            status_code=400,
-            detail="Stock insuficiente para confirmar la venta: " + "; ".join(faltantes),
-        )
+    try:
+        await ventas_service.confirmar_venta(db, venta, current)
+    except ventas_service.VentaError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
-    venta.estado = EstadoVenta.CONFIRMADA
-
-    # Salidas automáticas de inventario por cada línea. Los productos con control
-    # de lote salen por FEFO (primero en vencer, primero en salir); el resto por
-    # stock simple.
-    for d in detalles:
-        prod = await db.get(Producto, d.producto_id)
-        if prod and prod.controla_lote:
-            try:
-                await consumir_fefo(
-                    db,
-                    producto_id=d.producto_id,
-                    cantidad=d.cantidad,
-                    origen=OrigenMovimiento.VENTA,
-                    usuario_id=current.id,
-                    venta_id=venta.id,
-                    venta_detalle_id=d.id,
-                    motivo=f"Salida por venta {venta.numero}",
-                )
-            except LoteError as exc:
-                raise HTTPException(status_code=400, detail=str(exc))
-        else:
-            await registrar_movimiento(
-                db,
-                producto_id=d.producto_id,
-                tipo=TipoMovimientoInventario.SALIDA,
-                origen=OrigenMovimiento.VENTA,
-                cantidad=d.cantidad,
-                motivo=f"Salida por venta {venta.numero}",
-                usuario_id=current.id,
-                venta_id=venta.id,
-                venta_detalle_id=d.id,
-            )
-
-    # Crear CxC automáticamente (espejo de compras→CxP), si no existe ya una
-    existing_cxc = await db.scalar(
-        select(CuentaPorCobrar).where(CuentaPorCobrar.numero_factura == venta.numero)
-    )
-    if not existing_cxc:
-        cliente = await db.get(Cliente, venta.cliente_id)
-        db.add(CuentaPorCobrar(
-            numero_factura=venta.numero,
-            fecha_emision=venta.fecha,
-            cliente_nit=(cliente.nit_cc if cliente else ""),
-            nombre_cliente=(cliente.razon_social if cliente else None),
-            valor_factura=venta.total,
-            abonos=Decimal("0.00"),
-            fecha_vencimiento=venta.fecha_vencimiento,
-            estado=EstadoDocumento.PENDIENTE,
-            notas=f"Generada automáticamente por venta {venta.numero}",
-        ))
-
-    # Asiento contable automático (partida doble)
-    await asiento_venta_confirmada(db, venta, usuario_id=current.id)
-
-    await db.flush()
-    await db.refresh(venta)
-
-    # Re-fetch for response (reuse get_venta logic)
     return await get_venta(venta_id, current, db)
 
 
@@ -1010,78 +898,11 @@ async def anular_venta(venta_id: int, current: AdminOrAdministradoraDep, db: Asy
     if venta.estado == EstadoVenta.ANULADA:
         raise HTTPException(status_code=400, detail="La venta ya está anulada")
 
-    # BUG-007: una venta con notas crédito no se puede anular — el reverso
-    # duplicaría el reingreso de stock ya hecho por la NC y su asiento
-    # quedaría colgado. Primero se gestionan/eliminan las devoluciones.
-    tiene_nc = await db.scalar(
-        select(DevolucionVenta.id).where(DevolucionVenta.venta_id == venta.id).limit(1)
-    )
-    if tiene_nc:
-        raise HTTPException(
-            status_code=400,
-            detail="La venta tiene notas crédito asociadas y no se puede anular. "
-                   "El saldo ya fue ajustado por las devoluciones.",
-        )
+    try:
+        await ventas_service.anular_venta(db, venta, current)
+    except ventas_service.VentaError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
-    # BUG-008: si la CxC ya tiene abonos, anular dejaría plata recibida sin
-    # documento — primero se anulan los pagos (⛔ en el historial de Cartera).
-    cxc = await db.scalar(
-        select(CuentaPorCobrar).where(CuentaPorCobrar.numero_factura == venta.numero)
-    )
-    if cxc and (cxc.abonos or Decimal("0")) > 0:
-        raise HTTPException(
-            status_code=400,
-            detail="La factura tiene abonos registrados. Anula primero los pagos "
-                   "en Cartera y vuelve a intentar.",
-        )
-
-    estado_anterior = venta.estado
-    venta.estado = EstadoVenta.ANULADA
-
-    # La CxC generada al confirmar también se anula (antes quedaba viva
-    # mostrando un cobro pendiente de una venta anulada)
-    if cxc and cxc.estado != EstadoDocumento.ANULADO:
-        cxc.estado = EstadoDocumento.ANULADO
-        cxc.notas = ((cxc.notas or "") + f"\n[ANULADA] junto con la venta {venta.numero}").strip()
-
-    # Si la venta ya había generado salidas de inventario, revertirlas
-    if estado_anterior in (EstadoVenta.CONFIRMADA, EstadoVenta.FACTURADA):
-        detalles_result = await db.execute(select(VentaDetalle).where(VentaDetalle.venta_id == venta.id))
-        for d in detalles_result.scalars().all():
-            prod = await db.get(Producto, d.producto_id)
-            if prod and prod.controla_lote:
-                # Reingresa a los mismos lotes de los que salió por FEFO
-                await revertir_por_lotes(
-                    db,
-                    producto_id=d.producto_id,
-                    cantidad=d.cantidad,
-                    tipo_reverso=TipoMovimientoInventario.ENTRADA,
-                    origen=OrigenMovimiento.REVERSO_VENTA,
-                    venta_id=venta.id,
-                    venta_detalle_id=d.id,
-                    motivo=f"Reverso por anulación de venta {venta.numero}",
-                    usuario_id=current.id,
-                )
-            else:
-                await registrar_movimiento(
-                    db,
-                    producto_id=d.producto_id,
-                    tipo=TipoMovimientoInventario.ENTRADA,
-                    origen=OrigenMovimiento.REVERSO_VENTA,
-                    cantidad=d.cantidad,
-                    motivo=f"Reverso por anulación de venta {venta.numero}",
-                    usuario_id=current.id,
-                    venta_id=venta.id,
-                    venta_detalle_id=d.id,
-                )
-
-    # Reverso del asiento contable si la venta ya lo había generado
-    await reversar_asientos(
-        db, documento_ref=venta.numero, usuario_id=current.id,
-        motivo=f"Anulación de venta {venta.numero}",
-    )
-
-    await db.flush()
     return {"detail": f"Venta {venta.numero} anulada correctamente"}
 
 
