@@ -1182,3 +1182,46 @@ funcional, respaldado por los 276 tests existentes.
 ### Verificación
 Suite API: **276 pasan** (comportamiento idéntico). flake8 y mypy limpios.
 Rama `refactor/servicios-dominio-ventas`.
+
+## Sesión — 10 de julio 2026 — Nuevo rol Contador
+
+### Resumen
+
+Se agrega el rol **Contador**: área contable completa (PUC, centros de costo,
+períodos, tributarios, cartera con abonos/anulaciones, reportes/estados
+financieros), con Ventas y Compras en **solo consulta** (no puede anular) y sin
+gestión de usuarios.
+
+### Lo que se hizo
+
+**Backend:**
+- `ROLES_VALIDOS += "Contador"` (`usuarios/models.py`).
+- Nuevo permiso `get_area_contable` / `ContableDep` (Admin/Administradora/Contador)
+  en `api/deps.py`. `contabilidad/router.py` pasó de `AdminOrAdministradoraDep` a
+  `ContableDep` (PUC, centros, períodos, tributarios, nómina params, cartera
+  abonar/anular). Ventas/Compras/Auditoría siguen en `AdminOrAdministradoraDep`, así
+  que el Contador no puede anular ventas/compras (solo lee vía endpoints `CurrentUser`).
+  Reportes/estados financieros ya eran `CurrentUser`.
+- Migración `c4d5e6f7a8b9` (down_revision `b2c3d4e5f6a7`): recrea `ck_usuarios_rol`
+  con los 4 roles (batch para SQLite). Verificada upgrade/downgrade + que acepta
+  Contador y rechaza roles inválidos.
+
+**Frontend:**
+- `ROLES += 'Contador'` (`usuariosApi.ts`); tipo `RolUsuario` + `ROLE_VIEWS.Contador`
+  (dashboard, puc, centros-costo, periodos, tributarios, cartera, reportes, ventas,
+  compras) en `App.tsx`; `ROL_COLORS.Contador = 'blue'` (`UsuariosView.tsx`).
+
+**Operativo — reconciliación de drift de la BD viva (`superozono.db`):**
+- La BD local estaba con **drift de Alembic** (marca `c3e9a17f5d02` pero esquema
+  creado por `create_all`): le faltaban las columnas de lotes
+  (`productos.controla_lote`, `movimientos_inventario.lote_id`,
+  `compras_detalles.codigo_lote/fecha_vencimiento`) — con el código actual la app se
+  habría roto al abrir Productos/Ventas. Se agregaron esas columnas por `ALTER TABLE`,
+  se hizo `alembic stamp b2c3d4e5f6a7` y luego `upgrade head` (corrió solo la del rol).
+  BD respaldada antes (`superozono.db.pre-contador-*`). El admin (id 1) sobrevivió el
+  batch-recreate con su clave intacta. **Relacionado con #10** (drift legacy).
+
+### Verificación
+64 tests (usuarios/seguridad/contabilidad/cartera/anulación) verdes; tsc+eslint
+limpios. Login admin OK, **usuario `contador@superozonoglobal.com` creado (rol
+Contador) y su login devuelve 200**. Rama `feat/rol-contador`.

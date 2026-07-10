@@ -43,6 +43,7 @@ export type RolUsuario =
   | 'Admin'
   | 'Administradora'
   | 'Auxiliar'
+  | 'Contador'
 
 const VIEW_TITLES: Record<ViewId, string> = {
   dashboard: 'Dashboard General',
@@ -66,6 +67,8 @@ const ROLE_VIEWS: Record<RolUsuario, ViewId[]> = {
   Admin: ['dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios', 'nomina', 'ventas', 'compras', 'cartera', 'inventario', 'rrhh', 'plataformas', 'reportes', 'usuarios'],
   Administradora: ['dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios', 'nomina', 'ventas', 'compras', 'cartera'],
   Auxiliar: ['dashboard', 'ventas', 'compras', 'cartera'],
+  // Contador: área contable + reportes; ventas/compras solo consulta (sin anular)
+  Contador: ['dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios', 'cartera', 'reportes', 'ventas', 'compras'],
 }
 
 function App() {

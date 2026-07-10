@@ -4,7 +4,7 @@ from sqlalchemy import String, Boolean, DateTime, ForeignKey, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base
 
-ROLES_VALIDOS = ("Admin", "Administradora", "Auxiliar")
+ROLES_VALIDOS = ("Admin", "Administradora", "Auxiliar", "Contador")
 
 
 class Usuario(Base):

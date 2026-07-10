@@ -60,8 +60,20 @@ async def get_current_active_superuser(current_user: CurrentUser) -> Usuario:
 
 
 async def get_admin_or_administradora(current_user: CurrentUser) -> Usuario:
-    """Admin o Administradora — operaciones sensibles (anular, abonar, maestros contables)."""
+    """Admin o Administradora — operaciones sensibles (anular ventas/compras, etc.)."""
     if current_user.rol not in ("Admin", "Administradora"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tiene permisos para realizar esta operación",
+        )
+    return current_user
+
+
+async def get_area_contable(current_user: CurrentUser) -> Usuario:
+    """Admin, Administradora o Contador — área contable: maestros contables (PUC,
+    centros de costo, períodos, tributarios), cartera y sus abonos/anulaciones.
+    El Contador NO puede gestionar usuarios ni anular ventas/compras."""
+    if current_user.rol not in ("Admin", "Administradora", "Contador"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tiene permisos para realizar esta operación",
@@ -72,3 +84,4 @@ async def get_admin_or_administradora(current_user: CurrentUser) -> Usuario:
 # Aliases de dependencia para usar en firmas de endpoints
 AdminDep = Annotated[Usuario, Depends(get_current_active_superuser)]
 AdminOrAdministradoraDep = Annotated[Usuario, Depends(get_admin_or_administradora)]
+ContableDep = Annotated[Usuario, Depends(get_area_contable)]

@@ -13,7 +13,7 @@ from decimal import Decimal
 from app.core.database import get_db
 from app.core.config import get_settings
 from app.core.numbering import next_sequential_numero
-from app.api.deps import CurrentUser, AdminOrAdministradoraDep
+from app.api.deps import CurrentUser, ContableDep
 from app.modules.contabilidad.models import (
     PlanCuentas, CentroCosto, PeriodoContable, Tercero,
     ParametroTributario, ParametroNomina,
@@ -46,7 +46,7 @@ settings = get_settings()
 # ── Dashboard Stats ──────────────────────────────────────
 
 @router.get("/dashboard", response_model=DashboardStats)
-async def get_dashboard_stats(_: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def get_dashboard_stats(_: ContableDep, db: AsyncSession = Depends(get_db)):
     """Estadísticas generales del módulo contable."""
     cuentas = await db.scalar(select(func.count(PlanCuentas.id)))
     centros = await db.scalar(select(func.count(CentroCosto.id)))
@@ -70,13 +70,13 @@ async def get_dashboard_stats(_: AdminOrAdministradoraDep, db: AsyncSession = De
 # ── Plan de Cuentas (PUC) ───────────────────────────────
 
 @router.get("/puc", response_model=List[PlanCuentasResponse])
-async def list_plan_cuentas(_: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def list_plan_cuentas(_: ContableDep, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(PlanCuentas).order_by(PlanCuentas.codigo_puc))
     return result.scalars().all()
 
 
 @router.get("/puc/{codigo}", response_model=PlanCuentasResponse)
-async def get_cuenta_puc(codigo: str, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def get_cuenta_puc(codigo: str, _: ContableDep, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(PlanCuentas).where(PlanCuentas.codigo_puc == codigo))
     cuenta = result.scalar_one_or_none()
     if not cuenta:
@@ -86,7 +86,7 @@ async def get_cuenta_puc(codigo: str, _: AdminOrAdministradoraDep, db: AsyncSess
 
 @router.post("/puc", response_model=PlanCuentasResponse, status_code=201)
 async def create_cuenta_puc(
-    body: PlanCuentasCreate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+    body: PlanCuentasCreate, current: ContableDep, db: AsyncSession = Depends(get_db)
 ):
     existing = await db.scalar(select(PlanCuentas).where(PlanCuentas.codigo_puc == body.codigo_puc))
     if existing:
@@ -103,7 +103,7 @@ async def create_cuenta_puc(
 
 @router.put("/puc/{cuenta_id}", response_model=PlanCuentasResponse)
 async def update_cuenta_puc(
-    cuenta_id: int, body: PlanCuentasUpdate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+    cuenta_id: int, body: PlanCuentasUpdate, current: ContableDep, db: AsyncSession = Depends(get_db)
 ):
     cuenta = await db.get(PlanCuentas, cuenta_id)
     if not cuenta:
@@ -121,7 +121,7 @@ async def update_cuenta_puc(
 
 
 @router.patch("/puc/{cuenta_id}/toggle", response_model=PlanCuentasResponse)
-async def toggle_cuenta_puc(cuenta_id: int, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def toggle_cuenta_puc(cuenta_id: int, current: ContableDep, db: AsyncSession = Depends(get_db)):
     cuenta = await db.get(PlanCuentas, cuenta_id)
     if not cuenta:
         raise HTTPException(404, "Cuenta PUC no encontrada")
@@ -137,14 +137,14 @@ async def toggle_cuenta_puc(cuenta_id: int, current: AdminOrAdministradoraDep, d
 # ── Centros de Costo ─────────────────────────────────────
 
 @router.get("/centros-costo", response_model=List[CentroCostoResponse])
-async def list_centros_costo(_: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def list_centros_costo(_: ContableDep, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(CentroCosto).order_by(CentroCosto.codigo))
     return result.scalars().all()
 
 
 @router.post("/centros-costo", response_model=CentroCostoResponse, status_code=201)
 async def create_centro_costo(
-    body: CentroCostoCreate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+    body: CentroCostoCreate, current: ContableDep, db: AsyncSession = Depends(get_db)
 ):
     existing = await db.scalar(select(CentroCosto).where(CentroCosto.codigo == body.codigo))
     if existing:
@@ -161,7 +161,7 @@ async def create_centro_costo(
 
 @router.put("/centros-costo/{cc_id}", response_model=CentroCostoResponse)
 async def update_centro_costo(
-    cc_id: int, body: CentroCostoUpdate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+    cc_id: int, body: CentroCostoUpdate, current: ContableDep, db: AsyncSession = Depends(get_db)
 ):
     cc = await db.get(CentroCosto, cc_id)
     if not cc:
@@ -179,7 +179,7 @@ async def update_centro_costo(
 
 
 @router.patch("/centros-costo/{cc_id}/toggle", response_model=CentroCostoResponse)
-async def toggle_centro_costo(cc_id: int, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def toggle_centro_costo(cc_id: int, current: ContableDep, db: AsyncSession = Depends(get_db)):
     cc = await db.get(CentroCosto, cc_id)
     if not cc:
         raise HTTPException(404, "Centro de costo no encontrado")
@@ -194,7 +194,7 @@ async def toggle_centro_costo(cc_id: int, current: AdminOrAdministradoraDep, db:
 # ── Períodos Contables ───────────────────────────────────
 
 @router.get("/periodos", response_model=List[PeriodoContableResponse])
-async def list_periodos(_: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def list_periodos(_: ContableDep, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(PeriodoContable).order_by(PeriodoContable.anio, PeriodoContable.mes)
     )
@@ -202,7 +202,7 @@ async def list_periodos(_: AdminOrAdministradoraDep, db: AsyncSession = Depends(
 
 
 @router.post("/periodos", response_model=PeriodoContableResponse, status_code=201)
-async def create_periodo(body: PeriodoContableCreate, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def create_periodo(body: PeriodoContableCreate, _: ContableDep, db: AsyncSession = Depends(get_db)):
     periodo_str = f"{body.anio}-{body.mes:02d}"
     existing = await db.scalar(select(PeriodoContable).where(PeriodoContable.periodo == periodo_str))
     if existing:
@@ -220,7 +220,7 @@ async def create_periodo(body: PeriodoContableCreate, _: AdminOrAdministradoraDe
 
 
 @router.patch("/periodos/{periodo_id}/toggle", response_model=PeriodoContableResponse)
-async def toggle_periodo(periodo_id: int, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def toggle_periodo(periodo_id: int, current: ContableDep, db: AsyncSession = Depends(get_db)):
     periodo = await db.get(PeriodoContable, periodo_id)
     if not periodo:
         raise HTTPException(404, "Período no encontrado")
@@ -242,7 +242,7 @@ async def toggle_periodo(periodo_id: int, current: AdminOrAdministradoraDep, db:
 # ── Terceros ─────────────────────────────────────────────
 
 @router.get("/terceros", response_model=List[TerceroResponse])
-async def list_terceros(_: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def list_terceros(_: ContableDep, db: AsyncSession = Depends(get_db)):
     """Listar todos los terceros registrados."""
     result = await db.execute(
         select(Tercero).order_by(Tercero.razon_social)
@@ -254,7 +254,7 @@ async def list_terceros(_: AdminOrAdministradoraDep, db: AsyncSession = Depends(
 
 @router.get("/parametros-tributarios", response_model=List[ParametroTributarioResponse])
 async def list_parametros_tributarios(
-    _: AdminOrAdministradoraDep,
+    _: ContableDep,
     activo: Optional[bool] = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
@@ -266,7 +266,7 @@ async def list_parametros_tributarios(
 
 @router.put("/parametros-tributarios/{param_id}", response_model=ParametroTributarioResponse)
 async def update_parametro_tributario(
-    param_id: int, body: ParametroTributarioUpdate, current: AdminOrAdministradoraDep,
+    param_id: int, body: ParametroTributarioUpdate, current: ContableDep,
     db: AsyncSession = Depends(get_db),
 ):
     param = await db.get(ParametroTributario, param_id)
@@ -286,7 +286,7 @@ async def update_parametro_tributario(
 
 @router.patch("/parametros-tributarios/{param_id}/toggle", response_model=ParametroTributarioResponse)
 async def toggle_parametro_tributario(
-    param_id: int, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+    param_id: int, current: ContableDep, db: AsyncSession = Depends(get_db)
 ):
     param = await db.get(ParametroTributario, param_id)
     if not param:
@@ -304,7 +304,7 @@ async def toggle_parametro_tributario(
 
 @router.get("/parametros-nomina", response_model=List[ParametroNominaResponse])
 async def list_parametros_nomina(
-    _: AdminOrAdministradoraDep,
+    _: ContableDep,
     activo: Optional[bool] = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
@@ -316,7 +316,7 @@ async def list_parametros_nomina(
 
 @router.put("/parametros-nomina/{param_id}", response_model=ParametroNominaResponse)
 async def update_parametro_nomina(
-    param_id: int, body: ParametroNominaUpdate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+    param_id: int, body: ParametroNominaUpdate, current: ContableDep, db: AsyncSession = Depends(get_db)
 ):
     param = await db.get(ParametroNomina, param_id)
     if not param:
@@ -334,7 +334,7 @@ async def update_parametro_nomina(
 
 
 @router.patch("/parametros-nomina/{param_id}/toggle", response_model=ParametroNominaResponse)
-async def toggle_parametro_nomina(param_id: int, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def toggle_parametro_nomina(param_id: int, current: ContableDep, db: AsyncSession = Depends(get_db)):
     param = await db.get(ParametroNomina, param_id)
     if not param:
         raise HTTPException(404, "Parámetro de nómina no encontrado")
@@ -491,7 +491,7 @@ async def update_cxc(cxc_id: int, body: CxCUpdate, _: CurrentUser, db: AsyncSess
 
 @router.post("/cartera/cxc/{cxc_id}/abonar", response_model=AbonoCxCResultado)
 async def abonar_cxc(
-    cxc_id: int, body: AbonoCreate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+    cxc_id: int, body: AbonoCreate, current: ContableDep, db: AsyncSession = Depends(get_db)
 ):
     cxc = await db.get(CuentaPorCobrar, cxc_id)
     if not cxc:
@@ -534,7 +534,7 @@ async def abonar_cxc(
 
 
 @router.patch("/cartera/cxc/{cxc_id}/anular", response_model=CxCResponse)
-async def anular_cxc(cxc_id: int, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def anular_cxc(cxc_id: int, _: ContableDep, db: AsyncSession = Depends(get_db)):
     cxc = await db.get(CuentaPorCobrar, cxc_id)
     if not cxc:
         raise HTTPException(404, "CxC no encontrada")
@@ -592,7 +592,7 @@ async def update_cxp(cxp_id: int, body: CxPUpdate, _: CurrentUser, db: AsyncSess
 
 @router.post("/cartera/cxp/{cxp_id}/abonar", response_model=AbonoCxPResultado)
 async def abonar_cxp(
-    cxp_id: int, body: AbonoCreate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+    cxp_id: int, body: AbonoCreate, current: ContableDep, db: AsyncSession = Depends(get_db)
 ):
     cxp = await db.get(CuentaPorPagar, cxp_id)
     if not cxp:
@@ -640,7 +640,7 @@ async def abonar_cxp(
 
 
 @router.patch("/cartera/cxp/{cxp_id}/anular", response_model=CxPResponse)
-async def anular_cxp(cxp_id: int, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def anular_cxp(cxp_id: int, _: ContableDep, db: AsyncSession = Depends(get_db)):
     cxp = await db.get(CuentaPorPagar, cxp_id)
     if not cxp:
         raise HTTPException(404, "CxP no encontrada")
@@ -674,7 +674,7 @@ async def list_pagos(
 
 @router.post("/cartera/pagos/{pago_id}/anular", response_model=PagoResponse)
 async def anular_pago(
-    pago_id: int, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
+    pago_id: int, current: ContableDep, db: AsyncSession = Depends(get_db)
 ):
     """
     Anula un abono mal registrado: restaura el saldo y estado del documento
@@ -766,7 +766,7 @@ def _asiento_response(a: AsientoContable, movimientos) -> AsientoResponse:
 
 @router.get("/asientos", response_model=List[AsientoResponse])
 async def list_asientos(
-    _: AdminOrAdministradoraDep,
+    _: ContableDep,
     modulo_origen: Optional[str] = Query(None),
     documento_ref: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
@@ -786,7 +786,7 @@ async def list_asientos(
 
 
 @router.get("/asientos/{asiento_id}", response_model=AsientoResponse)
-async def get_asiento(asiento_id: int, _: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
+async def get_asiento(asiento_id: int, _: ContableDep, db: AsyncSession = Depends(get_db)):
     asiento = await db.scalar(
         select(AsientoContable)
         .options(selectinload(AsientoContable.movimientos).selectinload(MovimientoAsiento.cuenta))
@@ -800,7 +800,7 @@ async def get_asiento(asiento_id: int, _: AdminOrAdministradoraDep, db: AsyncSes
 @router.get("/terceros/{tercero_id}/auxiliar", response_model=AuxiliarTerceroResponse)
 async def auxiliar_tercero(
     tercero_id: int,
-    _: AdminOrAdministradoraDep,
+    _: ContableDep,
     fecha_desde: Optional[date] = Query(None),
     fecha_hasta: Optional[date] = Query(None),
     cuenta: Optional[str] = Query(None, description="Filtrar por código PUC (ej. 130505)"),
