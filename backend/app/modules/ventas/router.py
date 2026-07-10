@@ -31,6 +31,7 @@ from app.modules.ventas.schemas import (
 )
 from app.modules.inventario.models import TipoMovimientoInventario, OrigenMovimiento
 from app.modules.inventario.service import registrar_movimiento
+from app.modules.inventario.lotes import consumir_fefo, revertir_por_lotes, LoteError
 from app.modules.contabilidad.models import CuentaPorCobrar, EstadoDocumento, ParametroTributario
 from app.modules.contabilidad.asientos import (
     asiento_venta_confirmada, asiento_devolucion_venta, reversar_asientos,
@@ -940,19 +941,37 @@ async def confirmar_venta(venta_id: int, current: CurrentUser, db: AsyncSession 
 
     venta.estado = EstadoVenta.CONFIRMADA
 
-    # Salidas automáticas de inventario por cada línea
+    # Salidas automáticas de inventario por cada línea. Los productos con control
+    # de lote salen por FEFO (primero en vencer, primero en salir); el resto por
+    # stock simple.
     for d in detalles:
-        await registrar_movimiento(
-            db,
-            producto_id=d.producto_id,
-            tipo=TipoMovimientoInventario.SALIDA,
-            origen=OrigenMovimiento.VENTA,
-            cantidad=d.cantidad,
-            motivo=f"Salida por venta {venta.numero}",
-            usuario_id=current.id,
-            venta_id=venta.id,
-            venta_detalle_id=d.id,
-        )
+        prod = await db.get(Producto, d.producto_id)
+        if prod and prod.controla_lote:
+            try:
+                await consumir_fefo(
+                    db,
+                    producto_id=d.producto_id,
+                    cantidad=d.cantidad,
+                    origen=OrigenMovimiento.VENTA,
+                    usuario_id=current.id,
+                    venta_id=venta.id,
+                    venta_detalle_id=d.id,
+                    motivo=f"Salida por venta {venta.numero}",
+                )
+            except LoteError as exc:
+                raise HTTPException(status_code=400, detail=str(exc))
+        else:
+            await registrar_movimiento(
+                db,
+                producto_id=d.producto_id,
+                tipo=TipoMovimientoInventario.SALIDA,
+                origen=OrigenMovimiento.VENTA,
+                cantidad=d.cantidad,
+                motivo=f"Salida por venta {venta.numero}",
+                usuario_id=current.id,
+                venta_id=venta.id,
+                venta_detalle_id=d.id,
+            )
 
     # Crear CxC automáticamente (espejo de compras→CxP), si no existe ya una
     existing_cxc = await db.scalar(
@@ -1029,17 +1048,32 @@ async def anular_venta(venta_id: int, current: AdminOrAdministradoraDep, db: Asy
     if estado_anterior in (EstadoVenta.CONFIRMADA, EstadoVenta.FACTURADA):
         detalles_result = await db.execute(select(VentaDetalle).where(VentaDetalle.venta_id == venta.id))
         for d in detalles_result.scalars().all():
-            await registrar_movimiento(
-                db,
-                producto_id=d.producto_id,
-                tipo=TipoMovimientoInventario.ENTRADA,
-                origen=OrigenMovimiento.REVERSO_VENTA,
-                cantidad=d.cantidad,
-                motivo=f"Reverso por anulación de venta {venta.numero}",
-                usuario_id=current.id,
-                venta_id=venta.id,
-                venta_detalle_id=d.id,
-            )
+            prod = await db.get(Producto, d.producto_id)
+            if prod and prod.controla_lote:
+                # Reingresa a los mismos lotes de los que salió por FEFO
+                await revertir_por_lotes(
+                    db,
+                    producto_id=d.producto_id,
+                    cantidad=d.cantidad,
+                    tipo_reverso=TipoMovimientoInventario.ENTRADA,
+                    origen=OrigenMovimiento.REVERSO_VENTA,
+                    venta_id=venta.id,
+                    venta_detalle_id=d.id,
+                    motivo=f"Reverso por anulación de venta {venta.numero}",
+                    usuario_id=current.id,
+                )
+            else:
+                await registrar_movimiento(
+                    db,
+                    producto_id=d.producto_id,
+                    tipo=TipoMovimientoInventario.ENTRADA,
+                    origen=OrigenMovimiento.REVERSO_VENTA,
+                    cantidad=d.cantidad,
+                    motivo=f"Reverso por anulación de venta {venta.numero}",
+                    usuario_id=current.id,
+                    venta_id=venta.id,
+                    venta_detalle_id=d.id,
+                )
 
     # Reverso del asiento contable si la venta ya lo había generado
     await reversar_asientos(
@@ -1147,17 +1181,32 @@ async def crear_devolucion_venta(
         ))
 
         # La mercancía devuelta reingresa al inventario
-        await registrar_movimiento(
-            db,
-            producto_id=det.producto_id,
-            tipo=TipoMovimientoInventario.ENTRADA,
-            origen=OrigenMovimiento.DEVOLUCION_VENTA,
-            cantidad=item.cantidad,
-            motivo=f"Devolución {numero} de venta {venta.numero}: {data.motivo}",
-            usuario_id=current.id,
-            venta_id=venta.id,
-            venta_detalle_id=det.id,
-        )
+        prod = await db.get(Producto, det.producto_id)
+        if prod and prod.controla_lote:
+            # Reingresa a los mismos lotes de los que salió por FEFO
+            await revertir_por_lotes(
+                db,
+                producto_id=det.producto_id,
+                cantidad=item.cantidad,
+                tipo_reverso=TipoMovimientoInventario.ENTRADA,
+                origen=OrigenMovimiento.DEVOLUCION_VENTA,
+                venta_id=venta.id,
+                venta_detalle_id=det.id,
+                motivo=f"Devolución {numero} de venta {venta.numero}: {data.motivo}",
+                usuario_id=current.id,
+            )
+        else:
+            await registrar_movimiento(
+                db,
+                producto_id=det.producto_id,
+                tipo=TipoMovimientoInventario.ENTRADA,
+                origen=OrigenMovimiento.DEVOLUCION_VENTA,
+                cantidad=item.cantidad,
+                motivo=f"Devolución {numero} de venta {venta.numero}: {data.motivo}",
+                usuario_id=current.id,
+                venta_id=venta.id,
+                venta_detalle_id=det.id,
+            )
 
     devolucion.subtotal = subtotal
     devolucion.iva_total = iva_total

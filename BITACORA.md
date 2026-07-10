@@ -1066,3 +1066,46 @@ Segunda capa del módulo de lote+vencimiento: el **servicio de dominio** (entrad
 - **Capa 4:** alertas de vencimiento, existencias por lote, widget de Dashboard y UI.
 
 ### Commit Capa 2: `(feat capa 2 lote+vencimiento)`
+
+## Sesión — 10 de julio 2026 — Lote + Vencimiento (Capa 3 · wire-in)
+
+### Resumen
+
+Tercera capa del módulo lote+vencimiento: **enganche del servicio de lotes en los
+7 puntos donde se mueve el stock**, más el importador. Los productos con
+`controla_lote=True` ahora crean/consumen lotes (FEFO) en todo el flujo; los que no
+lo tienen se comportan exactamente igual que antes (sin regresión).
+
+### Lo que se hizo (Capa 3)
+
+- **Helper `revertir_por_lotes`** (`inventario/lotes.py`): aplica una cantidad en
+  sentido inverso sobre los lotes que tocaron los movimientos originales del kardex
+  (reingreso de una salida → reincrementa los lotes consumidos; reverso de una
+  entrada → descuenta de los lotes creados, con **fallback FEFO** si ya se vendieron).
+  `consumir_fefo` ahora acepta también `compra_id`/`compra_detalle_id`.
+- **Enganche de los 7 puntos** (ruta sin cambios para productos sin lote):
+  - Compras: **confirmar** → `entrada_lote` (exige código de lote, si falta → 400);
+    **anular** y **devolución a proveedor** → `revertir_por_lotes` (salida).
+  - Ventas: **confirmar** → `consumir_fefo`; **anular** y **nota crédito** →
+    `revertir_por_lotes` (reingreso al mismo lote).
+  - **Ajuste** manual: entrada → `entrada_lote`; salida → `consumir_fefo`.
+  - **Importador** de inventario inicial → `entrada_lote` cuando la fila trae lote.
+- **Datos de entrada de lote**: `codigo_lote`/`fecha_vencimiento` en
+  `CompraDetalle` (modelo + schema, se capturan en el borrador y se materializan al
+  confirmar), en `AjusteInventarioInput`, y dos columnas nuevas en la plantilla del
+  importador. Flag `controla_lote` expuesto en la API de productos (create/update/response).
+- **Migración `b2c3d4e5f6a7`** (down_revision `a1b2c3d4e5f6`): columnas
+  `codigo_lote` + `fecha_vencimiento` en `compras_detalles`, batch-safe. Verificada
+  upgrade head + downgrade -1 + upgrade en BD temporal.
+- **7 tests de integración** (`test_lotes_wire_in.py`): compra crea lote, venta FEFO,
+  anular venta reingresa al lote, nota crédito reingreso parcial, anular compra
+  revierte el lote, ajuste entrada/salida con lote. Suite completa: **274 pasan**.
+  mypy/flake8 limpios.
+
+### Pendiente del módulo
+- **Capa 4:** endpoints de alertas (próximos a vencer / vencidos), existencias por
+  lote, widget de Dashboard y UI para captura de lote y alertas.
+
+### Artefactos Hydraia
+- Spec: `docs/hydraia/specs/2026-07-09-lotes-vencimiento-design.md`
+- Plan: `docs/hydraia/plans/2026-07-09-lotes-vencimiento.md`

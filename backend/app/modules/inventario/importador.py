@@ -10,6 +10,7 @@ costeo, pendiente de la contadora).
 """
 
 from dataclasses import dataclass, field
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from io import BytesIO
 
@@ -25,6 +26,7 @@ from app.modules.ventas.models import Producto, CategoriaProducto, UnidadMedida
 from app.modules.contabilidad.models import CentroCosto
 from app.modules.inventario.models import TipoMovimientoInventario, OrigenMovimiento
 from app.modules.inventario.service import registrar_movimiento
+from app.modules.inventario.lotes import entrada_lote
 from app.modules.auditoria.service import registrar_auditoria
 
 REQUERIDAS = [
@@ -34,6 +36,7 @@ REQUERIDAS = [
 OPCIONALES = [
     "contenido_neto", "precio_costo", "stock_minimo",
     "registro_ica", "centro_costo_codigo", "descripcion", "notas",
+    "codigo_lote", "fecha_vencimiento",
 ]
 EXPECTED_HEADERS = REQUERIDAS + OPCIONALES
 
@@ -56,6 +59,8 @@ class FilaProducto:
     data: dict
     stock_inicial: Decimal
     costo: Decimal | None
+    codigo_lote: str | None = None
+    fecha_vencimiento: date | None = None
 
 
 @dataclass
@@ -88,6 +93,21 @@ def _num(v) -> Decimal:
         return Decimal(s)
     except InvalidOperation:
         raise ValueError("no numérico")
+
+
+def _fecha(v) -> date:
+    """Celda de fecha → date. Acepta datetime/date de Excel o texto ISO (YYYY-MM-DD)."""
+    if isinstance(v, datetime):
+        return v.date()
+    if isinstance(v, date):
+        return v
+    s = str(v).strip()
+    if not s:
+        raise ValueError("vacío")
+    try:
+        return date.fromisoformat(s[:10])
+    except ValueError:
+        raise ValueError("fecha inválida (usa AAAA-MM-DD)")
 
 
 async def validar(contenido: bytes, db: AsyncSession) -> ResultadoValidacion:
@@ -222,6 +242,25 @@ async def validar(contenido: bytes, db: AsyncSession) -> ResultadoValidacion:
                     i, "centro_costo_codigo",
                     f"No existe un centro de costo con código '{cc_codigo}'."))
 
+        # Lote + vencimiento (opt-in): si viene código, el producto queda con
+        # control de lote y su stock inicial entra como un Lote.
+        codigo_lote = _s(get(row, "codigo_lote"))
+        fecha_venc = None
+        fv_crudo = get(row, "fecha_vencimiento")
+        if fv_crudo not in (None, ""):
+            try:
+                fecha_venc = _fecha(fv_crudo)
+            except ValueError as exc:
+                errores_fila.append(ErrorFila(i, "fecha_vencimiento", str(exc)))
+        if fecha_venc is not None and not codigo_lote:
+            errores_fila.append(ErrorFila(
+                i, "codigo_lote",
+                "Hay fecha de vencimiento pero falta el código de lote."))
+        if codigo_lote and (stock is None or stock <= 0):
+            errores_fila.append(ErrorFila(
+                i, "stock_actual",
+                "Un producto con lote necesita stock inicial mayor a cero."))
+
         if errores_fila:
             res.errores.extend(errores_fila)
             continue
@@ -245,8 +284,12 @@ async def validar(contenido: bytes, db: AsyncSession) -> ResultadoValidacion:
             data["stock_minimo"] = stock_min
         if centro_costo_id is not None:
             data["centro_costo_id"] = centro_costo_id
+        if codigo_lote:
+            data["controla_lote"] = True
 
-        res.filas_ok.append(FilaProducto(fila=i, data=data, stock_inicial=stock, costo=precio_costo))
+        res.filas_ok.append(FilaProducto(
+            fila=i, data=data, stock_inicial=stock, costo=precio_costo,
+            codigo_lote=codigo_lote, fecha_vencimiento=fecha_venc))
 
     return res
 
@@ -259,16 +302,29 @@ async def importar(db: AsyncSession, filas_ok: list[FilaProducto], usuario) -> d
         db.add(producto)
         await db.flush()
         if f.stock_inicial and f.stock_inicial > 0:
-            await registrar_movimiento(
-                db,
-                producto_id=producto.id,
-                tipo=TipoMovimientoInventario.ENTRADA,
-                origen=OrigenMovimiento.AJUSTE_MANUAL,
-                cantidad=f.stock_inicial,
-                motivo="Inventario inicial (importación)",
-                usuario_id=usuario.id if usuario else None,
-                costo_unitario=f.costo,
-            )
+            if f.codigo_lote:
+                await entrada_lote(
+                    db,
+                    producto_id=producto.id,
+                    cantidad=f.stock_inicial,
+                    codigo_lote=f.codigo_lote,
+                    fecha_vencimiento=f.fecha_vencimiento,
+                    origen=OrigenMovimiento.AJUSTE_MANUAL,
+                    costo_unitario=f.costo,
+                    usuario_id=usuario.id if usuario else None,
+                    motivo="Inventario inicial (importación)",
+                )
+            else:
+                await registrar_movimiento(
+                    db,
+                    producto_id=producto.id,
+                    tipo=TipoMovimientoInventario.ENTRADA,
+                    origen=OrigenMovimiento.AJUSTE_MANUAL,
+                    cantidad=f.stock_inicial,
+                    motivo="Inventario inicial (importación)",
+                    usuario_id=usuario.id if usuario else None,
+                    costo_unitario=f.costo,
+                )
         registrar_auditoria(
             db, usuario, "Crear", "Producto", producto.id,
             f"Producto {producto.sku} — {producto.nombre} (importación inventario inicial)",
@@ -290,9 +346,11 @@ def generar_plantilla() -> bytes:
     ws.title = _HOJA
     maxrow = 1000
 
-    anchos = {"sku": 14, "nombre": 36, "descripcion": 30}
+    anchos = {"sku": 14, "nombre": 36, "descripcion": 30,
+              "codigo_lote": 16, "fecha_vencimiento": 16}
     numfmt = {"precio_venta": "#,##0.00", "precio_costo": "#,##0.00",
-              "tarifa_iva": "0", "stock_actual": "#,##0.###", "stock_minimo": "0"}
+              "tarifa_iva": "0", "stock_actual": "#,##0.###", "stock_minimo": "0",
+              "fecha_vencimiento": "yyyy-mm-dd"}
     for idx, name in enumerate(EXPECTED_HEADERS, start=1):
         letter = get_column_letter(idx)
         cell = ws.cell(row=1, column=idx, value=name)
@@ -330,6 +388,11 @@ def generar_plantilla() -> bytes:
         "3. categoria, unidad_medida e IVA se eligen del desplegable.",
         "4. Precios y stock: punto decimal, sin separador de miles (ej: 85000.00).",
         "5. El SKU no se puede repetir.",
+        "6. codigo_lote + fecha_vencimiento: solo para productos con control de lote "
+        "(perecederos/orgánicos). Si pones código, el stock inicial entra como ese "
+        "lote y el producto queda con control de lote. Deja ambos en blanco para los "
+        "durables.",
+        "7. fecha_vencimiento en formato AAAA-MM-DD (ej: 2027-06-30).",
         "",
         "categoria válidas: " + ", ".join(sorted(_CATEGORIAS)),
         "unidad_medida válidas: Litro, Galón, Kilo, Unidad, Caja, Caneca",

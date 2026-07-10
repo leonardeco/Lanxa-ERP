@@ -434,7 +434,7 @@ certutil -addstore -f "ROOT" "C:\ruta\al\proyecto\certs\superozono-ca.crt"
 
 | Tabla | Descripción |
 |---|---|
-| `productos` | Catálogo con SKU, marca, precio, IVA, stock, registro ICA. `stock_actual` es `Numeric(12,3)` (soporta cantidades fraccionarias) |
+| `productos` | Catálogo con SKU, marca, precio, IVA, stock, registro ICA. `stock_actual` es `Numeric(12,3)` (soporta cantidades fraccionarias). `controla_lote` (bool, opt-in): activa la trazabilidad por lote + vencimiento con salidas FEFO para ese producto |
 | `clientes` | Clientes B2B con NIT, régimen, contacto, cupo de crédito. **Perfil tributario:** `retiene_fuente`/`retiene_iva`/`retiene_ica` (flags de agente retenedor) y `tarifa_reteica` (por mil) para el cálculo de retenciones en ventas |
 | `ventas_documentos` | Cabecera de factura interna (SOG-V-XXXX) con totales y retenciones (calculadas según el perfil tributario del cliente, con override manual por factura) |
 | `ventas_detalles` | Líneas de producto con cálculo de descuento e IVA |
@@ -445,13 +445,14 @@ certutil -addstore -f "ROOT" "C:\ruta\al\proyecto\certs\superozono-ca.crt"
 |---|---|
 | `proveedores` | Proveedores con NIT, régimen, contacto |
 | `compras_documentos` | Cabecera de documento de compra (SOG-CP-XXXX) con estado, estado_pago, totales y retenciones |
-| `compras_detalles` | Líneas de producto/concepto de la compra con cálculo de IVA. Incluye `producto_id` opcional (FK a `productos`) para vincular la línea al catálogo y generar entrada de inventario al confirmar |
+| `compras_detalles` | Líneas de producto/concepto de la compra con cálculo de IVA. Incluye `producto_id` opcional (FK a `productos`) para vincular la línea al catálogo y generar entrada de inventario al confirmar. `codigo_lote`/`fecha_vencimiento` (opcionales): capturados en el borrador; al confirmar materializan el `Lote` de los productos con `controla_lote` |
 
 ### Módulo Inventario (`inventario/models.py`)
 
 | Tabla | Descripción |
 |---|---|
-| `movimientos_inventario` | Kardex: un registro por cada movimiento de stock (`tipo`: Entrada/Salida/Ajuste positivo/Ajuste negativo; `origen`: Compra/Venta/Ajuste manual/Reverso). Guarda `stock_antes`/`stock_despues` (snapshot `Numeric(12,3)`, sin redondeo), FK lógicas a `compra_id`/`venta_id` y `usuario_id` |
+| `movimientos_inventario` | Kardex: un registro por cada movimiento de stock (`tipo`: Entrada/Salida/Ajuste positivo/Ajuste negativo; `origen`: Compra/Venta/Ajuste manual/Reverso/Devolución). Guarda `stock_antes`/`stock_despues` (snapshot `Numeric(12,3)`, sin redondeo), FK lógicas a `compra_id`/`venta_id`, `usuario_id`, y `lote_id` (FK a `lotes`) para la trazabilidad del lote afectado |
+| `lotes` | Un lote de un producto con `controla_lote` (opt-in): `codigo_lote` (único por producto), `fecha_vencimiento` (nullable), `cantidad_actual`/`cantidad_inicial`, `costo_unitario`, `origen`, `activo`. **Invariante:** `producto.stock_actual == Σ cantidad_actual de sus lotes`. Las entradas crean/incrementan lotes; las salidas consumen por **FEFO** (primero en vencer, primero en salir; los vencidos no se despachan). El servicio (`inventario/lotes.py`) engancha los 7 puntos de stock: compra confirmar/anular/devolución, venta confirmar/anular/nota crédito, ajuste, e importador |
 
 ### Módulo Usuarios (`usuarios/models.py`)
 
@@ -561,8 +562,8 @@ Base URL: `http://[host]:8000/api`
 | GET | `/v1/compras/` | Listar documentos de compra |
 | GET | `/v1/compras/{id}` | Obtener compra con detalles |
 | POST | `/v1/compras/` | Crear compra (Borrador, calcula retenciones) |
-| POST | `/v1/compras/{id}/confirmar` | Confirmar compra (Borrador → Confirmada) — genera `CuentaPorPagar` automática vinculada (`compra_id`) + `MovimientoInventario` tipo Entrada por cada línea con `producto_id` |
-| POST | `/v1/compras/{id}/anular` | Anular compra — si estaba Confirmada, revierte las entradas de inventario con un movimiento Salida (Reverso de compra) |
+| POST | `/v1/compras/{id}/confirmar` | Confirmar compra (Borrador → Confirmada) — genera `CuentaPorPagar` automática vinculada (`compra_id`) + `MovimientoInventario` tipo Entrada por cada línea con `producto_id`. Los productos con `controla_lote` materializan/incrementan su `Lote` (la línea debe traer `codigo_lote`, si no → 400) |
+| POST | `/v1/compras/{id}/anular` | Anular compra — si estaba Confirmada, revierte las entradas de inventario con un movimiento Salida (Reverso de compra); en productos con lote descuenta del lote creado (o por FEFO si ya se vendió) |
 
 ### Inventario
 
@@ -571,7 +572,9 @@ Base URL: `http://[host]:8000/api`
 | GET | `/v1/inventario/dashboard` | Valor total de inventario, productos con stock bajo, movimientos del mes, top 5 productos por valor |
 | GET | `/v1/inventario/movimientos` | Kardex completo, filtros opcionales `producto_id`/`tipo`/`origen`/`fecha_desde`/`fecha_hasta` |
 | GET | `/v1/inventario/movimientos/{producto_id}` | Kardex de un producto específico |
-| POST | `/v1/inventario/ajustes` | Ajuste manual de stock (Entrada/Salida) — Admin/Administradora |
+| POST | `/v1/inventario/ajustes` | Ajuste manual de stock (Entrada/Salida) — Admin/Administradora. En productos con `controla_lote`: la Entrada crea/incrementa un lote (requiere `codigo_lote`) y la Salida consume por FEFO |
+| GET | `/v1/inventario/plantilla` | Descarga la plantilla `.xlsx` de inventario inicial (incluye columnas opcionales `codigo_lote`/`fecha_vencimiento`) |
+| POST | `/v1/inventario/importar` | Importa el inventario inicial desde `.xlsx` (validación fila por fila, atómico). Si la fila trae `codigo_lote`, el producto queda con control de lote y su stock inicial entra como ese lote |
 
 ### Reportes
 
@@ -757,6 +760,7 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | 48 | #25: editar y eliminar cotizaciones en Borrador — `PUT`/`DELETE /cotizaciones/{id}` con guard `409` de estado, borrado real + auditoría (`Eliminar/Cotizacion`), helper `_aplicar_detalles_y_totales` compartido con create; front reutiliza el modal en modo edición + botones ✏️/🗑️. Tests: 5 API + 1 componente | ✅ Completado 2026-07-06 |
 | 49 | #28: purga/archivado del log de auditoría — `scripts/purge_auditoria.py` (wrapper CLI para Task Scheduler) + `purgar_auditoria()`; exporta cifrado (Fernet) a `{BACKUP_DIR}/auditoria/`, **verifica** el archivo y solo entonces borra los registros con `fecha < corte`. `AUDITORIA_RETENTION_DAYS=1825` (~5 años, `.env`), la purga se auto-audita (`Purgar/Auditoria`). Tests: 4 async | ✅ Completado 2026-07-09 |
 | 50 | #2 (parcial): importador de inventario inicial — `inventario/importador.py` (fuente única `EXPECTED_HEADERS`, `generar_plantilla()`, `validar()` fila-por-fila, `importar()` atómico con entrada en el kardex + auditoría). Endpoints `GET /inventario/plantilla` y `POST /inventario/importar` (preview/commit, Admin/Administradora). Frontend: pestaña **Importar** (descargar/validar/confirmar). `openpyxl` + `types-openpyxl`. Tests: 8 (unit + endpoints). Asiento de apertura queda pendiente (#3) | ✅ Completado 2026-07-09 |
+| 51 | Trazabilidad por lote + vencimiento (opt-in `controla_lote`, FEFO) — **Capa 1** modelo `Lote` + `kardex.lote_id` + migración `a1b2c3d4e5f6`; **Capa 2** servicio `entrada_lote`/`consumir_fefo` (invariante `stock == Σ lotes`); **Capa 3** enganche de los 7 puntos de stock (compra/venta confirmar-anular-devolución, ajuste, importador) + helper `revertir_por_lotes` + campos `codigo_lote`/`fecha_vencimiento` (compra-detalle/ajuste/importador) + migración `b2c3d4e5f6a7` + 7 tests de integración. Pendiente **Capa 4** (alertas de vencimiento, existencias por lote, widget Dashboard, UI) | 🚧 En progreso (3/4 capas) 2026-07-10 |
 
 ### Deuda técnica / mejoras pendientes
 

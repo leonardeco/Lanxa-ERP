@@ -28,6 +28,7 @@ class ProductoBase(BaseModel):
     tarifa_iva: Decimal = Field(default=Decimal("19.00"), ge=0, le=100)
     stock_actual: Decimal = Decimal("0")  # admite fraccionarios; se serializa como número
     stock_minimo: int = 5
+    controla_lote: bool = False  # opt-in: trazabilidad por lote + vencimiento (FEFO)
     activo: bool = True
     registro_ica: Optional[str] = None
     notas: Optional[str] = None
@@ -55,6 +56,7 @@ class ProductoUpdate(BaseModel):
     tarifa_iva: Optional[Decimal] = None
     stock_actual: Optional[int] = None
     stock_minimo: Optional[int] = None
+    controla_lote: Optional[bool] = None
     activo: Optional[bool] = None
     registro_ica: Optional[str] = None
     notas: Optional[str] = None
