@@ -1,7 +1,7 @@
 from pydantic import BaseModel, field_serializer
 from typing import Optional, List, Literal
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, date
 
 
 class MovimientoResponse(BaseModel):
@@ -35,6 +35,9 @@ class AjusteInventarioInput(BaseModel):
     tipo: Literal["Entrada", "Salida"]
     cantidad: Decimal
     motivo: Optional[str] = None
+    # Solo para ajuste de Entrada de un producto con controla_lote.
+    codigo_lote: Optional[str] = None
+    fecha_vencimiento: Optional[date] = None
 
 
 class TopProductoValor(BaseModel):

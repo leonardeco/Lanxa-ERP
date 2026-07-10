@@ -77,6 +77,10 @@ class CompraDetalle(Base):
     subtotal_linea: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
     iva_valor: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
     total_linea: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0.00"))
+    # Lote + vencimiento del renglón (solo productos con controla_lote). Se llenan
+    # en el borrador y alimentan el Lote que se crea al confirmar la compra.
+    codigo_lote: Mapped[str | None] = mapped_column(String(60))
+    fecha_vencimiento: Mapped[date | None] = mapped_column(Date)
     created_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow)
 
     compra = relationship("CompraDocumento", back_populates="detalles")

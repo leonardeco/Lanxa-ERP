@@ -83,6 +83,10 @@ class CompraDetalleInput(BaseModel):
     precio_unitario: Decimal = Field(ge=0)
     descuento_porcentaje: Decimal = Field(default=Decimal("0"), ge=0, le=100)
     iva_porcentaje: Decimal = Field(default=Decimal("19"), ge=0, le=100)
+    # Trazabilidad por lote (solo productos con controla_lote). Se captura en el
+    # borrador y se materializa como Lote al confirmar la compra.
+    codigo_lote: Optional[str] = None
+    fecha_vencimiento: Optional[date] = None
 
 
 class CompraDetalleResponse(BaseModel):
@@ -97,6 +101,8 @@ class CompraDetalleResponse(BaseModel):
     subtotal_linea: Decimal
     iva_valor: Decimal
     total_linea: Decimal
+    codigo_lote: Optional[str] = None
+    fecha_vencimiento: Optional[date] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

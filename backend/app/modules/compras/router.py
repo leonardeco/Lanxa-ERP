@@ -26,6 +26,7 @@ from app.modules.contabilidad.asientos import (
 )
 from app.modules.inventario.models import TipoMovimientoInventario, OrigenMovimiento
 from app.modules.inventario.service import registrar_movimiento
+from app.modules.inventario.lotes import entrada_lote, revertir_por_lotes, LoteError
 from app.modules.auditoria.service import registrar_auditoria, diff_cambios
 
 router = APIRouter(prefix="/api/v1/compras", tags=["Compras & Proveedores"])
@@ -214,6 +215,8 @@ def _calc_lineas(detalles_input):
             "subtotal_linea": base,
             "iva_valor": iva,
             "total_linea": base + iva,
+            "codigo_lote": (d.codigo_lote.strip() if d.codigo_lote and d.codigo_lote.strip() else None),
+            "fecha_vencimiento": d.fecha_vencimiento,
         })
 
     return subtotal, desc_total, subtotal - desc_total, iva_total, lineas
@@ -346,9 +349,37 @@ async def confirmar_compra(
         )
         session.add(cxp)
 
-    # Entradas automáticas de inventario por cada línea vinculada a un producto
+    # Entradas automáticas de inventario por cada línea vinculada a un producto.
+    # Los productos con control de lote materializan un Lote (requieren código);
+    # el resto sigue el camino de stock simple.
     for d in c.detalles:
-        if d.producto_id:
+        if not d.producto_id:
+            continue
+        producto = await session.get(Producto, d.producto_id)
+        if producto and producto.controla_lote:
+            if not (d.codigo_lote and d.codigo_lote.strip()):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"El producto '{producto.nombre}' controla lote: la línea "
+                           f"'{d.descripcion}' necesita un código de lote.",
+                )
+            try:
+                await entrada_lote(
+                    session,
+                    producto_id=d.producto_id,
+                    cantidad=d.cantidad,
+                    codigo_lote=d.codigo_lote,
+                    fecha_vencimiento=d.fecha_vencimiento,
+                    origen=OrigenMovimiento.COMPRA,
+                    costo_unitario=d.precio_unitario,
+                    usuario_id=current.id,
+                    compra_id=c.id,
+                    compra_detalle_id=d.id,
+                    motivo=f"Entrada por compra {c.numero} (lote {d.codigo_lote.strip()})",
+                )
+            except LoteError as exc:
+                raise HTTPException(status_code=400, detail=str(exc))
+        else:
             await registrar_movimiento(
                 session,
                 producto_id=d.producto_id,
@@ -421,7 +452,22 @@ async def anular_compra(
     # Si la compra ya había generado entradas de inventario, revertirlas
     if estado_anterior == "Confirmada":
         for d in c.detalles:
-            if d.producto_id:
+            if not d.producto_id:
+                continue
+            producto = await session.get(Producto, d.producto_id)
+            if producto and producto.controla_lote:
+                await revertir_por_lotes(
+                    session,
+                    producto_id=d.producto_id,
+                    cantidad=d.cantidad,
+                    tipo_reverso=TipoMovimientoInventario.SALIDA,
+                    origen=OrigenMovimiento.REVERSO_COMPRA,
+                    compra_id=c.id,
+                    compra_detalle_id=d.id,
+                    motivo=f"Reverso por anulación de compra {c.numero}",
+                    usuario_id=current.id,
+                )
+            else:
                 await registrar_movimiento(
                     session,
                     producto_id=d.producto_id,
@@ -550,17 +596,31 @@ async def crear_devolucion_compra(
                     f"Stock insuficiente para devolver {item.cantidad} de "
                     f"{nombre} (disponible: {stock})",
                 )
-            await registrar_movimiento(
-                session,
-                producto_id=det.producto_id,
-                tipo=TipoMovimientoInventario.SALIDA,
-                origen=OrigenMovimiento.DEVOLUCION_COMPRA,
-                cantidad=item.cantidad,
-                motivo=f"Devolución {numero} de compra {compra.numero}: {data.motivo}",
-                usuario_id=current.id,
-                compra_id=compra.id,
-                compra_detalle_id=det.id,
-            )
+            if producto and producto.controla_lote:
+                # Sale del lote que creó esta compra (o por FEFO si ya se consumió)
+                await revertir_por_lotes(
+                    session,
+                    producto_id=det.producto_id,
+                    cantidad=item.cantidad,
+                    tipo_reverso=TipoMovimientoInventario.SALIDA,
+                    origen=OrigenMovimiento.DEVOLUCION_COMPRA,
+                    compra_id=compra.id,
+                    compra_detalle_id=det.id,
+                    motivo=f"Devolución {numero} de compra {compra.numero}: {data.motivo}",
+                    usuario_id=current.id,
+                )
+            else:
+                await registrar_movimiento(
+                    session,
+                    producto_id=det.producto_id,
+                    tipo=TipoMovimientoInventario.SALIDA,
+                    origen=OrigenMovimiento.DEVOLUCION_COMPRA,
+                    cantidad=item.cantidad,
+                    motivo=f"Devolución {numero} de compra {compra.numero}: {data.motivo}",
+                    usuario_id=current.id,
+                    compra_id=compra.id,
+                    compra_detalle_id=det.id,
+                )
 
     devolucion.subtotal = subtotal
     devolucion.iva_total = iva_total

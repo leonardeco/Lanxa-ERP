@@ -97,6 +97,8 @@ async def consumir_fefo(
     usuario_id: int | None = None,
     venta_id: int | None = None,
     venta_detalle_id: int | None = None,
+    compra_id: int | None = None,
+    compra_detalle_id: int | None = None,
     motivo: str | None = None,
     hoy: date | None = None,
     permitir_vencidos: bool = False,
@@ -144,9 +146,112 @@ async def consumir_fefo(
             usuario_id=usuario_id,
             venta_id=venta_id,
             venta_detalle_id=venta_detalle_id,
+            compra_id=compra_id,
+            compra_detalle_id=compra_detalle_id,
             lote_id=lote.id,
         )
         movimientos.append(mov)
         restante = restante - tomar
+
+    return movimientos
+
+
+async def revertir_por_lotes(
+    db: AsyncSession,
+    *,
+    producto_id: int,
+    cantidad: Decimal,
+    tipo_reverso: TipoMovimientoInventario,
+    origen: OrigenMovimiento,
+    compra_id: int | None = None,
+    compra_detalle_id: int | None = None,
+    venta_id: int | None = None,
+    venta_detalle_id: int | None = None,
+    motivo: str | None = None,
+    usuario_id: int | None = None,
+) -> list[MovimientoInventario]:
+    """Aplica `cantidad` en sentido inverso sobre los lotes que tocaron los
+    movimientos originales de un renglón de documento, manteniendo la invariante
+    `stock_actual == Σ lotes`. Un movimiento de kardex por lote tocado. Sin commit.
+
+    - `tipo_reverso=ENTRADA` → **reingreso de una salida** (anular/devolución de
+      venta): reincrementa los lotes que la salida original consumió, del más
+      reciente al más antiguo, con tope por lote = lo que esa salida tomó de él.
+    - `tipo_reverso=SALIDA` → **reverso de una entrada** (anular/devolución de
+      compra): descuenta de los lotes que la entrada original creó; si ya no
+      alcanzan (se vendieron entre tanto), toma el resto por FEFO.
+    """
+    restante = Decimal(cantidad)
+    if restante <= 0:
+        return []
+
+    cond = [
+        MovimientoInventario.producto_id == producto_id,
+        MovimientoInventario.lote_id.is_not(None),
+    ]
+    if compra_detalle_id is not None:
+        cond.append(MovimientoInventario.compra_detalle_id == compra_detalle_id)
+    if venta_detalle_id is not None:
+        cond.append(MovimientoInventario.venta_detalle_id == venta_detalle_id)
+
+    originales = (await db.execute(
+        select(MovimientoInventario).where(*cond)
+        .order_by(MovimientoInventario.id.desc())
+    )).scalars().all()
+
+    es_reingreso = tipo_reverso in (
+        TipoMovimientoInventario.ENTRADA, TipoMovimientoInventario.AJUSTE_POSITIVO,
+    )
+    movimientos: list[MovimientoInventario] = []
+
+    for orig in originales:
+        if restante <= 0:
+            break
+        lote = await db.get(Lote, orig.lote_id)
+        if lote is None:
+            continue
+        if es_reingreso:
+            # No restaurar más de lo que esa salida tomó de este lote.
+            tomar = orig.cantidad if orig.cantidad < restante else restante
+            lote.cantidad_actual = lote.cantidad_actual + tomar
+            lote.activo = True
+        else:
+            # Reverso de entrada: sólo lo que quede en el lote.
+            if lote.cantidad_actual <= 0:
+                continue
+            tomar = lote.cantidad_actual if lote.cantidad_actual < restante else restante
+            lote.cantidad_actual = lote.cantidad_actual - tomar
+            if lote.cantidad_actual == 0:
+                lote.activo = False
+        mov = await registrar_movimiento(
+            db,
+            producto_id=producto_id,
+            tipo=tipo_reverso,
+            origen=origen,
+            cantidad=tomar,
+            motivo=motivo,
+            usuario_id=usuario_id,
+            compra_id=compra_id,
+            compra_detalle_id=compra_detalle_id,
+            venta_id=venta_id,
+            venta_detalle_id=venta_detalle_id,
+            lote_id=lote.id,
+        )
+        movimientos.append(mov)
+        restante = restante - tomar
+
+    # Reverso de entrada cuyos lotes ya se habían agotado: el resto sale por FEFO.
+    if restante > 0 and not es_reingreso:
+        movimientos.extend(await consumir_fefo(
+            db,
+            producto_id=producto_id,
+            cantidad=restante,
+            origen=origen,
+            usuario_id=usuario_id,
+            compra_id=compra_id,
+            compra_detalle_id=compra_detalle_id,
+            motivo=motivo,
+            permitir_vencidos=True,
+        ))
 
     return movimientos

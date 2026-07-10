@@ -17,6 +17,7 @@ from .schemas import (
     ErrorFilaImport, PreviewImport, ResumenImport,
 )
 from .service import registrar_movimiento
+from .lotes import entrada_lote, consumir_fefo, LoteError
 
 router = APIRouter(prefix="/api/v1/inventario", tags=["Inventario"])
 
@@ -161,15 +162,51 @@ async def crear_ajuste(
                        f"salida solicitada {data.cantidad}",
             )
 
-    mov = await registrar_movimiento(
-        session,
-        producto_id=data.producto_id,
-        tipo=tipo,
-        origen=OrigenMovimiento.AJUSTE_MANUAL,
-        cantidad=data.cantidad,
-        motivo=data.motivo or f"Ajuste manual de {data.tipo.lower()}",
-        usuario_id=current.id,
-    )
+    motivo = data.motivo or f"Ajuste manual de {data.tipo.lower()}"
+
+    # Productos con control de lote: la entrada crea/incrementa un lote (requiere
+    # código); la salida sale por FEFO. El resto usa el stock simple.
+    if producto.controla_lote:
+        try:
+            if tipo == TipoMovimientoInventario.ENTRADA:
+                if not (data.codigo_lote and data.codigo_lote.strip()):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"El producto '{producto.nombre}' controla lote: "
+                               f"el ajuste de entrada necesita un código de lote.",
+                    )
+                _, mov = await entrada_lote(
+                    session,
+                    producto_id=data.producto_id,
+                    cantidad=data.cantidad,
+                    codigo_lote=data.codigo_lote,
+                    fecha_vencimiento=data.fecha_vencimiento,
+                    origen=OrigenMovimiento.AJUSTE_MANUAL,
+                    usuario_id=current.id,
+                    motivo=motivo,
+                )
+            else:
+                movs = await consumir_fefo(
+                    session,
+                    producto_id=data.producto_id,
+                    cantidad=data.cantidad,
+                    origen=OrigenMovimiento.AJUSTE_MANUAL,
+                    usuario_id=current.id,
+                    motivo=motivo,
+                )
+                mov = movs[-1]
+        except LoteError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+    else:
+        mov = await registrar_movimiento(
+            session,
+            producto_id=data.producto_id,
+            tipo=tipo,
+            origen=OrigenMovimiento.AJUSTE_MANUAL,
+            cantidad=data.cantidad,
+            motivo=motivo,
+            usuario_id=current.id,
+        )
     await session.commit()
     await session.refresh(mov)
     return _to_response(mov, producto.nombre, producto.sku)
