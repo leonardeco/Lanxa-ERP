@@ -59,7 +59,7 @@ Estado general: 276 tests API + 37 componentes + 5 E2E (local y CI), CI verde, 0
 
 - Seeder de datos demo (50 clientes, 200 ventas) para probar rendimiento de UI
 - ~~Tests de los utilitarios de impresión (`printFactura.ts`, `printCotizacion.ts`, etc.)~~ ✅ **Hecho 2026-07-11** (24 tests Vitest para las 4 utilidades: HTML generado, escapado XSS, filas condicionales de retención/descuento, ramas CxC/CxP y popup bloqueado; ver DOCUMENTACION.md §13 #55)
-- **30 — Access token de `localStorage` a memoria** (revisión de seguridad 2026-07-05): un XSS podría leerlo; ya está mitigado (vida 15 min + refresh en cookie HttpOnly, ver REPORTE_SEGURIDAD) — reevaluar si el ERP sale de la LAN
+- ~~**30 — Access token de `localStorage` a memoria**~~ ✅ **Hecho 2026-07-11**: el token vive solo en memoria (`api.ts` `getAccessToken`/`setAccessToken`), fuera de `localStorage`; la sesión persiste vía refresh token en cookie HttpOnly. 5 tests Vitest nuevos; ver DOCUMENTACION.md §13 #56
 - `APP_VERSION` se mantiene manual en `config.py` — recordar alinearla con el tag en cada release (v0.3.0 ✔)
 - Política de contraseñas (complejidad/expiración) — hoy solo mínimo 8 caracteres; aceptable en LAN
 - Blacklist de JTI en Redis para revocación inmediata de access tokens — innecesario con vida de 15 min; además desde v0.3.0 el Admin puede revocar los refresh tokens (14c)

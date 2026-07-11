@@ -289,5 +289,5 @@ else:
 ### Pendiente (aceptado por contexto LAN)
 
 - **SEC-002** — Rotación documentada del token de Alegra: pendiente definir procedimiento con la empresa
-- Access token en `localStorage` (exposición ante XSS): mitigado por refresh token en cookie HttpOnly y vida de 15 min; reevaluar si el ERP sale de la LAN
+- ~~Access token en `localStorage` (exposición ante XSS)~~ ✅ **Resuelto 2026-07-11**: el access token vive **solo en memoria** (variable de módulo en `frontend/src/services/api.ts`, accesores `getAccessToken`/`setAccessToken`); ya no se persiste en `localStorage`. Un XSS no puede leerlo de un almacén persistente. La sesión se restablece tras recargar con el refresh token en cookie HttpOnly (`/login/refresh-token`)
 - Blacklist de JTI en Redis para revocación inmediata de access tokens: innecesario con vida de 15 min en LAN cerrada

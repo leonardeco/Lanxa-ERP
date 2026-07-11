@@ -13,10 +13,23 @@ export function setOnSessionExpired(handler: () => void) {
   onSessionExpired = handler;
 }
 
+// Access token SOLO en memoria (nunca en localStorage) para reducir la superficie
+// de XSS: un script inyectado no puede leerlo de un almacén persistente. La
+// persistencia de sesión entre recargas la da el refresh token en cookie
+// HttpOnly (que JS no puede leer) vía /login/refresh-token. Ver PENDIENTES #30.
+let accessToken: string | null = null;
+
+export function getAccessToken(): string | null {
+  return accessToken;
+}
+
+export function setAccessToken(token: string | null): void {
+  accessToken = token;
+}
+
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (accessToken && config.headers) {
+    config.headers.Authorization = `Bearer ${accessToken}`;
   }
   return config;
 }, (error) => {
@@ -31,11 +44,11 @@ function refreshAccessToken(): Promise<string | null> {
       .post('/login/refresh-token')
       .then((res) => {
         const newToken = res.data.access_token as string;
-        localStorage.setItem('token', newToken);
+        setAccessToken(newToken);
         return newToken;
       })
       .catch(() => {
-        localStorage.removeItem('token');
+        setAccessToken(null);
         return null;
       })
       .finally(() => {

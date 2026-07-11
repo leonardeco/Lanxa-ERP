@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { api, setOnSessionExpired } from '../services/api';
+import { api, setOnSessionExpired, setAccessToken } from '../services/api';
 import { jwtDecode } from 'jwt-decode';
 import { AuthContext, type User } from './auth';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  // El token arranca en null (no se lee de localStorage): en cada recarga la
+  // sesión se restablece en silencio con el refresh token en cookie HttpOnly.
+  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const login = (newToken: string) => {
-    localStorage.setItem('token', newToken);
+    setAccessToken(newToken);
     setToken(newToken);
   };
 
@@ -22,7 +24,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {
       // Igual se limpia el estado local aunque el backend no responda
     }
-    localStorage.removeItem('token');
+    setAccessToken(null);
     setToken(null);
     setUser(null);
   };
@@ -51,7 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           const res = await api.post('/login/refresh-token');
           currentToken = res.data.access_token;
-          localStorage.setItem('token', currentToken as string);
+          setAccessToken(currentToken);
           setToken(currentToken);
         } catch {
           logout();
