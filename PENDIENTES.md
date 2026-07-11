@@ -58,7 +58,7 @@ Estado general: 276 tests API + 37 componentes + 5 E2E (local y CI), CI verde, 0
 ## 🔵 Nice-to-have
 
 - Seeder de datos demo (50 clientes, 200 ventas) para probar rendimiento de UI
-- Tests de los utilitarios de impresión (`printFactura.ts`, `printCotizacion.ts`, etc.)
+- ~~Tests de los utilitarios de impresión (`printFactura.ts`, `printCotizacion.ts`, etc.)~~ ✅ **Hecho 2026-07-11** (24 tests Vitest para las 4 utilidades: HTML generado, escapado XSS, filas condicionales de retención/descuento, ramas CxC/CxP y popup bloqueado; ver DOCUMENTACION.md §13 #55)
 - **30 — Access token de `localStorage` a memoria** (revisión de seguridad 2026-07-05): un XSS podría leerlo; ya está mitigado (vida 15 min + refresh en cookie HttpOnly, ver REPORTE_SEGURIDAD) — reevaluar si el ERP sale de la LAN
 - `APP_VERSION` se mantiene manual en `config.py` — recordar alinearla con el tag en cada release (v0.3.0 ✔)
 - Política de contraseñas (complejidad/expiración) — hoy solo mínimo 8 caracteres; aceptable en LAN
