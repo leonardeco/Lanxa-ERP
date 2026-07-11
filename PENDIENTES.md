@@ -1,6 +1,6 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **10 de julio de 2026** (28ª revisión — ✅ **nuevo rol Contador** (PR [#18](https://github.com/leonardeco/superozono-erp/pull/18), área contable; ventas/compras solo consulta); ✅ **#13 servicios de dominio de ventas** (PR [#17](https://github.com/leonardeco/superozono-erp/pull/17)); ✅ módulo lote+vencimiento completo (PR [#16](https://github.com/leonardeco/superozono-erp/pull/16)); 🔧 drift de Alembic de la BD local reconciliado (ver #10)). **Este archivo es la fuente única de pendientes.**
+Backlog vivo del proyecto. Actualizado: **11 de julio de 2026** (29ª revisión — 🧹 corrección de drift: el módulo lote+vencimiento (PR [#16](https://github.com/leonardeco/superozono-erp/pull/16)) ya está mergeado y movido a completados (DOCUMENTACION.md §13 #51), se retiró de la tabla de features pendientes; ✅ Dependabot: fusionados #13 (pip menores) y #14 (npm menores), cerrado #15 (typescript 6→7, bloqueado por peer dep de `typescript-eslint <6.1.0`). — 28ª rev: ✅ **nuevo rol Contador** (PR [#18](https://github.com/leonardeco/superozono-erp/pull/18), área contable; ventas/compras solo consulta); ✅ **#13 servicios de dominio de ventas** (PR [#17](https://github.com/leonardeco/superozono-erp/pull/17)); ✅ módulo lote+vencimiento completo; 🔧 drift de Alembic de la BD local reconciliado (ver #10)). **Este archivo es la fuente única de pendientes.**
 Estado general: 276 tests API + 37 componentes + 5 E2E (local y CI), CI verde, 0 CVEs. Versión: **v0.3.0**.
 
 ---
@@ -41,7 +41,6 @@ Estado general: 276 tests API + 37 componentes + 5 E2E (local y CI), CI verde, 0
 
 | # | Feature | Alcance (verificado 2026-07-05) |
 |---|---|---|
-| ✅ Lotes | **Trazabilidad por lote + vencimiento** (COMPLETO 2026-07-10, 4/4 capas) | ✅ **Capa 1** (modelo `Lote`, flag `controla_lote`, `kardex.lote_id`, migración `a1b2c3d4e5f6`) · ✅ **Capa 2** (servicio `entrada_lote` + `consumir_fefo` FEFO, invariante `stock == Σ lotes`) · ✅ **Capa 3** (wire-in de los 7 puntos de stock + helper `revertir_por_lotes` + campos de lote + migración `b2c3d4e5f6a7`) · ✅ **Capa 4** (endpoint `GET /inventario/lotes` con estado de vencimiento derivado + alertas de vencimiento en el dashboard; frontend: pestaña **Lotes** con existencias/estado, captura de lote en Nueva Compra y Ajuste, toggle `controla_lote` en producto, KPIs de vencimiento en Dashboard). Opt-in por producto, **FEFO**, sin producción (MVP). 9 tests de integración API + 2 de componente. **PR abierto:** [#16](https://github.com/leonardeco/superozono-erp/pull/16) (rama `feat/lotes-vencimiento` → `main`, pendiente de merge) |
 | 18 | **RRHH y nómina** (Fase 2) | Empleados, contratos, liquidación — requiere definiciones de negocio propias |
 | 20 | Activación Alegra con facturación electrónica DIAN | ✔ La integración está construida y testeada con mocks; falta cuenta/token real y rotación documentada (SEC-002) |
 | 21 | Empaquetado Electron (Fase 4) | App de escritorio .exe |
