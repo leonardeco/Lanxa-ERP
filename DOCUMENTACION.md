@@ -52,7 +52,7 @@ ERP interno para la gestión contable y comercial de Super Ozono Global. Diseña
 | Base de datos (prod) | PostgreSQL 16 | — |
 | Migraciones | Alembic | 1.15.2 |
 | Validación | Pydantic v2 | 2.11.3 |
-| Autenticación | JWT access token (python-jose) + refresh token opaco (cookie HttpOnly) | 3.5.0 |
+| Autenticación | JWT access token (PyJWT) + refresh token opaco (cookie HttpOnly) | 2.13.0 |
 | Hashing contraseñas | passlib + bcrypt | 1.7.4 |
 | Rate limiting | slowapi | 0.1.9 |
 | HTTPS (LAN, sin Docker) | uvicorn `--ssl-keyfile/--ssl-certfile` + CA local autofirmada (`cryptography`) | — |
@@ -767,6 +767,7 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | 51 | Trazabilidad por lote + vencimiento (opt-in `controla_lote`, FEFO) — **Capa 1** modelo `Lote` + `kardex.lote_id` + migración `a1b2c3d4e5f6`; **Capa 2** servicio `entrada_lote`/`consumir_fefo` (invariante `stock == Σ lotes`); **Capa 3** enganche de los 7 puntos de stock (compra/venta confirmar-anular-devolución, ajuste, importador) + helper `revertir_por_lotes` + campos `codigo_lote`/`fecha_vencimiento` (compra-detalle/ajuste/importador) + migración `b2c3d4e5f6a7`; **Capa 4** `GET /inventario/lotes` (existencias + estado de vencimiento) + alertas en el dashboard + UI (pestaña Lotes, captura de lote en Nueva Compra/Ajuste, toggle `controla_lote` en producto). 9 tests API + 2 de componente | ✅ Completado 2026-07-10 |
 | 52 | #13 Servicios de dominio de ventas — nuevo `ventas/services.py` (`confirmar_venta`/`anular_venta` + `VentaError`); endpoints delgados que validan la transición y delegan; `create_venta` reutiliza `get_venta` (sin builder duplicado); quitados los `hasattr(estado,'value')` (columna `SAEnum`). Refactor sin cambio funcional, 276 tests verdes | ✅ Completado 2026-07-10 |
 | 53 | Nuevo rol **Contador** — `ROLES_VALIDOS += Contador`, permiso `ContableDep` (`get_area_contable`), `contabilidad/router` migrado de `AdminOrAdministradoraDep` a `ContableDep`; ventas/compras *anular* siguen restringidos (Contador solo consulta); migración `c4d5e6f7a8b9` del CHECK; frontend `ROLES`/`ROLE_VIEWS`/`ROL_COLORS`. También se reconcilió el drift de Alembic de la BD local (ver PENDIENTES #10) | ✅ Completado 2026-07-10 |
+| 54 | Migración **python-jose → PyJWT 2.13.0** (HS256) — elimina la dep transitiva `ecdsa` y con ella la CVE PYSEC-2026-1325 (antes ignorada en CI con justificación). `security.py`/`deps.py` (`import jwt`, `JWTError`→`PyJWTError`); `pip-audit` corre sin `--ignore-vuln`; test nuevo de token expirado→401. 277 tests verdes, mypy limpio, 0 CVEs. También se cerraron 3 PRs de Dependabot (#13/#14 fusionados, #15 typescript 6→7 bloqueado por peer dep) | ✅ Completado 2026-07-11 |
 
 ### Deuda técnica / mejoras pendientes
 

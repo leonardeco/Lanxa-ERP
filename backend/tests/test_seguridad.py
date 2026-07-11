@@ -495,6 +495,19 @@ async def test_sec_token_con_sub_no_numerico_da_401(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_sec_token_expirado_da_401(client: AsyncClient, auth_headers: dict):
+    """Un JWT con `exp` vencido debe dar 401 (PyJWT valida la expiración por
+    defecto y el guard lo captura como credencial inválida, nunca un 500)."""
+    from datetime import timedelta
+    from app.core.security import create_access_token
+
+    # sub válido (=1, el admin sembrado) pero el token ya nació expirado
+    token = create_access_token(1, expires_delta=timedelta(minutes=-5))
+    resp = await client.get("/api/users/me", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
 async def test_sec_login_no_revela_usuario_inactivo(client: AsyncClient, auth_headers: dict):
     """El login de un usuario inactivo responde igual que credenciales malas."""
     await client.post(

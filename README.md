@@ -122,7 +122,7 @@ modules/<nombre>/
 | FastAPI | 0.139 | Framework web async |
 | SQLAlchemy | 2.0 | ORM async — PostgreSQL y SQLite |
 | Pydantic | 2.13 | Validación y serialización |
-| python-jose | 3.5 | Generación y verificación JWT |
+| PyJWT | 2.13 | Generación y verificación JWT (HS256) |
 | bcrypt | 5.0 | Hash de contraseñas — uso directo (passlib eliminado jul-2026, compat con hashes existentes verificada por test) |
 | httpx | 0.28 | Cliente HTTP async (Alegra API) |
 | structlog | 26.1 | Logging estructurado JSON |
