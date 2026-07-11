@@ -9,7 +9,7 @@ from app.core.time import utcnow
 from typing import Any, Union
 
 import bcrypt
-from jose import jwt
+import jwt
 
 from app.core.config import get_settings
 

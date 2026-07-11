@@ -63,7 +63,7 @@ Estado general: 276 tests API + 37 componentes + 5 E2E (local y CI), CI verde, 0
 - `APP_VERSION` se mantiene manual en `config.py` — recordar alinearla con el tag en cada release (v0.3.0 ✔)
 - Política de contraseñas (complejidad/expiración) — hoy solo mínimo 8 caracteres; aceptable en LAN
 - Blacklist de JTI en Redis para revocación inmediata de access tokens — innecesario con vida de 15 min; además desde v0.3.0 el Admin puede revocar los refresh tokens (14c)
-- **ecdsa / PYSEC-2026-1325** (2026-07-09): la CVE se **ignora en CI** con justificación (inalcanzable — los JWT usan HS256 + backend `cryptography`; `ecdsa` es dep transitiva de `python-jose` que solo se importa para algoritmos ES*, y no hay versión con fix). Evaluar migrar `python-jose` → `PyJWT` para eliminar la dependencia `ecdsa` por completo.
+- ~~**ecdsa / PYSEC-2026-1325** — migrar `python-jose` → `PyJWT` para eliminar la dep `ecdsa`~~ ✅ **Hecho 2026-07-11** (PyJWT 2.13.0, HS256; ver DOCUMENTACION.md §13 #54). El `--ignore-vuln` se quitó del CI y `pip-audit` corre sin excepciones.
 
 ---
 

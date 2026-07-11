@@ -1,7 +1,8 @@
 from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import jwt, JWTError
+import jwt
+from jwt import PyJWTError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,7 +33,8 @@ async def get_current_user(session: SessionDep, token: TokenDep) -> Usuario:
         if token_data.sub is None:
             raise credentials_exception
         user_id = int(token_data.sub)
-    except (JWTError, ValueError):
+    except (PyJWTError, ValueError):
+        # PyJWTError: token inválido, malformado, con firma incorrecta o expirado.
         # ValueError: sub no numérico en un token firmado con otra estructura —
         # debe ser 401, no un 500 por int() fallido
         raise credentials_exception

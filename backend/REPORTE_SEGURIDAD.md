@@ -239,7 +239,7 @@ else:
 | Aspecto | Implementación | Archivo |
 |---|---|---|
 | Hash de contraseñas | bcrypt via passlib | `security.py` |
-| JWT con expiración | python-jose, HS256 | `security.py` |
+| JWT con expiración | PyJWT, HS256 | `security.py` |
 | Refresh token hasheado | SHA-256 en BD, nunca texto plano | `security.py` |
 | Rotación de refresh tokens | El viejo se invalida al usar | `usuarios/router.py` |
 | Cookie segura | HttpOnly + Secure + SameSite=Strict | `usuarios/router.py` |
