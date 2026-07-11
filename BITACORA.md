@@ -1225,3 +1225,69 @@ gestión de usuarios.
 64 tests (usuarios/seguridad/contabilidad/cartera/anulación) verdes; tsc+eslint
 limpios. Login admin OK, **usuario `contador@superozonoglobal.com` creado (rol
 Contador) y su login devuelve 200**. Rama `feat/rol-contador`.
+
+## Sesión — 11 de julio 2026 — Higiene de dependencias + seguridad frontend
+
+### Resumen
+
+Sesión de mantenimiento y endurecimiento, sin cambios de negocio. Se pusieron al
+día las dependencias (Dependabot), se corrigió deriva documental, y se cerraron los
+dos últimos ítems de seguridad **codeable sin bloqueo**: la migración de JWT a
+`PyJWT` (que elimina una CVE) y el paso del access token a memoria. Con esto el
+backlog "codeable sin bloqueo" queda vacío — lo que resta es de negocio (contadora)
+u operativo (despliegue). Todo mergeado a `main` con CI verde.
+
+### Lo que se hizo
+
+**1. Dependabot (3 PRs).**
+- Fusionados **#13** (backend pip menores: `mypy 2.1→2.2`, `uvicorn 0.49→0.51`) y
+  **#14** (frontend npm menores: `@types/node`, `typescript-eslint 8.62→8.63`,
+  `vite 8.1.3→8.1.4`, `vitest 4.1.9→4.1.10`). CI verde.
+- **Cerrado #15** (`typescript 6→7`): **no es error de código**, es conflicto de peer
+  dep — `typescript-eslint` (línea 8.x) cappea `typescript <6.1.0`, así que TS7 rompe
+  `npm ci` con `ERESOLVE`. No reintentar hasta que `typescript-eslint` soporte TS7.
+
+**2. Corrección de drift en `PENDIENTES.md`.**
+- El módulo lote+vencimiento (PR #16) figuraba como "pendiente de merge" pero ya
+  estaba en `main`; se retiró de la tabla de features y se dejó en completados
+  (DOCUMENTACION §13 #51).
+
+**3. Migración `python-jose` → `PyJWT 2.13.0` (#54, PR #20).**
+- Reemplaza `python-jose[cryptography]` por `PyJWT` (HS256) para firmar/validar los
+  JWT de acceso. PyJWT **no depende de `ecdsa`**, así que la CVE **PYSEC-2026-1325**
+  (antes ignorada en CI con justificación) desaparece del árbol de deps.
+- Solo 2 archivos usan JWT: `core/security.py` (`import jwt`, encode) y `api/deps.py`
+  (decode, `JWTError`→`PyJWTError` en el guard de `get_current_user`). El `decode`
+  mantiene `algorithms=["HS256"]` explícito (previene `alg=none`/confusión).
+- `requirements.txt`: `PyJWT==2.13.0`; `requirements-dev.txt`: quitado
+  `types-python-jose` (PyJWT trae `py.typed`); `ci.yml`: `pip-audit` corre **sin**
+  `--ignore-vuln`. Test nuevo `test_sec_token_expirado_da_401` (valida el camino de
+  expiración de PyJWT → 401).
+- Revisión Hydraia (Fase 5 + puerta de seguridad): 0 bloqueadores.
+
+**4. Tests de las utilidades de impresión (#55, PR #21).**
+- 24 tests Vitest para `printFactura`/`printCompra`/`printCotizacion`/
+  `printComprobante`, que no tenían cobertura. Verifican el HTML generado, el
+  escapado XSS de campos de usuario (`esc`), las filas condicionales de
+  retención/descuento, las ramas CxC (Recibo de Caja) vs CxP (Comprobante de Egreso),
+  el estado Pagado/Parcial y la rama de popup bloqueado.
+- Helper nuevo `src/test/printWindow.ts` que mockea `window.open` para capturar el
+  HTML escrito (y simular el popup bloqueado con `window.open → null`).
+
+**5. #30 — Access token a memoria (#56, PR #22).**
+- El access token **deja de guardarse en `localStorage`** y vive **solo en memoria**
+  (variable de módulo en `frontend/src/services/api.ts` con accesores
+  `getAccessToken`/`setAccessToken`). Reduce la superficie de XSS: un script
+  inyectado ya no puede leerlo de un almacén persistente.
+- `AuthContext` arranca sin token; en cada recarga la sesión se restablece en
+  silencio con el refresh token en cookie HttpOnly (`/login/refresh-token`), que ya
+  se renovaba solo. `login`/`logout`/refresh usan `setAccessToken`.
+- `api.test.ts` (nuevo): 5 tests, incluida la verificación de que **nunca** se
+  escribe en `localStorage`.
+
+### Verificación
+Backend: **277 tests** verdes, mypy limpio, **`pip-audit` sin excepciones =
+"No known vulnerabilities found"**. Frontend: **37 → 66 tests** (Vitest), `tsc -b` y
+ESLint limpios. Los 4 PRs (#20/#21/#22, más #13/#14) mergeados a `main` con CI 4/4
+verde; `main` local sincronizado. Ramas: `security/pyjwt-migracion`,
+`test/print-utils`, `security/access-token-en-memoria` (borradas al mergear).
