@@ -750,7 +750,7 @@ async def convertir_cotizacion(
 @router.get("/", response_model=List[VentaResponse])
 async def list_ventas(
     _: CurrentUser,
-    estado: Optional[str] = Query(None),
+    estado: Optional[EstadoVenta] = Query(None),
     limit: int = Query(500, ge=1, le=2000),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),

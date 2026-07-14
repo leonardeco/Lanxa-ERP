@@ -13,6 +13,20 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: superozono_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v7
 
@@ -33,9 +47,31 @@ jobs:
       - name: mypy
         run: mypy app/
 
+      - name: Migraciones + alembic check (drift #10)
+        env:
+          DATABASE_URL: "postgresql+asyncpg://postgres:postgres@localhost:5432/superozono_migcheck"
+          SECRET_KEY: "ci-secret-key-solo-para-tests-0123456789abcdef"
+          SEED_ADMIN_PASSWORD: "ci-admin-pass-no-produccion"
+        run: |
+          python - <<'PY'
+          import asyncio, asyncpg
+          async def main():
+              conn = await asyncpg.connect("postgresql://postgres:postgres@localhost:5432/postgres")
+              try:
+                  await conn.execute("CREATE DATABASE superozono_migcheck")
+              except asyncpg.exceptions.DuplicateDatabaseError:
+                  pass
+              finally:
+                  await conn.close()
+          asyncio.run(main())
+          PY
+          python -m alembic upgrade head
+          python -m alembic check
+
       - name: pytest (con cobertura)
         env:
-          DATABASE_URL: "sqlite+aiosqlite:///./test_ci.db"
+          DATABASE_URL: "postgresql+asyncpg://postgres:postgres@localhost:5432/superozono_test"
+          TEST_DATABASE_URL: "postgresql+asyncpg://postgres:postgres@localhost:5432/superozono_test"
           SECRET_KEY: "ci-secret-key-solo-para-tests-0123456789abcdef"
           SEED_ADMIN_PASSWORD: "ci-admin-pass-no-produccion"
         run: pytest -q --cov=app --cov-report=term-missing:skip-covered

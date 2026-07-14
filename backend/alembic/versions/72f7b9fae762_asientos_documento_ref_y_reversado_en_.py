@@ -27,7 +27,7 @@ def upgrade() -> None:
     with op.batch_alter_table('asientos_contables', schema=None) as batch_op:
         batch_op.add_column(sa.Column('documento_ref', sa.String(length=50), nullable=True))
         batch_op.add_column(
-            sa.Column('reversado', sa.Boolean(), nullable=False, server_default=sa.text('0'))
+            sa.Column('reversado', sa.Boolean(), nullable=False, server_default=sa.false())
         )
         batch_op.create_index(
             batch_op.f('ix_asientos_contables_documento_ref'), ['documento_ref'], unique=False

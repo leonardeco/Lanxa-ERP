@@ -17,6 +17,7 @@ from app.modules.contabilidad import models as _contabilidad_models  # noqa: F40
 from app.modules.ventas import models as _ventas_models  # noqa: F401
 from app.modules.compras import models as _compras_models  # noqa: F401
 from app.modules.inventario import models as _inventario_models  # noqa: F401
+from app.modules.auditoria import models as _auditoria_models  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

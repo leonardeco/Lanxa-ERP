@@ -251,7 +251,7 @@ Tabla de entidades principales con campos sensibles, tipos y restricciones de se
 
 El proyecto cuenta con una infraestructura automatizada para asegurar su integridad y reducir bugs:
 
-- **Pruebas Unitarias y de Integración (Backend)**: Usando `pytest`, `pytest-asyncio` y `httpx`. Las pruebas levantan automáticamente una base de datos `SQLite` en memoria que se crea y destruye limpiamente con cada ejecución, validando el correcto funcionamiento de la API, la inyección de JWT, y los dashboards de módulos como Inventario.
+- **Pruebas Unitarias y de Integración (Backend)**: Usando `pytest`, `pytest-asyncio` y `httpx`. Desde **Run 1 (Fundación Postgres)** la suite corre contra **PostgreSQL** (el motor de producción/nube y el único que soporta RLS para la multi-tenancy en curso), no SQLite. Levanta el Postgres local con `docker compose up -d db` y apunta `TEST_DATABASE_URL` a una BD de test dedicada (`superozono_test`); el esquema se crea/destruye limpiamente en cada test. **SQLite sigue soportado** para el despliegue LAN de v0.3.0.
 - **Análisis Estático Continuo (Linter & Type Checking)**: `flake8` y `mypy` se encargan de detectar errores de código, dependencias sin uso, o violaciones lógicas de Python (como `E712`). En el frontend, `ESLint` protege las reglas de hooks de React y la sintaxis de TypeScript.
 
 Las herramientas de QA se instalan aparte de las dependencias de runtime:
@@ -275,8 +275,12 @@ pre-commit install
 **Para correr las pruebas:**
 
 ```bash
-# Ejecutar Tests del Backend (Unitarios)
+# Ejecutar Tests del Backend (Unitarios) — requieren PostgreSQL
+# Un Postgres desechable que coincide con el TEST_DATABASE_URL por defecto:
+docker run -d --name pg-test -p 5432:5432 \
+  -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=superozono_test postgres:16-alpine
 cd backend
+export TEST_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/superozono_test
 pytest -v
 
 # Analizadores Estáticos (Backend)
