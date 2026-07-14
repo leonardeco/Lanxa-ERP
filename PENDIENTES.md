@@ -57,7 +57,7 @@ Estado general: 276 tests API + 37 componentes + 5 E2E (local y CI), CI verde, 0
 
 ## 🔵 Nice-to-have
 
-- Seeder de datos demo (50 clientes, 200 ventas) para probar rendimiento de UI
+- ~~Seeder de datos demo (50 clientes, 200 ventas) para probar rendimiento de UI~~ ✅ **Hecho 2026-07-14** (CLI `backend/seeds/seed_demo.py`, BD demo dedicada `superozono_demo.db` con guard anti-producción, idempotente `--clean`; ver DOCUMENTACION.md §13)
 - ~~Tests de los utilitarios de impresión (`printFactura.ts`, `printCotizacion.ts`, etc.)~~ ✅ **Hecho 2026-07-11** (24 tests Vitest para las 4 utilidades: HTML generado, escapado XSS, filas condicionales de retención/descuento, ramas CxC/CxP y popup bloqueado; ver DOCUMENTACION.md §13 #55)
 - ~~**30 — Access token de `localStorage` a memoria**~~ ✅ **Hecho 2026-07-11**: el token vive solo en memoria (`api.ts` `getAccessToken`/`setAccessToken`), fuera de `localStorage`; la sesión persiste vía refresh token en cookie HttpOnly. 5 tests Vitest nuevos; ver DOCUMENTACION.md §13 #56
 - `APP_VERSION` se mantiene manual en `config.py` — recordar alinearla con el tag en cada release (v0.3.0 ✔)

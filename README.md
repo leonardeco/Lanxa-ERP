@@ -383,6 +383,20 @@ node node_modules/vite/bin/vite.js --host 0.0.0.0 --port 5173
 
 El primer arranque ejecuta automáticamente los seeders con datos base (PUC completo según Decreto 2650, centros de costo por marca, períodos contables, parámetros tributarios y de nómina).
 
+### Seeder de datos demo (pruebas de rendimiento de UI)
+
+Para probar la UI con volumen realista existe un script **independiente** que llena una **base de datos demo dedicada** (`superozono_demo.db`) — nunca la de producción — con ~50 clientes y ~200 ventas mixtas (mayoría confirmadas, algunas en borrador/anuladas, varias con abono parcial para el aging de Cartera), además de los datos maestros base.
+
+```bash
+cd backend
+python -m seeds.seed_demo --clean --clientes 50 --ventas 200
+```
+
+- `--clean` borra y recrea la BD demo (idempotente y reproducible con `--seed`).
+- Sin `--clean` sobre una BD demo ya poblada, el script **se niega** a correr (evita duplicar).
+- La URL demo se puede sobrescribir con `SEED_DEMO_DATABASE_URL` o `--db-url`; el script **aborta** si esa URL coincide con la de producción (`DATABASE_URL`).
+- Para usar la BD demo en la app, apunta `DATABASE_URL` a `sqlite+aiosqlite:///./superozono_demo.db` en un `.env` de prueba.
+
 **Acceso directo de escritorio (opcional, una sola vez):**
 
 Ejecuta `crear-acceso-escritorio.bat` (doble clic) para crear un ícono **"Super Ozono ERP"** en el escritorio con el logo de la empresa, que al abrirlo ejecuta `start.bat`. Usa la carpeta donde está el proyecto en *ese* PC — funciona igual si copias el proyecto a otra máquina, solo hay que volver a ejecutarlo ahí (no se puede copiar el `.lnk` directamente porque apunta a una ruta absoluta).

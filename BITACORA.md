@@ -1291,3 +1291,61 @@ Backend: **277 tests** verdes, mypy limpio, **`pip-audit` sin excepciones =
 ESLint limpios. Los 4 PRs (#20/#21/#22, más #13/#14) mergeados a `main` con CI 4/4
 verde; `main` local sincronizado. Ramas: `security/pyjwt-migracion`,
 `test/print-utils`, `security/access-token-en-memoria` (borradas al mergear).
+
+---
+
+## Sesión — 14 de julio 2026 — Seeder de datos demo
+
+### Resumen
+
+Se implementó el **seeder de datos demo** (único ítem 🔵 nice-to-have codeable sin
+bloqueo de `PENDIENTES.md`): un CLI que llena una **BD demo dedicada** con volumen
+realista (~50 clientes, ~200 ventas) para probar el rendimiento de la UI. Construido
+con el pipeline **Hydraia** completo (analyze → design → plan → execute → review →
+verify). Rama `feat/seeder-datos-demo` subida y **PR #23** abierto contra `main` (no
+mergeado; pendiente revisión humana).
+
+### Lo que se hizo
+
+**1. `backend/seeds/seed_demo.py` — CLI independiente.**
+- `python -m seeds.seed_demo --clean --clientes 50 --ventas 200` (desde `backend/`).
+- Construye su **propio engine** hacia una BD demo dedicada
+  (`superozono_demo.db`, override por `--db-url`/`SEED_DEMO_DATABASE_URL`), separada
+  de la de producción/desarrollo. **Guard de aislamiento** (`assert_isolated`): aborta
+  si la URL resuelta coincide con `DATABASE_URL`, o si no es sqlite sin opt-in.
+- Reutiliza los seeders base de `seeds/seed.py` (PUC, centros de costo, períodos,
+  parámetros, productos, clientes) — no los duplica.
+- Genera clientes sintéticos (NIT en rango reservado `9008#####`, datos ficticios) y
+  ventas con **mezcla realista** vía los servicios de dominio reales
+  (`confirmar_venta`/`anular_venta`): en una corrida de 200 → **160 confirmadas
+  (pueblan CxC + asientos + kardex + dashboards) / 24 borrador / 16 anuladas**. Un
+  subconjunto de CxC recibe un abono parcial/total como **atajo demo documentado**
+  (fija `abonos`/`saldo_pendiente`/`estado` sin recibo de caja) para poblar el aging
+  de Cartera.
+- **Idempotente**: `--clean` borra y recrea la BD demo; sin `--clean` sobre una BD ya
+  poblada, **se niega** a correr (evita duplicar). Reproducible con `--seed`.
+- `boost_stock` sube el stock y **fuerza `controla_lote=False`** en los productos demo
+  (el seeder no crea lotes → siempre ruta de stock simple, robusto a datos base
+  futuros).
+
+**2. `backend/tests/test_seed_demo.py` — 8 tests pytest.**
+- Volumen (50/200), CxC de las confirmadas, stock-safety (sin `VentaError`), aging por
+  abonos, guard de aislamiento, precedencia de URL, idempotencia (rechazo sin
+  `--clean`) y bounds del CLI. Usan engine in-memory propio con `StaticPool`.
+
+**3. Docs.** README (sección "Seeder de datos demo"), `DOCUMENTACION.md` §13 y
+`PENDIENTES.md` (ítem marcado ✅). Artefactos Hydraia en `docs/hydraia/` (spec, plan,
+casos QA, run log).
+
+### Verificación
+Ejecución real end-to-end OK. Suite completa: **285 tests** verdes (277 previos + 8
+nuevos), 0 regresiones. Rutas de rechazo, guard de aislamiento y bounds probadas.
+
+### Notas / salvedades
+- **Fase 5 (review) de Hydraia:** los 5 subagentes revisores quedaron **bloqueados por
+  el sandbox** del entorno (sin permiso de lectura sobre la ruta del repo). El review
+  se hizo en la sesión principal (Opus) — de ahí el commit
+  `fix(seeds): force controla_lote=False`. **Falta mirada humana** a `seed_demo.py`
+  antes de mergear el PR #23.
+- El seeder es utilidad de **dev/QA**: no corre en el arranque de producción.
+- `feat/seeder-datos-demo` con 7 commits; **PR #23** abierto, no mergeado.
