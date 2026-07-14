@@ -5,6 +5,7 @@ backend/venv/
 *.pyo
 *.db
 *.sqlite3
+# nota: *.db ya cubre superozono.db y superozono_demo.db (BD del seeder demo)
 
 # Testing / QA
 .coverage
