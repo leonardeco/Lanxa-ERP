@@ -6,6 +6,40 @@ pierden conexión durante la actualización).
 
 ---
 
+## Primer despliegue — go-live empresa #1 (una sola vez)
+
+Pasos que solo se hacen en la **primera** puesta en marcha (después se usa el flujo de
+actualización de abajo). Referencia: `docs/hydraia/plans/2026-07-14-roadmap-maestro-erp.md`
+(Carril 0). ⚠️ **Verificar los datos de red contra la configuración real antes de ejecutar.**
+
+**A. Red del servidor**
+- [ ] Reserva DHCP en el router (`192.168.1.1`): atar MAC `D8-C0-A6-E6-84-4F` → IP fija
+  `192.168.1.47` (para que la IP del servidor no cambie).
+- [ ] `backend\.env`: `CORS_ORIGINS` incluye `https://192.168.1.47:5173`.
+- [ ] `frontend\.env`: `VITE_API_URL=https://192.168.1.47:8000/api`.
+- [ ] Cert `certs\server.crt` válido para `192.168.1.47` (vigente hasta oct-2028). Si la IP
+  cambió: `venv\Scripts\python.exe scripts\generate_tls_cert.py <IP> localhost 127.0.0.1`.
+
+**B. Servidor:** ejecutar el flujo de "Actualizar el código" → "Migraciones" de abajo
+(incluye el `alembic stamp` de primera vez y el `SEED_ADMIN_PASSWORD` propio).
+
+**C. Cada uno de los 4 PCs cliente (una vez):**
+- [ ] Copiar `certs\superozono-ca.crt` e instalarla como confiable:
+  `certutil -user -addstore Root certs\superozono-ca.crt`
+- [ ] Abrir `https://192.168.1.47:5173` y hacer login.
+
+**D. Entrega y operación:**
+- [ ] El admin cambia su clave desde la UI tras el primer login.
+- [ ] Entregar `MANUAL-DE-USUARIO.md` a los 4 usuarios; cada uno cambia su clave inicial.
+- [ ] Documentar la fecha de expiración del cert TLS (oct-2028) y cuándo regenerarlo.
+- [ ] Calendarizar el drill de restore trimestral.
+- [ ] Confirmar las 2 tareas programadas (backup diario 2am, purga auditoría mensual).
+
+**Checkpoint:** empresa #1 operando desde los 4 PCs cliente + backup copiado **fuera** del
+servidor.
+
+---
+
 ## Antes de empezar (una sola vez por actualización)
 
 - [ ] **Backup manual previo** (además del automático de las 2:00am):
