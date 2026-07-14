@@ -6,6 +6,7 @@ os.environ.setdefault("SEED_ADMIN_PASSWORD", "test-admin-pass-no-produccion")
 
 import pytest_asyncio  # noqa: E402
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker  # noqa: E402
+from sqlalchemy.pool import NullPool  # noqa: E402
 from httpx import AsyncClient, ASGITransport  # noqa: E402
 
 from decimal import Decimal  # noqa: E402
@@ -19,11 +20,23 @@ from app.core.security import get_password_hash  # noqa: E402
 
 limiter.enabled = False
 
-# Usar SQLite en memoria para pruebas rápidas
-SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+# La suite corre contra PostgreSQL (Run 1 — Fundación Postgres): es el motor de
+# producción/nube y el único que soporta RLS (Runs siguientes). Se toma de
+# TEST_DATABASE_URL para que CI/local apunten a su Postgres; el aserto de dialecto
+# evita un falso verde si por config cayera a SQLite (spec T3).
+TEST_DATABASE_URL = os.environ.get(
+    "TEST_DATABASE_URL",
+    "postgresql+asyncpg://postgres:postgres@localhost:5432/superozono_test",
+)
 
-engine = create_async_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+# NullPool: sin reutilización de conexiones entre tests. pytest-asyncio usa un event
+# loop por test y asyncpg no admite compartir una conexión entre loops — el pool por
+# defecto provoca "another operation is in progress". NullPool abre/cierra por uso.
+engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
+assert engine.dialect.name == "postgresql", (
+    "La suite debe correr en PostgreSQL (spec T3). "
+    f"TEST_DATABASE_URL={TEST_DATABASE_URL!r} resolvió al dialecto "
+    f"{engine.dialect.name!r}."
 )
 TestingSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=engine, expire_on_commit=False)
 
@@ -38,6 +51,13 @@ async def override_get_db():
             raise
 
 app.dependency_overrides[get_db] = override_get_db
+
+# El endpoint /health no usa get_db: llama a app.main.async_session directamente (el
+# engine de la app). En tests lo apuntamos al engine de test (NullPool) para que use la
+# misma BD y no arrastre el problema de conexiones asyncpg reutilizadas entre los event
+# loops por-test (el pool por defecto de la app da "Event loop is closed" → degraded).
+import app.main as _app_main  # noqa: E402
+_app_main.async_session = TestingSessionLocal
 
 
 @pytest_asyncio.fixture(scope="function", autouse=True)

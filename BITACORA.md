@@ -1349,3 +1349,56 @@ nuevos), 0 regresiones. Rutas de rechazo, guard de aislamiento y bounds probadas
   antes de mergear el PR #23.
 - El seeder es utilidad de **dev/QA**: no corre en el arranque de producción.
 - `feat/seeder-datos-demo` con 7 commits; **PR #23** abierto, no mergeado.
+
+---
+
+## Sesión — 14 de julio 2026 — Fundación Postgres (Run 1 de multi-tenancy)
+
+### Resumen
+
+Primer paso de la migración a **SaaS multi-tenant en AWS** (ADR
+`docs/hydraia/adr/0001-...`): se pasó la suite de tests y el CI de SQLite in-memory a
+**PostgreSQL** (el motor de prod/nube y el único que soporta RLS, requisito de los Runs
+2–5). Descompuesto: este run = **Run 1 (Fundación Postgres) SOLO**, sin lógica de tenant.
+Hecho con el pipeline **Hydraia**; **verificación por CI** (no había Postgres local, sin
+Docker), en 5 vueltas de fix hasta verde. Rama `feat/fundacion-postgres`, **PR #26**
+(CI 4/4 verde, no mergeado).
+
+### Lo que se hizo
+
+**1. Motor de tests → Postgres.** `conftest.py` toma `TEST_DATABASE_URL` (default PG) +
+**`NullPool`** + aserto de dialecto `postgresql` (anti-falso-verde). El `/health` en tests
+apunta al engine NullPool (usa `app.main.async_session`, no `get_db`).
+
+**2. CI.** `ci.yml`: `services: postgres:16` en el job backend; paso
+`alembic upgrade head` + **`alembic check`** en una BD fresca (valida migraciones en PG y
+**cierra el drift #10**); pytest contra Postgres.
+
+**3. Docs.** `.env.example` (`TEST_DATABASE_URL`), README (sección tests con Postgres),
+`DOCUMENTACION.md` §13. **SQLite sigue soportado** para el despliegue LAN de v0.3.0.
+
+**4. Bugs reales que el CI destapó (verificación empírica):**
+- Migraciones estilo SQLite: `server_default=sa.text('0')` en booleanos (`reversado`,
+  `anulado`) → PG rechaza default entero en BOOLEAN → cambiado a `sa.false()` (portable).
+- **`alembic/env.py` no importaba el modelo `auditoria`** → `alembic check` lo marcaba
+  como tabla sobrante y un `--autogenerate` habría propuesto `DROP TABLE auditoria`
+  (bug latente peligroso). Se agregó el import (parte del drift #10).
+- **284 tests erroraban** con `asyncpg: another operation is in progress` — el pool por
+  defecto reutiliza conexiones entre los event loops por-test de pytest-asyncio →
+  resuelto con `NullPool`.
+- `list_ventas`: `estado` era `Optional[str]` comparado contra un ENUM nativo → un valor
+  inválido daba 500. Ahora `Optional[EstadoVenta]` → FastAPI valida (422). **Mejora de
+  seguridad** (lo destapó `test_sec_inyeccion_sql_en_estado`).
+
+### Verificación
+CI del PR #26 **verde**: **285 tests corriendo en PostgreSQL** + `alembic upgrade head` +
+`alembic check`. La suite tarda ~10 min en PG (`create/drop` por test) — el spec deja
+como mejora opcional migrar a `TRUNCATE`.
+
+### Notas / salvedades
+- Fase 4 ejecutada por la sesión principal (Opus): el bucle de fixes depende del feedback
+  del CI vuelta a vuelta, no paralelizable a executors fríos. Fase 5 auto-revisada
+  (subagentes bloqueados por el sandbox). Ambas divulgadas.
+- **Siguiente:** Run 2 (modelo Tenant + `tenant_id`), Run 3 (RLS), Run 4 (auth
+  por-tenant), Run 5 (concurrencia #12/#12a).
+- Artefactos Hydraia: `docs/hydraia/{specs,plans,runs}/2026-07-14-fundacion-postgres*`.
