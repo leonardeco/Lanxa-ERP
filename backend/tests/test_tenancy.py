@@ -55,34 +55,69 @@ def test_contextvar_tenant():
 @pytest.mark.asyncio
 async def test_numbering_scoped_by_tenant(db_session):
     """Dos tenants no comparten el contador de prefijos."""
-
-    class _Stub:
-        # columna fake no usada para siembra (sin filas)
-        pass
-
-    # usar Producto.sku solo como columna "like" vacía — better use DocumentSequence path
-    # with empty max from a real string column without matching rows
     from app.modules.ventas.models import VentaDocumento
+    from app.core.tenancy import apply_rls_tenant
 
     set_tenant_id(1)
+    await apply_rls_tenant(db_session, 1)
     n1 = await next_sequential_numero(db_session, VentaDocumento.numero, "SOG-V")
     assert n1 == "SOG-V-0001"
 
-    # segundo tenant
+    # segundo tenant (tenants no tiene RLS)
     db_session.add(Tenant(
         id=2, codigo="otra", razon_social="Otra SAS", activo=True,
     ))
     await db_session.flush()
     set_tenant_id(2)
+    await apply_rls_tenant(db_session, 2)
     n2 = await next_sequential_numero(db_session, VentaDocumento.numero, "SOG-V")
     assert n2 == "SOG-V-0001"  # reinicia por tenant
 
     set_tenant_id(1)
+    await apply_rls_tenant(db_session, 1)
     n3 = await next_sequential_numero(db_session, VentaDocumento.numero, "SOG-V")
     assert n3 == "SOG-V-0002"
 
     rows = (await db_session.execute(select(DocumentSequence))).scalars().all()
     by_t = {(r.tenant_id, r.prefix): r.last_value for r in rows}
     assert by_t[(1, "SOG-V")] == 2
-    assert by_t[(2, "SOG-V")] == 1
+    # con RLS activo en PG, desde tenant 1 no vemos filas de tenant 2
+    if db_session.get_bind().dialect.name == "postgresql":
+        assert (2, "SOG-V") not in by_t
+    else:
+        assert by_t.get((2, "SOG-V")) == 1
     reset_tenant_id()
+
+
+@pytest.mark.asyncio
+async def test_rls_oculta_productos_de_otro_tenant(db_session):
+    """En Postgres, con GUC tenant=1 no se ven productos de tenant=2."""
+    from decimal import Decimal
+    from app.core.tenancy import apply_rls_tenant
+    from app.modules.ventas.models import Producto
+
+    if db_session.get_bind().dialect.name != "postgresql":
+        pytest.skip("RLS solo en PostgreSQL")
+
+    db_session.add(Tenant(id=2, codigo="otra", razon_social="Otra", activo=True))
+    await db_session.flush()
+
+    await apply_rls_tenant(db_session, 1)
+    db_session.add(Producto(
+        sku="T1-A", nombre="Del tenant 1", marca="M",
+        precio_venta=Decimal("1"), stock_actual=Decimal("0"), tenant_id=1,
+    ))
+    await db_session.flush()
+
+    await apply_rls_tenant(db_session, 2)
+    db_session.add(Producto(
+        sku="T2-B", nombre="Del tenant 2", marca="M",
+        precio_venta=Decimal("1"), stock_actual=Decimal("0"), tenant_id=2,
+    ))
+    await db_session.flush()
+
+    await apply_rls_tenant(db_session, 1)
+    visibles = (await db_session.execute(select(Producto))).scalars().all()
+    skus = {p.sku for p in visibles}
+    assert "T1-A" in skus
+    assert "T2-B" not in skus

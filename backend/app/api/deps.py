@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.database import get_db
-from app.core.tenancy import DEFAULT_TENANT_ID, set_tenant_id
+from app.core.tenancy import DEFAULT_TENANT_ID, apply_rls_tenant, set_tenant_id
 from app.modules.usuarios.models import Usuario
 from app.modules.usuarios.schemas import TokenPayload
 
@@ -46,7 +46,8 @@ async def get_current_user(session: SessionDep, token: TokenDep) -> Usuario:
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Usuario inactivo")
 
-    # Run 2: fijar tenant del request (claim JWT o columna del usuario; fallback LAN).
+    # Run 2/3: fijar tenant del request (claim JWT o columna del usuario; fallback LAN)
+    # y alinear la GUC de RLS en la misma sesión.
     tid = token_data.tenant_id
     if tid is None:
         tid = getattr(user, "tenant_id", None) or DEFAULT_TENANT_ID
@@ -54,6 +55,7 @@ async def get_current_user(session: SessionDep, token: TokenDep) -> Usuario:
         # No permitir escalar a otro tenant con un JWT manipulado.
         raise credentials_exception
     set_tenant_id(int(tid))
+    await apply_rls_tenant(session, int(tid))
     return user
 
 

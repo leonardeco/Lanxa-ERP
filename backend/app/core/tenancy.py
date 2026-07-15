@@ -1,13 +1,12 @@
 """
-Tenancy (Run 2 — multi-tenant foundation, ADR 0001).
+Tenancy (Run 2 foundation + Run 3 RLS, ADR 0001).
 
 - `Tenant`: empresa/suscriptor SaaS.
 - `TenantScoped`: mixin ORM con `tenant_id` FK.
-- Contexto por request (`contextvars`) fijado al autenticar; la numeración y
-  futuros filtros leen `get_tenant_id()`.
-
-RLS de Postgres (Run 3) se apoyará en la misma columna y en
-`SET LOCAL app.tenant_id = ...` por conexión.
+- Contexto por request (`contextvars`) fijado al autenticar.
+- Postgres RLS: `apply_rls_tenant` ejecuta
+  `set_config('app.tenant_id', …, true)` (LOCAL a la transacción).
+  SQLite: no-op (LAN).
 """
 
 from __future__ import annotations
@@ -15,7 +14,8 @@ from __future__ import annotations
 from contextvars import ContextVar
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, text
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -39,6 +39,88 @@ def set_tenant_id(tenant_id: int | None) -> None:
 
 def reset_tenant_id() -> None:
     _tenant_ctx.set(None)
+
+
+async def apply_rls_tenant(
+    session: AsyncSession, tenant_id: int | None = None
+) -> None:
+    """Fija `app.tenant_id` en la transacción actual (solo PostgreSQL).
+
+    Debe llamarse al abrir la sesión de request y de nuevo tras autenticar si
+    el tenant del JWT difiere del default.
+    """
+    bind = session.get_bind()
+    if bind is None or bind.dialect.name != "postgresql":
+        return
+    tid = DEFAULT_TENANT_ID if tenant_id is None else int(tenant_id)
+    await session.execute(
+        text("SELECT set_config('app.tenant_id', :tid, true)"),
+        {"tid": str(tid)},
+    )
+
+
+# Tablas con política tenant_isolation (Run 3). Mantener alineado con
+# alembic/versions/f7a8b9c0d1e2_rls_postgres.py
+RLS_TABLES: tuple[str, ...] = (
+    "usuarios",
+    "refresh_tokens",
+    "productos",
+    "clientes",
+    "ventas_documentos",
+    "ventas_detalles",
+    "cotizaciones",
+    "cotizaciones_detalles",
+    "devoluciones_venta",
+    "devoluciones_venta_detalles",
+    "proveedores",
+    "compras_documentos",
+    "compras_detalles",
+    "devoluciones_compra",
+    "devoluciones_compra_detalles",
+    "plan_cuentas",
+    "centros_costo",
+    "periodos_contables",
+    "terceros",
+    "asientos_contables",
+    "movimientos_asiento",
+    "saldos_iniciales",
+    "cuentas_por_cobrar",
+    "cuentas_por_pagar",
+    "pagos",
+    "parametros_tributarios",
+    "parametros_nomina",
+    "auditoria",
+    "movimientos_inventario",
+    "lotes",
+    "document_sequences",
+)
+
+
+def enable_postgres_rls_on_connection(sync_conn) -> None:
+    """Activa RLS+FORCE+política en una conexión sync (tests / utilidades).
+
+    No-op si el dialecto no es PostgreSQL. Idempotente (DROP POLICY IF EXISTS).
+    """
+    if sync_conn.dialect.name != "postgresql":
+        return
+    for table in RLS_TABLES:
+        sync_conn.execute(text(f'ALTER TABLE "{table}" ENABLE ROW LEVEL SECURITY'))
+        sync_conn.execute(text(f'ALTER TABLE "{table}" FORCE ROW LEVEL SECURITY'))
+        sync_conn.execute(text(f'DROP POLICY IF EXISTS tenant_isolation ON "{table}"'))
+        sync_conn.execute(
+            text(
+                f"""
+                CREATE POLICY tenant_isolation ON "{table}"
+                FOR ALL
+                USING (
+                    tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::integer
+                )
+                WITH CHECK (
+                    tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::integer
+                )
+                """
+            )
+        )
 
 
 class Tenant(Base):

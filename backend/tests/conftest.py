@@ -14,7 +14,12 @@ from decimal import Decimal  # noqa: E402
 from app.main import app  # noqa: E402
 from app.core.database import Base, get_db  # noqa: E402
 from app.core.limiter import limiter  # noqa: E402
-from app.core.tenancy import Tenant, DEFAULT_TENANT_ID  # noqa: E402
+from app.core.tenancy import (  # noqa: E402
+    Tenant,
+    DEFAULT_TENANT_ID,
+    apply_rls_tenant,
+    enable_postgres_rls_on_connection,
+)
 from app.modules.usuarios.models import Usuario  # noqa: E402
 from app.modules.contabilidad.models import ParametroTributario  # noqa: E402
 from app.core.security import get_password_hash  # noqa: E402
@@ -45,6 +50,7 @@ TestingSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind
 async def override_get_db():
     async with TestingSessionLocal() as session:
         try:
+            await apply_rls_tenant(session, DEFAULT_TENANT_ID)
             yield session
             await session.commit()
         except Exception:
@@ -66,9 +72,12 @@ async def setup_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
+        # Run 3: mismas políticas RLS que la migración (solo Postgres)
+        await conn.run_sync(enable_postgres_rls_on_connection)
 
     # Tenant #1 (Run 2) + admin + tarifas de retención
     async with TestingSessionLocal() as db:
+        await apply_rls_tenant(db, DEFAULT_TENANT_ID)
         db.add(Tenant(
             id=DEFAULT_TENANT_ID,
             codigo="superozono",
@@ -107,6 +116,7 @@ async def setup_db():
 @pytest_asyncio.fixture(scope="function")
 async def db_session():
     async with TestingSessionLocal() as session:
+        await apply_rls_tenant(session, DEFAULT_TENANT_ID)
         yield session
 
 
