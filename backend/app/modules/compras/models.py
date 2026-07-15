@@ -1,12 +1,13 @@
-from datetime import datetime, date
+﻿from datetime import datetime, date
 from decimal import Decimal
 from sqlalchemy import String, Date, DateTime, Numeric, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
+from app.core.tenancy import TenantScoped
 from app.core.time import utcnow
 
 
-class Proveedor(Base):
+class Proveedor(TenantScoped, Base):
     __tablename__ = "proveedores"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -34,7 +35,7 @@ class Proveedor(Base):
     compras = relationship("CompraDocumento", back_populates="proveedor")
 
 
-class CompraDocumento(Base):
+class CompraDocumento(TenantScoped, Base):
     __tablename__ = "compras_documentos"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -63,7 +64,7 @@ class CompraDocumento(Base):
     detalles = relationship("CompraDetalle", back_populates="compra", cascade="all, delete-orphan")
 
 
-class CompraDetalle(Base):
+class CompraDetalle(TenantScoped, Base):
     __tablename__ = "compras_detalles"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -86,7 +87,7 @@ class CompraDetalle(Base):
     compra = relationship("CompraDocumento", back_populates="detalles")
 
 
-class DevolucionCompra(Base):
+class DevolucionCompra(TenantScoped, Base):
     """Devolución a proveedor — nota débito sobre una compra confirmada."""
     __tablename__ = "devoluciones_compra"
 
@@ -106,7 +107,7 @@ class DevolucionCompra(Base):
         "DevolucionCompraDetalle", back_populates="devolucion", cascade="all, delete-orphan")
 
 
-class DevolucionCompraDetalle(Base):
+class DevolucionCompraDetalle(TenantScoped, Base):
     __tablename__ = "devoluciones_compra_detalles"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

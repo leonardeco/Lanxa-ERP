@@ -54,6 +54,7 @@ async def login_access_token(
         raise HTTPException(status_code=400, detail="Correo o contraseña incorrectos")
 
     user_id = user.id  # capturado antes del commit: la sesion expira atributos al commitear
+    tenant_id = getattr(user, "tenant_id", None) or 1
 
     # Limpieza oportunista: los refresh tokens vencidos no sirven para nada
     # y sin esto la tabla crece indefinidamente.
@@ -64,11 +65,15 @@ async def login_access_token(
         usuario_id=user_id,
         token_hash=hash_refresh_token(raw_refresh),
         expires_at=refresh_token_expiry(),
+        tenant_id=tenant_id,
     ))
     await session.commit()
     _set_refresh_cookie(response, raw_refresh)
 
-    return Token(access_token=create_access_token(user_id), token_type="bearer")
+    return Token(
+        access_token=create_access_token(user_id, tenant_id=tenant_id),
+        token_type="bearer",
+    )
 
 
 @router.post("/login/refresh-token", response_model=Token)
@@ -95,6 +100,7 @@ async def refresh_access_token(request: Request, response: Response, session: Se
         raise invalid
 
     user_id = user.id  # capturado antes del commit: la sesion expira atributos al commitear
+    tenant_id = getattr(user, "tenant_id", None) or 1
 
     # Rotación: el token usado se invalida y se emite uno nuevo
     await session.delete(stored)
@@ -103,11 +109,15 @@ async def refresh_access_token(request: Request, response: Response, session: Se
         usuario_id=user_id,
         token_hash=hash_refresh_token(new_raw_refresh),
         expires_at=refresh_token_expiry(),
+        tenant_id=tenant_id,
     ))
     await session.commit()
     _set_refresh_cookie(response, new_raw_refresh)
 
-    return Token(access_token=create_access_token(user_id), token_type="bearer")
+    return Token(
+        access_token=create_access_token(user_id, tenant_id=tenant_id),
+        token_type="bearer",
+    )
 
 
 @router.post("/login/logout")
@@ -158,12 +168,15 @@ async def create_usuario(body: UsuarioCreate, session: SessionDep, admin: Superu
     existing = await session.scalar(select(Usuario).where(Usuario.email == body.email))
     if existing:
         raise HTTPException(400, "Ya existe un usuario con ese correo")
+    from app.core.tenancy import get_tenant_id
+
     user = Usuario(
         email=body.email,
         nombre_completo=body.nombre_completo,
         rol=body.rol,
         is_active=body.is_active,
         hashed_password=get_password_hash(body.password),
+        tenant_id=get_tenant_id(),
     )
     session.add(user)
     await session.flush()

@@ -3,11 +3,12 @@ from app.core.time import utcnow
 from sqlalchemy import String, Boolean, DateTime, ForeignKey, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base
+from app.core.tenancy import TenantScoped
 
 ROLES_VALIDOS = ("Admin", "Administradora", "Auxiliar", "Contador")
 
 
-class Usuario(Base):
+class Usuario(TenantScoped, Base):
     __tablename__ = "usuarios"
     __table_args__ = (
         CheckConstraint(
@@ -25,7 +26,7 @@ class Usuario(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
-class RefreshToken(Base):
+class RefreshToken(TenantScoped, Base):
     """Refresh tokens activos, uno por sesión. Se rota (borra + recrea) en cada uso."""
     __tablename__ = "refresh_tokens"
     __table_args__ = {'extend_existing': True}

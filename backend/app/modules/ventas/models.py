@@ -1,4 +1,4 @@
-"""
+﻿"""
 Super Ozono Global — Módulo de Ventas & Comercial: Modelos SQLAlchemy
 Productos, Clientes, Documentos de Venta y Detalles de Venta
 """
@@ -10,6 +10,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
+from app.core.tenancy import TenantScoped
 from app.core.time import utcnow
 import enum
 
@@ -60,7 +61,7 @@ class CategoriaProducto(str, enum.Enum):
 # MODELOS
 # ══════════════════════════════════════════════════════════
 
-class Producto(Base):
+class Producto(TenantScoped, Base):
     """Catálogo de productos — Biocidas y agroquímicos por marca"""
     __tablename__ = "productos"
 
@@ -100,7 +101,7 @@ class Producto(Base):
         return f"<Producto {self.sku} - {self.nombre}>"
 
 
-class Cliente(Base):
+class Cliente(TenantScoped, Base):
     """Clientes comerciales — Distribuidores y compradores B2B"""
     __tablename__ = "clientes"
 
@@ -141,7 +142,7 @@ class Cliente(Base):
         return f"<Cliente {self.nit_cc} - {self.razon_social}>"
 
 
-class VentaDocumento(Base):
+class VentaDocumento(TenantScoped, Base):
     """Documentos de venta — Cabecera de facturas internas"""
     __tablename__ = "ventas_documentos"
 
@@ -186,7 +187,7 @@ class VentaDocumento(Base):
         return f"<VentaDocumento {self.numero} - {self.total}>"
 
 
-class VentaDetalle(Base):
+class VentaDetalle(TenantScoped, Base):
     """Líneas de detalle de cada venta — Partida doble con productos"""
     __tablename__ = "ventas_detalles"
 
@@ -211,7 +212,7 @@ class VentaDetalle(Base):
         return f"<VentaDetalle Prod:{self.producto_id} Cant:{self.cantidad} Total:{self.total_linea}>"
 
 
-class Cotizacion(Base):
+class Cotizacion(TenantScoped, Base):
     """Cotización comercial — COT-####. Sin efectos de inventario ni
     contabilidad: solo al convertirla nace una venta (en Borrador)."""
     __tablename__ = "cotizaciones"
@@ -250,7 +251,7 @@ class Cotizacion(Base):
         return f"<Cotizacion {self.numero} - {self.total}>"
 
 
-class CotizacionDetalle(Base):
+class CotizacionDetalle(TenantScoped, Base):
     __tablename__ = "cotizaciones_detalles"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -272,7 +273,7 @@ class CotizacionDetalle(Base):
         return f"<CotizacionDetalle Prod:{self.producto_id} Cant:{self.cantidad}>"
 
 
-class DevolucionVenta(Base):
+class DevolucionVenta(TenantScoped, Base):
     """Nota crédito — devolución parcial o total de una venta confirmada."""
     __tablename__ = "devoluciones_venta"
 
@@ -292,7 +293,7 @@ class DevolucionVenta(Base):
         "DevolucionVentaDetalle", back_populates="devolucion", cascade="all, delete-orphan")
 
 
-class DevolucionVentaDetalle(Base):
+class DevolucionVentaDetalle(TenantScoped, Base):
     __tablename__ = "devoluciones_venta_detalles"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

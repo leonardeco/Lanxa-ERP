@@ -14,6 +14,7 @@ from decimal import Decimal  # noqa: E402
 from app.main import app  # noqa: E402
 from app.core.database import Base, get_db  # noqa: E402
 from app.core.limiter import limiter  # noqa: E402
+from app.core.tenancy import Tenant, DEFAULT_TENANT_ID  # noqa: E402
 from app.modules.usuarios.models import Usuario  # noqa: E402
 from app.modules.contabilidad.models import ParametroTributario  # noqa: E402
 from app.core.security import get_password_hash  # noqa: E402
@@ -66,20 +67,35 @@ async def setup_db():
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
-    # Crear un usuario administrador por defecto para pruebas
+    # Tenant #1 (Run 2) + admin + tarifas de retención
     async with TestingSessionLocal() as db:
+        db.add(Tenant(
+            id=DEFAULT_TENANT_ID,
+            codigo="superozono",
+            razon_social="Super Ozono Test",
+            nit="901841798-5",
+            activo=True,
+        ))
+        await db.flush()
         admin = Usuario(
             email="admin@test.com",
             nombre_completo="Admin Test",
             rol="Admin",
-            hashed_password=get_password_hash("testpassword")
+            hashed_password=get_password_hash("testpassword"),
+            tenant_id=DEFAULT_TENANT_ID,
         )
         db.add(admin)
         # Tarifas de retención que el motor de ventas lee (reflejan el seed de producción)
-        db.add(ParametroTributario(concepto="Retención en la fuente - compras",
-                                   tarifa_valor=Decimal("0.02500"), activo=True))
-        db.add(ParametroTributario(concepto="ReteIVA",
-                                   tarifa_valor=Decimal("0.15000"), activo=True))
+        db.add(ParametroTributario(
+            concepto="Retención en la fuente - compras",
+            tarifa_valor=Decimal("0.02500"), activo=True,
+            tenant_id=DEFAULT_TENANT_ID,
+        ))
+        db.add(ParametroTributario(
+            concepto="ReteIVA",
+            tarifa_valor=Decimal("0.15000"), activo=True,
+            tenant_id=DEFAULT_TENANT_ID,
+        ))
         await db.commit()
 
     yield

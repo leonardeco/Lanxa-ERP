@@ -1,4 +1,4 @@
-"""
+﻿"""
 Super Ozono Global — Auditoría de cambios (audit log)
 Quién modificó qué en los datos maestros (productos, clientes, proveedores,
 parámetros) y acciones administrativas (usuarios, períodos).
@@ -9,10 +9,11 @@ from sqlalchemy import String, DateTime, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.core.tenancy import TenantScoped
 from app.core.time import utcnow
 
 
-class RegistroAuditoria(Base):
+class RegistroAuditoria(TenantScoped, Base):
     """Un evento de auditoría. `cambios` guarda el diff campo a campo como
     JSON: {"campo": {"antes": ..., "despues": ...}} — solo en actualizaciones."""
     __tablename__ = "auditoria"

@@ -22,6 +22,7 @@ from app.modules.ventas.models import (
 from app.modules.usuarios.models import Usuario
 from app.core.security import get_password_hash
 from app.core.config import get_settings
+from app.core.tenancy import Tenant, DEFAULT_TENANT_ID
 
 logger = structlog.get_logger()
 settings = get_settings()
@@ -268,6 +269,26 @@ async def seed_parametros_nomina(session):
     logger.info(f"[OK] Parametros de nomina: {len(PARAMETROS_NOMINA_DATA)} registros cargados")
 
 
+async def seed_tenant(session):
+    """Empresa #1 (LAN / Super Ozono) — Run 2 foundation."""
+    existing = await session.scalar(
+        select(Tenant).where(Tenant.id == DEFAULT_TENANT_ID)
+    )
+    if existing:
+        logger.info("[SKIP] Tenant default ya existe, omitiendo seed")
+        return
+    session.add(Tenant(
+        id=DEFAULT_TENANT_ID,
+        codigo="superozono",
+        razon_social=settings.EMPRESA_RAZON_SOCIAL or "Super Ozono Global",
+        nit=settings.EMPRESA_NIT,
+        activo=True,
+        notas="Tenant por defecto (despliegue LAN / Run 2)",
+    ))
+    await session.commit()
+    logger.info("[OK] Tenant default (id=1, codigo=superozono) creado")
+
+
 async def seed_usuarios(session):
     """Carga el usuario administrador por defecto."""
     existing = await session.scalar(select(Usuario.id).limit(1))
@@ -286,7 +307,8 @@ async def seed_usuarios(session):
         nombre_completo="Administrador del Sistema",
         hashed_password=get_password_hash(settings.SEED_ADMIN_PASSWORD),
         rol="Admin",
-        is_active=True
+        is_active=True,
+        tenant_id=DEFAULT_TENANT_ID,
     )
     session.add(admin)
     await session.commit()
@@ -369,8 +391,9 @@ async def run_seeds():
 
     logger.info("[DB] Tablas creadas correctamente")
 
-    # Run seeders — SIEMPRE la config esencial (estructura contable + admin)
+    # Run seeders — SIEMPRE la config esencial (tenant + estructura contable + admin)
     async with async_session() as session:
+        await seed_tenant(session)
         await seed_plan_cuentas(session)
         await seed_centros_costo(session)
         await seed_periodos(session)

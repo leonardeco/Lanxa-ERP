@@ -1441,3 +1441,11 @@ MAX+1 en la numeración de documentos bajo multi-writer.
 - Tests: `test_locks_stock.py`.
 - #12 y #12a quedan cerrados en PENDIENTES.
 
+
+### Continuación — Run 2 tenancy foundation (ADR 0001)
+
+- Tabla `tenants` + seed Super Ozono (id=1).
+- `tenant_id` en tablas de negocio (migración `e6f7a8b9c0d1`).
+- Mixin ORM `TenantScoped`; JWT + contextvar; secuencias por tenant.
+- Tests `test_tenancy.py`. RLS = Run 3.
+
