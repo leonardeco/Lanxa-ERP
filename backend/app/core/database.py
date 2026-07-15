@@ -46,9 +46,17 @@ class Base(DeclarativeBase):
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """Dependency that yields a database session."""
+    """Dependency that yields a database session.
+
+    Run 3: al abrir, fija `app.tenant_id` (Postgres RLS) al tenant del
+    contextvar (default LAN = 1) para que login y rutas públicas vean
+    la empresa correcta antes de autenticar.
+    """
+    from app.core.tenancy import apply_rls_tenant, get_tenant_id
+
     async with async_session() as session:
         try:
+            await apply_rls_tenant(session, get_tenant_id())
             yield session
             await session.commit()
         except Exception:

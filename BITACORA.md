@@ -1449,3 +1449,11 @@ MAX+1 en la numeración de documentos bajo multi-writer.
 - Mixin ORM `TenantScoped`; JWT + contextvar; secuencias por tenant.
 - Tests `test_tenancy.py`. RLS = Run 3.
 
+
+### Continuación — Run 3 RLS PostgreSQL (ADR 0001)
+
+- Migración `f7a8b9c0d1e2`: ENABLE+FORCE RLS + policy por tenant (solo PG).
+- `apply_rls_tenant` + enganche en `get_db` y `get_current_user`.
+- Tests de aislamiento de productos entre tenants (skip SQLite).
+- SQLite LAN: migración no-op; head `f7a8b9c0d1e2`.
+
