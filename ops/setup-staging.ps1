@@ -1,5 +1,5 @@
 # Prepara un entorno de staging LAN en la copia actual del repo.
-# No toca producción: solo crea .env.staging y una BD SQLite de staging.
+# No toca produccion: solo crea .env.staging y una BD SQLite de staging.
 # Uso: powershell -ExecutionPolicy Bypass -File ops\setup-staging.ps1
 
 $ErrorActionPreference = "Stop"
@@ -9,7 +9,7 @@ $EnvStaging = Join-Path $Backend ".env.staging"
 $DbProd = Join-Path $Backend "superozono.db"
 $DbStaging = Join-Path $Backend "superozono_staging.db"
 
-Write-Host "== Super Ozono — setup staging LAN ==" -ForegroundColor Cyan
+Write-Host "== Super Ozono - setup staging LAN ==" -ForegroundColor Cyan
 Write-Host "Root: $Root"
 
 if (-not (Test-Path $Backend)) {
@@ -23,7 +23,7 @@ if (Test-Path $DbStaging) {
     Copy-Item $DbProd $DbStaging
     Write-Host "Copiada BD prod -> staging: $DbStaging"
 } else {
-    Write-Host "No hay superozono.db local; staging arrancara vacia (seed al primer start si aplica)"
+    Write-Host "No hay superozono.db local; staging arrancara vacia"
 }
 
 # 2) .env.staging
@@ -62,6 +62,6 @@ if (Test-Path $EnvStaging) {
 
 Write-Host ""
 Write-Host "Siguiente: arrancar en puertos 8010 (API) y 5180 (UI). Ver ops\STAGING.md" -ForegroundColor Green
-Write-Host "  Backend:  cargar .env.staging o set DATABASE_URL=sqlite+aiosqlite:///./superozono_staging.db"
+Write-Host "  Backend:  set DATABASE_URL=sqlite+aiosqlite:///./superozono_staging.db"
 Write-Host "  uvicorn  --port 8010"
 Write-Host "  Vite     --port 5180  VITE_API_URL=https://127.0.0.1:8010/api"

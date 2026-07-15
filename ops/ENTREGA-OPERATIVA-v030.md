@@ -2,15 +2,18 @@
 
 Checklist del administrador del PC servidor. Completar fuera de horario si afecta a los PCs cliente.
 
-**Estado del sistema (2026-07-15 en este servidor):**
+**Estado del sistema (2026-07-15 en este servidor):**  
+Ver también el snapshot vivo [`ESTADO-OPERATIVO-PC.md`](./ESTADO-OPERATIVO-PC.md).
 
 | Check | Estado |
 |---|---|
-| Código `main` + health `v0.3.0` | Hecho |
-| Migraciones Alembic en head | Hecho |
-| Backup diario + offsite OneDrive | Hecho |
-| Admin sin clave de fábrica `Admin2026!` | Hecho (rotada; cambiar otra vez en UI) |
-| Usuarios en BD | **4 creados** (Admin + Administradora + Contador + Auxiliar) |
+| Código `main` + health `v0.3.0` | Hecho (reinicio con último código 2026-07-15) |
+| Migraciones Alembic en head | Hecho (`a0b1c2d3e4f5`) |
+| Backup diario + offsite OneDrive | Hecho (backup + copia offsite 15:28) |
+| Smoke login admin | Hecho (`ops/smoke-prod.py`) |
+| Staging LAN preparado | Hecho (`setup-staging.ps1` → BD + `.env.staging`) |
+| Admin sin clave de fábrica `Admin2026!` | Hecho (rotada; cada usuario debe cambiar en UI) |
+| Usuarios en BD | **4 activos** (Admin + Administradora + Contador + Auxiliar) |
 
 ---
 

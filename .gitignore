@@ -35,6 +35,7 @@ frontend/.env.*.local
 .env.docker
 backend/.env
 backend/.env.local
+backend/.env.staging
 backend/.env.*.local
 backend/.env.bak*
 backend/.seed_admin_password*
