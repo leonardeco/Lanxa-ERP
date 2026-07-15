@@ -68,13 +68,26 @@ Desactiva NAT (`enable_nat_gateway = false`) en experimentos si no necesitas sal
 - `terraform.tfvars` y `*.tfstate` están en `.gitignore`.
 - Tras el primer deploy: rotar `seed_admin_password` en el secret `…/app`.
 
-## Siguiente (Fase 5)
+## Fase 5 — ECS + HTTPS (flags)
 
-Módulo ECS Fargate + ALB apuntando a:
+```hcl
+enable_ecs   = true
+enable_https = true
+domain_name  = "api.tu-dominio.com"
+route53_zone_id = "Z...."   # hosted zone
 
-- `backend_security_group_id`
-- `private_subnet_ids`
-- secrets ARNs
-- `ecr_backend_repository_url`
+enable_github_oidc = true
+github_org_repo    = "leonardeco/superozono-erp"
+```
+
+Tras `apply`:
+
+1. Secret del repo GitHub: `AWS_ROLE_TO_ASSUME` = output `github_actions_role_arn`
+2. Variables del repo: `AWS_REGION`, `ECR_REPOSITORY` (nombre corto del repo ECR)
+3. Tag `v0.3.1` o *Run workflow* → Actions **Publish API image to ECR**
+4. Actualizar servicio ECS / `api_image_tag` y re-apply si hace falta
+
+HTTP en el ALB redirige a HTTPS cuando `enable_https` está activo.
 
 Ver `docs/hydraia/plans/2026-07-14-migracion-aws-runbook.md`.
+
