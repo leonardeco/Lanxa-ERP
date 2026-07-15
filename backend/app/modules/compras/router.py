@@ -23,7 +23,10 @@ from .schemas import (
 )
 from app.modules.contabilidad.models import CuentaPorPagar, EstadoDocumento
 from app.modules.contabilidad.asientos import (
-    asiento_compra_confirmada, asiento_devolucion_compra, reversar_asientos,
+    asiento_compra_confirmada,
+    asiento_devolucion_compra,
+    reversar_asientos,
+    sync_tercero_from_proveedor,
 )
 from app.modules.inventario.models import TipoMovimientoInventario, OrigenMovimiento
 from app.modules.inventario.service import registrar_movimiento, StockError
@@ -139,6 +142,8 @@ async def create_proveedor(
     proveedor = Proveedor(**data.model_dump())
     session.add(proveedor)
     await session.flush()
+    # #14a: espejo en maestros contables `terceros` (NIT → Tercero tipo Proveedor/Mixto)
+    await sync_tercero_from_proveedor(session, proveedor)
     registrar_auditoria(session, current, "Crear", "Proveedor", proveedor.id,
                         f"Proveedor {proveedor.nit_cc} — {proveedor.razon_social}")
     await session.commit()
@@ -163,6 +168,8 @@ async def update_proveedor(
     cambios = diff_cambios(p, update_data)
     for field, value in update_data.items():
         setattr(p, field, value)
+    # #14a: mantener Tercero alineado si cambian NIT o razón social
+    await sync_tercero_from_proveedor(session, p)
     if cambios:
         registrar_auditoria(session, current, "Actualizar", "Proveedor", p.id,
                             f"Proveedor {p.nit_cc} — {p.razon_social}", cambios)

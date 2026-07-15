@@ -1481,3 +1481,24 @@ MAX+1 en la numeración de documentos bajo multi-writer.
 - docker-compose.prod.yml + .env.docker.example.
 - Docker Desktop no instalado en este PC: no se pudo compose up.
 
+
+---
+
+## Sesion — 15 de julio 2026 (codeable sin contadora)
+
+### Resumen
+
+Cierre de backlog implementable sin la contadora: politica de contrasenas, puente #14a Cliente/Proveedor a Tercero, y staging LAN documentado. No se inventaron #1-4 ni #8. No se aplico Terraform/AWS en este PC.
+
+### Lo que se hizo
+
+1. Politica de contrasenas — app/core/passwords.py (min 8, letra+digito, denylist fabrica). Validadores en schemas de usuarios y onboard. Tests test_password_policy.py.
+2. #14a puente Tercero — sync al crear/editar Cliente y Proveedor; Mixto si el NIT es ambos. Tests test_tercero_sync.py.
+3. #21a staging — ops/STAGING.md + ops/setup-staging.ps1 (puertos 8010/5180).
+4. Actualizacion PENDIENTES.md (32a rev) y DOCUMENTACION.md seccion 13.
+
+### Queda fuera (a proposito)
+
+- Validacion PUC / UVT / costeo / asiento costo de venta (contadora).
+- Apply real AWS/Docker en este host.
+- Handoff operativo usuarios y backup offsite en el servidor.

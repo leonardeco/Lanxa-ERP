@@ -84,18 +84,50 @@ async def _get_or_create_tercero(
     proveedor que participa en un asiento queda creado/vinculado en `terceros`
     por su NIT — habilita el auxiliar contable por tercero.
     """
+    from app.core.tenancy import get_tenant_id, tenant_clause
+
     if not nit:
         return None
-    tercero = await db.scalar(select(Tercero).where(Tercero.nit_cc == nit))
+    nit = str(nit).strip()
+    tercero = await db.scalar(
+        select(Tercero).where(Tercero.nit_cc == nit, tenant_clause(Tercero))
+    )
     if tercero:
         # Un NIT que ya era Cliente y ahora aparece como Proveedor (o viceversa) es Mixto
         if tercero.tipo != tipo and tercero.tipo != TipoTercero.MIXTO:
             tercero.tipo = TipoTercero.MIXTO
+        if razon_social and tercero.razon_social != razon_social:
+            tercero.razon_social = razon_social
         return tercero.id
-    tercero = Tercero(nit_cc=nit, razon_social=razon_social or nit, tipo=tipo)
+    tercero = Tercero(
+        nit_cc=nit,
+        razon_social=razon_social or nit,
+        tipo=tipo,
+        tenant_id=get_tenant_id(),
+    )
     db.add(tercero)
     await db.flush()
     return tercero.id
+
+
+async def sync_tercero_from_cliente(db: AsyncSession, cliente) -> int | None:
+    """#14a: al crear/editar Cliente, asegura la fila en `terceros` (tipo Cliente/Mixto)."""
+    return await _get_or_create_tercero(
+        db,
+        getattr(cliente, "nit_cc", None),
+        getattr(cliente, "razon_social", None),
+        TipoTercero.CLIENTE,
+    )
+
+
+async def sync_tercero_from_proveedor(db: AsyncSession, proveedor) -> int | None:
+    """#14a: al crear/editar Proveedor, asegura la fila en `terceros` (tipo Proveedor/Mixto)."""
+    return await _get_or_create_tercero(
+        db,
+        getattr(proveedor, "nit_cc", None),
+        getattr(proveedor, "razon_social", None),
+        TipoTercero.PROVEEDOR,
+    )
 
 
 async def validar_periodo_abierto(db: AsyncSession, fecha) -> None:
