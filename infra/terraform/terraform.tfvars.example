@@ -1,0 +1,19 @@
+# Copiar a terraform.tfvars (NO commitear) y ajustar.
+
+aws_region   = "us-east-1"
+project_name = "superozono"
+environment  = "prod"
+
+vpc_cidr = "10.20.0.0/16"
+
+db_name           = "superozono_erp"
+db_username       = "superozono"
+db_instance_class = "db.t4g.micro"
+db_multi_az       = false
+
+# NAT tiene costo fijo; en dev se puede poner false si no hay salida a internet desde privadas
+enable_nat_gateway = true
+
+# Opcional: restringir ALB a tu IP de oficina/casa
+# allowed_admin_cidrs = ["203.0.113.10/32"]
+allowed_admin_cidrs = []
