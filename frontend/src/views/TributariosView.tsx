@@ -71,7 +71,7 @@ function EditModal({ param, onSave, onClose }: {
 
 export default function TributariosView() {
   const { user } = useAuth();
-  const canEdit = user?.rol === 'Admin' || user?.rol === 'Administradora';
+  const canEdit = user?.rol === 'Superusuario' || user?.rol === 'Directora';
 
   const [params, setParams] = useState<ParametroTributario[]>([]);
   const [loading, setLoading] = useState(true);

@@ -11,16 +11,17 @@ function getInitials(name: string) {
 }
 
 const ROL_COLORS: Record<string, string> = {
-  Admin: 'red',
-  Administradora: 'purple',
-  Auxiliar: 'green',
+  Superusuario: 'red',
+  Directora: 'purple',
+  CEO: 'orange',
   Contador: 'blue',
+  'Auxiliar Contable': 'green',
 };
 
 // ── Modal Crear / Editar usuario ─────────────────────────
 
 const EMPTY_FORM: UsuarioCreate = {
-  email: '', nombre_completo: '', rol: 'Auxiliar', is_active: true, password: '',
+  email: '', nombre_completo: '', rol: 'Auxiliar Contable', is_active: true, password: '',
 };
 
 function UsuarioFormModal({
@@ -232,7 +233,7 @@ function ResetPasswordModal({ usuario, onClose, onSaved }: { usuario: Usuario; o
 
 export default function UsuariosView() {
   const { user: me } = useAuth();
-  const isSuperadmin = me?.rol === 'Admin';
+  const isSuperadmin = me?.rol === 'Superusuario';
 
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
@@ -441,7 +442,7 @@ export default function UsuariosView() {
         <div className="empty-state">
           <div className="empty-state-icon">🔒</div>
           <div className="empty-state-text">Acceso restringido</div>
-          <div className="empty-state-sub">Solo el Admin puede gestionar usuarios. Puedes cambiar tu contraseña desde el botón de arriba.</div>
+          <div className="empty-state-sub">Solo el Superusuario puede gestionar usuarios. Puedes cambiar tu contraseña desde el botón de arriba.</div>
         </div>
       )}
 

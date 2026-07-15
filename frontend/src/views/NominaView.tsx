@@ -69,7 +69,7 @@ function EditModal({ param, onSave, onClose }: {
 
 export default function NominaView() {
   const { user } = useAuth();
-  const canEdit = user?.rol === 'Admin' || user?.rol === 'Administradora';
+  const canEdit = user?.rol === 'Superusuario' || user?.rol === 'Directora';
 
   const [params, setParams] = useState<ParametroNomina[]>([]);
   const [loading, setLoading] = useState(true);

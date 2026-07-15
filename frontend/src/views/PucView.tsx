@@ -112,7 +112,7 @@ function CuentaModal({ cuenta, onSave, onClose }: {
 
 export default function PucView() {
   const { user } = useAuth();
-  const canEdit = user?.rol === 'Admin' || user?.rol === 'Administradora';
+  const canEdit = user?.rol === 'Superusuario' || user?.rol === 'Directora';
 
   const [cuentas, setCuentas] = useState<CuentaPUC[]>([]);
   const [loading, setLoading] = useState(true);

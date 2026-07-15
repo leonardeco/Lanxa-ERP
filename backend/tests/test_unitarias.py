@@ -348,7 +348,7 @@ async def test_crear_usuario_email_duplicado_falla(client: AsyncClient, auth_hea
     payload = {
         "email": "duplicado@test.com",
         "nombre_completo": "Usuario Duplicado",
-        "rol": "Auxiliar",
+        "rol": "Auxiliar Contable",
         "is_active": True,
         "password": "password123",
     }
@@ -427,7 +427,7 @@ async def test_auxiliar_no_puede_crear_producto(client: AsyncClient, auth_header
         json={
             "email": "auxiliar.prod@test.com",
             "nombre_completo": "Auxiliar Test",
-            "rol": "Auxiliar",
+            "rol": "Auxiliar Contable",
             "is_active": True,
             "password": "password123",
         },
@@ -457,7 +457,7 @@ async def test_auxiliar_no_puede_listar_usuarios(client: AsyncClient, auth_heade
         json={
             "email": "auxiliar.usr@test.com",
             "nombre_completo": "Auxiliar Usr",
-            "rol": "Auxiliar",
+            "rol": "Auxiliar Contable",
             "is_active": True,
             "password": "password123",
         },

@@ -16,7 +16,7 @@ describe('Sidebar — gating por rol', () => {
     render(
       <Sidebar
         {...baseProps}
-        activeRole="Admin"
+        activeRole="Superusuario"
         allowedViews={[
           'dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios', 'nomina',
           'ventas', 'compras', 'cartera', 'inventario', 'rrhh', 'plataformas',
@@ -36,7 +36,7 @@ describe('Sidebar — gating por rol', () => {
     render(
       <Sidebar
         {...baseProps}
-        activeRole="Auxiliar"
+        activeRole="Auxiliar Contable"
         allowedViews={['dashboard', 'ventas', 'compras', 'cartera']}
       />,
     );
@@ -55,7 +55,7 @@ describe('Sidebar — gating por rol', () => {
       <Sidebar
         {...baseProps}
         onViewChange={onViewChange}
-        activeRole="Auxiliar"
+        activeRole="Auxiliar Contable"
         allowedViews={['dashboard', 'ventas']}
       />,
     );
@@ -70,12 +70,12 @@ describe('Sidebar — gating por rol', () => {
       <Sidebar
         {...baseProps}
         onLogout={onLogout}
-        activeRole="Administradora"
+        activeRole="Directora"
         allowedViews={['dashboard']}
       />,
     );
     expect(screen.getByText('LG')).toBeInTheDocument(); // iniciales de Leonardo Guzmán
-    expect(screen.getByText('Administradora')).toBeInTheDocument();
+    expect(screen.getByText('Directora')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /Cerrar Sesión/ }));
     expect(onLogout).toHaveBeenCalled();
@@ -84,7 +84,7 @@ describe('Sidebar — gating por rol', () => {
   it('el toggle colapsa el menú (oculta labels, conserva navegación)', async () => {
     const user = userEvent.setup();
     render(
-      <Sidebar {...baseProps} activeRole="Admin" allowedViews={['dashboard', 'ventas']} />,
+      <Sidebar {...baseProps} activeRole="Superusuario" allowedViews={['dashboard', 'ventas']} />,
     );
     expect(screen.getByText('Ventas & Comercial')).toBeInTheDocument();
 

@@ -135,7 +135,7 @@ async def _get_auxiliar_headers(client: AsyncClient, auth_headers: dict, suffix:
         json={
             "email": f"auxiliar.sec{suffix}@test.com",
             "nombre_completo": f"Auxiliar Seguridad {suffix}",
-            "rol": "Auxiliar",
+            "rol": "Auxiliar Contable",
             "is_active": True,
             "password": "password123",
         },
@@ -223,7 +223,7 @@ async def test_sec_auxiliar_no_puede_resetear_password_ajena(client: AsyncClient
         json={
             "email": "victima.sec06@test.com",
             "nombre_completo": "Victima",
-            "rol": "Auxiliar",
+            "rol": "Auxiliar Contable",
             "is_active": True,
             "password": "password123",
         },
@@ -368,7 +368,7 @@ async def test_sec_usuario_inactivo_no_puede_autenticarse(client: AsyncClient, a
         json={
             "email": "inactivo.sec@test.com",
             "nombre_completo": "Usuario Inactivo",
-            "rol": "Auxiliar",
+            "rol": "Auxiliar Contable",
             "is_active": True,
             "password": "password123",
         },
@@ -397,7 +397,7 @@ async def test_sec_usuario_inactivo_con_token_valido_rechazado(client: AsyncClie
         json={
             "email": "inactivo2.sec@test.com",
             "nombre_completo": "Usuario Inactivo 2",
-            "rol": "Auxiliar",
+            "rol": "Auxiliar Contable",
             "is_active": True,
             "password": "password123",
         },
@@ -512,7 +512,7 @@ async def test_sec_login_no_revela_usuario_inactivo(client: AsyncClient, auth_he
     """El login de un usuario inactivo responde igual que credenciales malas."""
     await client.post(
         "/api/v1/usuarios",
-        json={"email": "inactivo3@test.com", "nombre_completo": "Inactivo", "rol": "Auxiliar",
+        json={"email": "inactivo3@test.com", "nombre_completo": "Inactivo", "rol": "Auxiliar Contable",
               "is_active": True, "password": "password123"},
         headers=auth_headers,
     )
@@ -569,7 +569,7 @@ async def test_sec_guard_ultimo_admin(client: AsyncClient, auth_headers: dict):
 
     # Degradar el rol del único admin → 400
     resp = await client.put(
-        f"/api/v1/usuarios/{me['id']}", json={"rol": "Auxiliar"}, headers=auth_headers
+        f"/api/v1/usuarios/{me['id']}", json={"rol": "Auxiliar Contable"}, headers=auth_headers
     )
     assert resp.status_code == 400
     assert "último Admin" in resp.json()["detail"]
@@ -577,12 +577,12 @@ async def test_sec_guard_ultimo_admin(client: AsyncClient, auth_headers: dict):
     # Con un segundo Admin activo, sí se permite
     await client.post(
         "/api/v1/usuarios",
-        json={"email": "admin2@test.com", "nombre_completo": "Admin Dos", "rol": "Admin",
+        json={"email": "admin2@test.com", "nombre_completo": "Admin Dos", "rol": "Superusuario",
               "is_active": True, "password": "password123"},
         headers=auth_headers,
     )
     resp = await client.put(
-        f"/api/v1/usuarios/{me['id']}", json={"rol": "Administradora"}, headers=auth_headers
+        f"/api/v1/usuarios/{me['id']}", json={"rol": "Directora"}, headers=auth_headers
     )
     assert resp.status_code == 200
 

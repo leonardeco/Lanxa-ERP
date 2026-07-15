@@ -306,7 +306,7 @@ async def seed_usuarios(session):
         email=settings.SEED_ADMIN_EMAIL,
         nombre_completo="Administrador del Sistema",
         hashed_password=get_password_hash(settings.SEED_ADMIN_PASSWORD),
-        rol="Admin",
+        rol="Superusuario",
         is_active=True,
         tenant_id=DEFAULT_TENANT_ID,
     )

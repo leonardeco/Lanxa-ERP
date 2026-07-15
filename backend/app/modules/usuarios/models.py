@@ -5,7 +5,23 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base
 from app.core.tenancy import TenantScoped
 
-ROLES_VALIDOS = ("Admin", "Administradora", "Auxiliar", "Contador")
+# Roles de negocio (2026-07-15):
+# - Superusuario: dueño técnico del sistema (antes Admin)
+# - Directora: operación y dirección administrativa (antes Administradora)
+# - CEO: visión ejecutiva (dashboards / reportes / consulta)
+# - Contador: área contable
+# - Auxiliar Contable: operación contable/comercial diaria
+ROLES_VALIDOS = (
+    "Superusuario",
+    "Directora",
+    "CEO",
+    "Contador",
+    "Auxiliar Contable",
+)
+
+ROL_SUPERUSUARIO = "Superusuario"
+ROLES_OPERACION = ("Superusuario", "Directora")  # anular, maestros, import
+ROLES_CONTABLES = ("Superusuario", "Directora", "Contador", "Auxiliar Contable")
 
 
 class Usuario(TenantScoped, Base):
@@ -23,7 +39,7 @@ class Usuario(TenantScoped, Base):
     email: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
     nombre_completo: Mapped[str] = mapped_column(String(255), nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
-    rol: Mapped[str] = mapped_column(String(50), nullable=False, default="Auxiliar")
+    rol: Mapped[str] = mapped_column(String(50), nullable=False, default="Auxiliar Contable")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 

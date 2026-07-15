@@ -89,7 +89,7 @@ function CentroModal({ centro, onSave, onClose }: {
 
 export default function CentrosCostoView() {
   const { user } = useAuth();
-  const canEdit = user?.rol === 'Admin' || user?.rol === 'Administradora';
+  const canEdit = user?.rol === 'Superusuario' || user?.rol === 'Directora';
 
   const [centros, setCentros] = useState<CentroCosto[]>([]);
   const [loading, setLoading] = useState(true);

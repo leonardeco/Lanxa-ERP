@@ -106,7 +106,7 @@ async def onboard_tenant(
         user = Usuario(
             email=str(body.admin_email).lower(),
             nombre_completo=body.admin_nombre.strip(),
-            rol="Admin",
+            rol="Superusuario",
             is_active=True,
             hashed_password=get_password_hash(body.admin_password),
             tenant_id=tenant.id,

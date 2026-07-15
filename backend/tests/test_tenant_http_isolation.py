@@ -106,7 +106,7 @@ async def test_list_usuarios_solo_mismo_tenant(
         Usuario(
             email="admin@otra.com",
             nombre_completo="Admin Otra",
-            rol="Admin",
+            rol="Superusuario",
             hashed_password=get_password_hash("password123"),
             tenant_id=2,
             is_active=True,

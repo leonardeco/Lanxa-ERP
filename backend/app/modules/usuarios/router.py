@@ -11,7 +11,9 @@ from app.core.security import (
     verify_password, create_access_token, get_password_hash,
     generate_refresh_token, hash_refresh_token, refresh_token_expiry,
 )
-from app.modules.usuarios.models import Usuario, RefreshToken, ROLES_VALIDOS
+from app.modules.usuarios.models import (
+    Usuario, RefreshToken, ROLES_VALIDOS, ROL_SUPERUSUARIO,
+)
 from app.modules.usuarios.schemas import (
     Token, UsuarioCreate, UsuarioUpdate, UsuarioPasswordChange, UsuarioPasswordReset, UsuarioResponse,
 )
@@ -139,13 +141,13 @@ async def read_users_me(current_user: CurrentUser) -> UsuarioResponse:
     return UsuarioResponse.model_validate(current_user)
 
 
-async def _es_ultimo_admin_activo(session, user: Usuario) -> bool:
-    """True si `user` es Admin activo y no queda ningún otro Admin activo."""
-    if user.rol != "Admin" or not user.is_active:
+async def _es_ultimo_superusuario_activo(session, user: Usuario) -> bool:
+    """True si `user` es Superusuario activo y no queda ningún otro activo."""
+    if user.rol != ROL_SUPERUSUARIO or not user.is_active:
         return False
     otros = await session.scalar(
         select(func.count(Usuario.id)).where(
-            Usuario.rol == "Admin",
+            Usuario.rol == ROL_SUPERUSUARIO,
             Usuario.is_active.is_(True),
             Usuario.id != user.id,
         )
@@ -201,10 +203,15 @@ async def update_usuario(user_id: int, body: UsuarioUpdate, session: SessionDep,
         raise HTTPException(404, "Usuario no encontrado")
     if body.rol is not None and body.rol not in ROLES_VALIDOS:
         raise HTTPException(400, f"Rol inválido. Opciones: {', '.join(sorted(ROLES_VALIDOS))}")
-    # Guard de último admin: no permitir dejar el sistema sin ningún Admin activo
-    pierde_admin = (body.rol is not None and body.rol != "Admin") or body.is_active is False
-    if pierde_admin and await _es_ultimo_admin_activo(session, user):
-        raise HTTPException(400, "No se puede quitar el rol o desactivar al último Admin activo del sistema")
+    # Guard: no dejar el sistema sin ningún Superusuario activo
+    pierde_super = (
+        body.rol is not None and body.rol != ROL_SUPERUSUARIO
+    ) or body.is_active is False
+    if pierde_super and await _es_ultimo_superusuario_activo(session, user):
+        raise HTTPException(
+            400,
+            "No se puede quitar el rol o desactivar al último Superusuario activo del sistema",
+        )
     cambios = diff_cambios(user, body.model_dump(exclude_none=True))
     if body.nombre_completo is not None:
         user.nombre_completo = body.nombre_completo
@@ -227,8 +234,8 @@ async def toggle_usuario(user_id: int, session: SessionDep, current_user: Curren
         raise HTTPException(404, "Usuario no encontrado")
     if user.id == current_user.id:
         raise HTTPException(400, "No puedes desactivarte a ti mismo")
-    if user.is_active and await _es_ultimo_admin_activo(session, user):
-        raise HTTPException(400, "No se puede desactivar al último Admin activo del sistema")
+    if user.is_active and await _es_ultimo_superusuario_activo(session, user):
+        raise HTTPException(400, "No se puede desactivar al último Superusuario activo del sistema")
     user.is_active = not user.is_active
     registrar_auditoria(session, current_user, "Activar" if user.is_active else "Desactivar",
                         "Usuario", user.id, f"Usuario {user.email}")

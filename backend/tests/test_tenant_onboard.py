@@ -45,7 +45,7 @@ async def test_onboard_crea_tenant_y_admin(
     )
     assert me.status_code == 200
     assert me.json()["email"] == "admin@demo-co.test"
-    assert me.json()["rol"] == "Admin"
+    assert me.json()["rol"] == "Superusuario"
 
     # No puede onboardear (no es plataforma)
     denied = await client.post(
