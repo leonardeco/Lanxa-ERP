@@ -1402,3 +1402,32 @@ como mejora opcional migrar a `TRUNCATE`.
 - **Siguiente:** Run 2 (modelo Tenant + `tenant_id`), Run 3 (RLS), Run 4 (auth
   por-tenant), Run 5 (concurrencia #12/#12a).
 - Artefactos Hydraia: `docs/hydraia/{specs,plans,runs}/2026-07-14-fundacion-postgres*`.
+
+## Sesión — 15 de julio 2026 (tarde) — #12a numeración + ops LAN
+
+### Resumen
+
+Tras el despliegue operativo de v0.3.0 en el PC servidor (backups offsite, tareas
+programadas, 4 usuarios, entrega), se cerró la deuda técnica **#12a**: race
+MAX+1 en la numeración de documentos bajo multi-writer.
+
+### Técnico
+
+- Nueva tabla `document_sequences` (migración `d5e6f7a8b9c0`).
+- `app/core/numbering.py`: contador con `SELECT … FOR UPDATE`, siembra desde MAX
+  legacy, savepoint + retry ante `IntegrityError`.
+- Tests: `backend/tests/test_numbering.py` (suite CI en Postgres).
+- Smoke local SQLite: siembra SOG-V-0005 → siguiente SOG-V-0006/0007, RC-0001.
+- `alembic upgrade head` aplicado en la BD LAN del servidor.
+
+### Ops (misma jornada, sesiones previas)
+
+- Backups offsite OneDrive + tareas BackupDB / BackupOffsite / Purga / RestoreDrill.
+- Usuarios Administradora, Contador, Auxiliar creados; credenciales solo locales.
+- Fix Alembic rol Contador en SQLite legacy (ya en main).
+
+### Siguiente
+
+- #12 locks de stock/abonos si multi-worker.
+- Runs 2–5 multi-tenant (ADR 0001) o asiento costo de venta (#8, bloqueado por #3).
+
