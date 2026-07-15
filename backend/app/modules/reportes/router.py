@@ -7,6 +7,7 @@ from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.tenancy import for_tenant
 from app.api.deps import CurrentUser
 from app.modules.contabilidad.models import (
     CuentaPorCobrar, CuentaPorPagar,
@@ -87,10 +88,20 @@ def _D(x) -> Decimal:
 @router.get("/aging-cartera", response_model=AgingCarteraResponse)
 async def aging_cartera(_: CurrentUser, db: AsyncSession = Depends(get_db)):
     cxc_rows = (await db.execute(
-        select(CuentaPorCobrar).where(CuentaPorCobrar.estado.notin_(["Pagado", "Anulado"]))
+        for_tenant(
+            select(CuentaPorCobrar).where(
+                CuentaPorCobrar.estado.notin_(["Pagado", "Anulado"])
+            ),
+            CuentaPorCobrar,
+        )
     )).scalars().all()
     cxp_rows = (await db.execute(
-        select(CuentaPorPagar).where(CuentaPorPagar.estado.notin_(["Pagado", "Anulado"]))
+        for_tenant(
+            select(CuentaPorPagar).where(
+                CuentaPorPagar.estado.notin_(["Pagado", "Anulado"])
+            ),
+            CuentaPorPagar,
+        )
     )).scalars().all()
 
     cxc_items = [

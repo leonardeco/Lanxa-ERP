@@ -157,18 +157,25 @@ async def _es_ultimo_admin_activo(session, user: Usuario) -> bool:
 
 @router.get("/v1/usuarios", response_model=List[UsuarioResponse])
 async def list_usuarios(session: SessionDep, _: SuperuserDep):
-    result = await session.execute(select(Usuario).order_by(Usuario.nombre_completo))
+    from app.core.tenancy import for_tenant
+
+    result = await session.execute(
+        for_tenant(select(Usuario).order_by(Usuario.nombre_completo), Usuario)
+    )
     return result.scalars().all()
 
 
 @router.post("/v1/usuarios", response_model=UsuarioResponse, status_code=status.HTTP_201_CREATED)
 async def create_usuario(body: UsuarioCreate, session: SessionDep, admin: SuperuserDep):
+    from app.core.tenancy import get_tenant_id, tenant_clause
+
     if body.rol not in ROLES_VALIDOS:
         raise HTTPException(400, f"Rol inválido. Opciones: {', '.join(sorted(ROLES_VALIDOS))}")
-    existing = await session.scalar(select(Usuario).where(Usuario.email == body.email))
+    existing = await session.scalar(
+        select(Usuario).where(Usuario.email == body.email, tenant_clause(Usuario))
+    )
     if existing:
         raise HTTPException(400, "Ya existe un usuario con ese correo")
-    from app.core.tenancy import get_tenant_id
 
     user = Usuario(
         email=body.email,

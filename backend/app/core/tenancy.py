@@ -14,9 +14,10 @@ from __future__ import annotations
 from contextvars import ContextVar
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, event, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, Mapper, mapped_column
+from sqlalchemy.sql import Select
 
 from app.core.database import Base
 from app.core.time import utcnow
@@ -151,3 +152,44 @@ class TenantScoped:
         server_default=str(DEFAULT_TENANT_ID),
         default=DEFAULT_TENANT_ID,
     )
+
+
+# ── Run 4: filtros y stamp explícitos (defensa además de RLS) ─────────
+
+
+def tenant_clause(model):
+    """Expresión SQLAlchemy: `model.tenant_id == get_tenant_id()`."""
+    return model.tenant_id == get_tenant_id()
+
+
+def for_tenant(stmt: Select, model) -> Select:
+    """Añade el filtro de tenant a un `select(Model)` (o join cuya entidad sea model)."""
+    return stmt.where(tenant_clause(model))
+
+
+async def get_for_tenant(session: AsyncSession, model, entity_id: int):
+    """Carga por id solo si pertenece al tenant actual (None si no existe / otro tenant)."""
+    return await session.scalar(
+        select(model).where(model.id == entity_id, tenant_clause(model))
+    )
+
+
+def stamp_tenant(obj):
+    """Asigna `tenant_id` del request al objeto ORM (altas)."""
+    if hasattr(obj, "tenant_id"):
+        obj.tenant_id = get_tenant_id()
+    return obj
+
+
+@event.listens_for(Mapper, "before_insert")
+def _auto_stamp_tenant(mapper: Mapper, connection, target) -> None:  # noqa: ARG001
+    """Al insertar filas tenant-scoped, fuerza el tenant del contextvar.
+
+    `Tenant` (catálogo de empresas) no se toca. Si el contextvar no está fijado,
+    se usa DEFAULT_TENANT_ID (LAN).
+    """
+    if target.__class__.__name__ == "Tenant":
+        return
+    if "tenant_id" not in mapper.columns:
+        return
+    target.tenant_id = get_tenant_id()

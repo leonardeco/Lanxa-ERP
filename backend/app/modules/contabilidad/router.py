@@ -13,6 +13,7 @@ from decimal import Decimal
 from app.core.database import get_db
 from app.core.config import get_settings
 from app.core.numbering import next_sequential_numero
+from app.core.tenancy import for_tenant, tenant_clause
 from app.api.deps import CurrentUser, ContableDep
 from app.modules.contabilidad.models import (
     PlanCuentas, CentroCosto, PeriodoContable, Tercero,
@@ -71,13 +72,19 @@ async def get_dashboard_stats(_: ContableDep, db: AsyncSession = Depends(get_db)
 
 @router.get("/puc", response_model=List[PlanCuentasResponse])
 async def list_plan_cuentas(_: ContableDep, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(PlanCuentas).order_by(PlanCuentas.codigo_puc))
+    result = await db.execute(
+        for_tenant(select(PlanCuentas).order_by(PlanCuentas.codigo_puc), PlanCuentas)
+    )
     return result.scalars().all()
 
 
 @router.get("/puc/{codigo}", response_model=PlanCuentasResponse)
 async def get_cuenta_puc(codigo: str, _: ContableDep, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(PlanCuentas).where(PlanCuentas.codigo_puc == codigo))
+    result = await db.execute(
+        select(PlanCuentas).where(
+            PlanCuentas.codigo_puc == codigo, tenant_clause(PlanCuentas)
+        )
+    )
     cuenta = result.scalar_one_or_none()
     if not cuenta:
         raise HTTPException(status_code=404, detail=f"Cuenta PUC {codigo} no encontrada")
@@ -88,7 +95,11 @@ async def get_cuenta_puc(codigo: str, _: ContableDep, db: AsyncSession = Depends
 async def create_cuenta_puc(
     body: PlanCuentasCreate, current: ContableDep, db: AsyncSession = Depends(get_db)
 ):
-    existing = await db.scalar(select(PlanCuentas).where(PlanCuentas.codigo_puc == body.codigo_puc))
+    existing = await db.scalar(
+        select(PlanCuentas).where(
+            PlanCuentas.codigo_puc == body.codigo_puc, tenant_clause(PlanCuentas)
+        )
+    )
     if existing:
         raise HTTPException(400, f"Ya existe la cuenta PUC {body.codigo_puc}")
     cuenta = PlanCuentas(**body.model_dump())
@@ -138,7 +149,9 @@ async def toggle_cuenta_puc(cuenta_id: int, current: ContableDep, db: AsyncSessi
 
 @router.get("/centros-costo", response_model=List[CentroCostoResponse])
 async def list_centros_costo(_: ContableDep, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(CentroCosto).order_by(CentroCosto.codigo))
+    result = await db.execute(
+        for_tenant(select(CentroCosto).order_by(CentroCosto.codigo), CentroCosto)
+    )
     return result.scalars().all()
 
 
@@ -146,7 +159,9 @@ async def list_centros_costo(_: ContableDep, db: AsyncSession = Depends(get_db))
 async def create_centro_costo(
     body: CentroCostoCreate, current: ContableDep, db: AsyncSession = Depends(get_db)
 ):
-    existing = await db.scalar(select(CentroCosto).where(CentroCosto.codigo == body.codigo))
+    existing = await db.scalar(
+        select(CentroCosto).where(CentroCosto.codigo == body.codigo, tenant_clause(CentroCosto))
+    )
     if existing:
         raise HTTPException(400, f"Ya existe el centro de costo {body.codigo}")
     cc = CentroCosto(**body.model_dump())
@@ -196,7 +211,10 @@ async def toggle_centro_costo(cc_id: int, current: ContableDep, db: AsyncSession
 @router.get("/periodos", response_model=List[PeriodoContableResponse])
 async def list_periodos(_: ContableDep, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(PeriodoContable).order_by(PeriodoContable.anio, PeriodoContable.mes)
+        for_tenant(
+            select(PeriodoContable).order_by(PeriodoContable.anio, PeriodoContable.mes),
+            PeriodoContable,
+        )
     )
     return result.scalars().all()
 
@@ -453,11 +471,12 @@ async def list_cxc(
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
 ):
-    q = (
+    q = for_tenant(
         select(CuentaPorCobrar)
         .order_by(CuentaPorCobrar.fecha_vencimiento)
         .limit(limit)
-        .offset(offset)
+        .offset(offset),
+        CuentaPorCobrar,
     )
     if estado:
         q = q.where(CuentaPorCobrar.estado == estado)
@@ -467,7 +486,12 @@ async def list_cxc(
 
 @router.post("/cartera/cxc", response_model=CxCResponse, status_code=201)
 async def create_cxc(body: CxCCreate, _: CurrentUser, db: AsyncSession = Depends(get_db)):
-    existing = await db.scalar(select(CuentaPorCobrar).where(CuentaPorCobrar.numero_factura == body.numero_factura))
+    existing = await db.scalar(
+        select(CuentaPorCobrar).where(
+            CuentaPorCobrar.numero_factura == body.numero_factura,
+            tenant_clause(CuentaPorCobrar),
+        )
+    )
     if existing:
         raise HTTPException(400, "Ya existe una CxC con ese número de factura")
     cxc = CuentaPorCobrar(**body.model_dump())
@@ -557,11 +581,12 @@ async def list_cxp(
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
 ):
-    q = (
+    q = for_tenant(
         select(CuentaPorPagar)
         .order_by(CuentaPorPagar.fecha_vencimiento)
         .limit(limit)
-        .offset(offset)
+        .offset(offset),
+        CuentaPorPagar,
     )
     if estado:
         q = q.where(CuentaPorPagar.estado == estado)
@@ -571,7 +596,12 @@ async def list_cxp(
 
 @router.post("/cartera/cxp", response_model=CxPResponse, status_code=201)
 async def create_cxp(body: CxPCreate, _: CurrentUser, db: AsyncSession = Depends(get_db)):
-    existing = await db.scalar(select(CuentaPorPagar).where(CuentaPorPagar.numero_documento == body.numero_documento))
+    existing = await db.scalar(
+        select(CuentaPorPagar).where(
+            CuentaPorPagar.numero_documento == body.numero_documento,
+            tenant_clause(CuentaPorPagar),
+        )
+    )
     if existing:
         raise HTTPException(400, "Ya existe una CxP con ese número de documento")
     cxp = CuentaPorPagar(**body.model_dump())

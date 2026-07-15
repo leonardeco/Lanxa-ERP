@@ -1457,3 +1457,11 @@ MAX+1 en la numeración de documentos bajo multi-writer.
 - Tests de aislamiento de productos entre tenants (skip SQLite).
 - SQLite LAN: migración no-op; head `f7a8b9c0d1e2`.
 
+
+### Continuación — Run 4 filtros tenant + tests HTTP
+
+- Helpers `for_tenant`, `tenant_clause`, `get_for_tenant`, stamp `before_insert`.
+- Filtros en ventas/compras/contabilidad/usuarios/reportes (list/get críticos).
+- Tests HTTP de aislamiento de productos y usuarios.
+- Defensa en profundidad además de RLS (Run 3).
+

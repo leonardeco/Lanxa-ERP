@@ -14,6 +14,7 @@ from datetime import date, timedelta
 from app.core.database import get_db
 from app.core.config import get_settings
 from app.core.numbering import next_sequential_numero
+from app.core.tenancy import for_tenant, get_for_tenant, tenant_clause
 from app.api.deps import CurrentUser, AdminOrAdministradoraDep
 from app.modules.ventas.models import (
     Producto, Cliente, VentaDocumento, VentaDetalle,
@@ -269,7 +270,10 @@ async def list_productos(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar productos con filtros opcionales (paginado: limit/offset)."""
-    query = select(Producto).order_by(Producto.marca, Producto.nombre).limit(limit).offset(offset)
+    query = for_tenant(
+        select(Producto).order_by(Producto.marca, Producto.nombre).limit(limit).offset(offset),
+        Producto,
+    )
     if marca:
         query = query.where(Producto.marca == marca)
     if activo is not None:
@@ -281,7 +285,7 @@ async def list_productos(
 @router.get("/productos/{producto_id}", response_model=ProductoResponse)
 async def get_producto(producto_id: int, _: CurrentUser, db: AsyncSession = Depends(get_db)):
     """Obtener un producto por ID."""
-    producto = await db.get(Producto, producto_id)
+    producto = await get_for_tenant(db, Producto, producto_id)
     if not producto:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return producto
@@ -290,8 +294,10 @@ async def get_producto(producto_id: int, _: CurrentUser, db: AsyncSession = Depe
 @router.post("/productos", response_model=ProductoResponse, status_code=201)
 async def create_producto(data: ProductoCreate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
     """Crear un nuevo producto."""
-    # Verificar SKU único
-    existing = await db.scalar(select(Producto.id).where(Producto.sku == data.sku))
+    # Verificar SKU único dentro del tenant
+    existing = await db.scalar(
+        select(Producto.id).where(Producto.sku == data.sku, tenant_clause(Producto))
+    )
     if existing:
         raise HTTPException(status_code=400, detail=f"Ya existe un producto con SKU '{data.sku}'")
 
@@ -310,7 +316,7 @@ async def update_producto(
     producto_id: int, data: ProductoUpdate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
 ):
     """Actualizar un producto existente."""
-    producto = await db.get(Producto, producto_id)
+    producto = await get_for_tenant(db, Producto, producto_id)
     if not producto:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
 
@@ -354,7 +360,10 @@ async def list_clientes(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar clientes comerciales (paginado: limit/offset)."""
-    query = select(Cliente).order_by(Cliente.razon_social).limit(limit).offset(offset)
+    query = for_tenant(
+        select(Cliente).order_by(Cliente.razon_social).limit(limit).offset(offset),
+        Cliente,
+    )
     if activo is not None:
         query = query.where(Cliente.activo == activo)
     result = await db.execute(query)
@@ -364,7 +373,7 @@ async def list_clientes(
 @router.get("/clientes/{cliente_id}", response_model=ClienteResponse)
 async def get_cliente(cliente_id: int, _: CurrentUser, db: AsyncSession = Depends(get_db)):
     """Obtener un cliente por ID."""
-    cliente = await db.get(Cliente, cliente_id)
+    cliente = await get_for_tenant(db, Cliente, cliente_id)
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
     return cliente
@@ -373,7 +382,9 @@ async def get_cliente(cliente_id: int, _: CurrentUser, db: AsyncSession = Depend
 @router.post("/clientes", response_model=ClienteResponse, status_code=201)
 async def create_cliente(data: ClienteCreate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
     """Crear un nuevo cliente."""
-    existing = await db.scalar(select(Cliente.id).where(Cliente.nit_cc == data.nit_cc))
+    existing = await db.scalar(
+        select(Cliente.id).where(Cliente.nit_cc == data.nit_cc, tenant_clause(Cliente))
+    )
     if existing:
         raise HTTPException(status_code=400, detail=f"Ya existe un cliente con NIT/CC '{data.nit_cc}'")
 
@@ -756,12 +767,13 @@ async def list_ventas(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar documentos de venta (paginado: limit/offset, más recientes primero)."""
-    query = (
+    query = for_tenant(
         select(VentaDocumento)
         .options(*_VENTA_EAGER)
         .order_by(desc(VentaDocumento.fecha), desc(VentaDocumento.id))
         .limit(limit)
-        .offset(offset)
+        .offset(offset),
+        VentaDocumento,
     )
     if estado:
         query = query.where(VentaDocumento.estado == estado)
@@ -775,7 +787,10 @@ async def list_ventas(
 async def get_venta(venta_id: int, _: CurrentUser, db: AsyncSession = Depends(get_db)):
     """Obtener un documento de venta por ID con detalles."""
     venta = await db.scalar(
-        select(VentaDocumento).options(*_VENTA_EAGER).where(VentaDocumento.id == venta_id)
+        for_tenant(
+            select(VentaDocumento).options(*_VENTA_EAGER).where(VentaDocumento.id == venta_id),
+            VentaDocumento,
+        )
     )
     if not venta:
         raise HTTPException(status_code=404, detail="Venta no encontrada")
