@@ -21,12 +21,23 @@ _ROLES_VIEJO = "rol IN ('Admin', 'Administradora', 'Auxiliar')"
 
 
 def upgrade() -> None:
-    with op.batch_alter_table("usuarios", schema=None) as batch:
-        batch.drop_constraint("ck_usuarios_rol", type_="check")
+    # En BD creadas con create_all (LAN legacy) el CHECK puede existir sin el
+    # nombre ck_usuarios_rol; drop_constraint fallaría. Recrear siempre el
+    # constraint con batch: si no hay named constraint, batch lo reescribe
+    # al copiar la tabla.
+    with op.batch_alter_table("usuarios", schema=None, recreate="always") as batch:
+        try:
+            batch.drop_constraint("ck_usuarios_rol", type_="check")
+        except (KeyError, ValueError):
+            # Constraint ausente o sin nombre — se recrea abajo.
+            pass
         batch.create_check_constraint("ck_usuarios_rol", _ROLES_NUEVO)
 
 
 def downgrade() -> None:
-    with op.batch_alter_table("usuarios", schema=None) as batch:
-        batch.drop_constraint("ck_usuarios_rol", type_="check")
+    with op.batch_alter_table("usuarios", schema=None, recreate="always") as batch:
+        try:
+            batch.drop_constraint("ck_usuarios_rol", type_="check")
+        except (KeyError, ValueError):
+            pass
         batch.create_check_constraint("ck_usuarios_rol", _ROLES_VIEJO)
