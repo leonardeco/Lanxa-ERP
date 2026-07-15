@@ -1,0 +1,102 @@
+# Build del SPA y deploy a S3 + invalidación CloudFront.
+# Se activa en tags v* (junto con ECR) o workflow_dispatch.
+#
+# Variables del repo:
+#   AWS_REGION
+#   FRONTEND_S3_BUCKET          — output frontend_bucket_name
+#   CLOUDFRONT_DISTRIBUTION_ID  — output cloudfront_distribution_id
+#   VITE_API_URL                — ej. https://api.tu-dominio.com  (vacío si CF enruta /api)
+#
+# Secrets:
+#   AWS_ROLE_TO_ASSUME (OIDC) o access keys
+
+name: Deploy frontend to CloudFront
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      vite_api_url:
+        description: "Override VITE_API_URL (opcional)"
+        required: false
+        default: ""
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Build & sync SPA
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      S3_BUCKET: ${{ vars.FRONTEND_S3_BUCKET }}
+      CF_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Skip if bucket not configured
+        if: ${{ env.S3_BUCKET == '' }}
+        run: |
+          echo "FRONTEND_S3_BUCKET no configurado — skip deploy frontend"
+          exit 0
+
+      - name: Configure AWS credentials (OIDC)
+        if: ${{ secrets.AWS_ROLE_TO_ASSUME != '' && env.S3_BUCKET != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure AWS credentials (access keys)
+        if: ${{ secrets.AWS_ROLE_TO_ASSUME == '' && secrets.AWS_ACCESS_KEY_ID != '' && env.S3_BUCKET != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: actions/setup-node@v4
+        if: ${{ env.S3_BUCKET != '' }}
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install & build
+        if: ${{ env.S3_BUCKET != '' }}
+        env:
+          VITE_API_URL: ${{ github.event.inputs.vite_api_url || vars.VITE_API_URL || '' }}
+        run: |
+          npm ci
+          npm run build
+          echo "Built with VITE_API_URL=${VITE_API_URL:-'(same-origin /api)'}"
+
+      - name: Sync to S3
+        if: ${{ env.S3_BUCKET != '' }}
+        run: |
+          aws s3 sync dist/ "s3://${S3_BUCKET}/" --delete \
+            --cache-control "public,max-age=31536000,immutable" \
+            --exclude "index.html" \
+            --exclude "*.json"
+          aws s3 cp dist/index.html "s3://${S3_BUCKET}/index.html" \
+            --cache-control "public,max-age=0,must-revalidate" \
+            --content-type "text/html"
+          # resto de archivos sin hash
+          aws s3 sync dist/ "s3://${S3_BUCKET}/" \
+            --exclude "assets/*" \
+            --cache-control "public,max-age=300"
+
+      - name: Invalidate CloudFront
+        if: ${{ env.S3_BUCKET != '' && env.CF_ID != '' }}
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "$CF_ID" \
+            --paths "/*"
+          echo "### Deployed to s3://$S3_BUCKET (CF $CF_ID)" >> "$GITHUB_STEP_SUMMARY"

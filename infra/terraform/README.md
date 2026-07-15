@@ -89,5 +89,34 @@ Tras `apply`:
 
 HTTP en el ALB redirige a HTTPS cuando `enable_https` está activo.
 
+## Fase 6 — Frontend S3 + CloudFront
+
+```hcl
+enable_frontend_cdn  = true
+frontend_domain_name = "app.tu-dominio.com"  # opcional
+# route53_zone_id ya definido arriba
+```
+
+Build local y sync (o usa Actions **Deploy frontend to CloudFront**):
+
+```bash
+cd frontend
+VITE_API_URL=https://api.tu-dominio.com npm run build
+aws s3 sync dist/ s3://$(terraform -chdir=../infra/terraform output -raw frontend_bucket_name)/ --delete
+aws cloudfront create-invalidation \
+  --distribution-id $(terraform -chdir=../infra/terraform output -raw cloudfront_distribution_id) \
+  --paths "/*"
+```
+
+Si CloudFront enruta `/api/*` al ALB (`enable_ecs=true`), puedes dejar `VITE_API_URL` vacío
+(same-origin).
+
+Variables GitHub para el workflow frontend:
+
+- `FRONTEND_S3_BUCKET`
+- `CLOUDFRONT_DISTRIBUTION_ID`
+- `VITE_API_URL` (opcional)
+
 Ver `docs/hydraia/plans/2026-07-14-migracion-aws-runbook.md`.
+
 
