@@ -131,11 +131,12 @@ Si cambia la IP del servidor: actualizar `frontend\.env` (`VITE_API_URL`), `back
 
 ## Cierre de esta entrega
 
-- [x] Paquete de 4 usuarios preparado (tarjetas + checklist en Escritorio) — **2026-07-15**
-- [ ] Tabla de 4 usuarios: claves **cambiadas en UI** (humano)
+- [x] Paquete de **7 usuarios** (Superusuario, Directora, CEO, Contador, 3 Aux. Contable) — tarjetas en Escritorio
+- [ ] Claves **cambiadas en UI** por cada persona (humano) — ver `ops/HOY-GO-LIVE.md`
 - [ ] Manual entregado en mano a cada persona (humano)
-- [ ] `BACKUP_ENCRYPTION_KEY` en gestor de contraseñas — recordatorio en `C:\SuperOzono-Backups\RECORDATORIO-CLAVE-BACKUP.txt`
-- [x] Confirmado OneDrive sync de `SuperOzono-Backups-Offsite`
+- [ ] `BACKUP_ENCRYPTION_KEY` en gestor de contraseñas — `C:\SuperOzono-Backups\RECORDATORIO-CLAVE-BACKUP.txt`
+- [x] Confirmado OneDrive `SuperOzono-Backups-Offsite` (backup 2026-07-15 15:55)
 - [x] Recordatorio de drill 2026-10-15 (tarea Windows + ENTREGA)
+- [x] Paquete Contador #1 PUC en Escritorio `Entrega-Contador-PUC\`
 
 **Al terminar:** mover ítems cerrados a `DOCUMENTACION.md` §13 y una línea en `BITACORA.md`.
