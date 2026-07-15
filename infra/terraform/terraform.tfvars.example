@@ -31,3 +31,9 @@ enable_https    = false
 enable_github_oidc = false
 # github_org_repo    = "leonardeco/superozono-erp"
 
+# Fase 6 — Frontend S3 + CloudFront
+enable_frontend_cdn = false
+# frontend_domain_name = "app.ejemplo.com"   # opcional; vacío = *.cloudfront.net
+# frontend_price_class = "PriceClass_100"
+
+
