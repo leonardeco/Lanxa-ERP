@@ -1502,3 +1502,50 @@ Cierre de backlog implementable sin la contadora: politica de contrasenas, puent
 - Validacion PUC / UVT / costeo / asiento costo de venta (contadora).
 - Apply real AWS/Docker en este host.
 - Handoff operativo usuarios y backup offsite en el servidor.
+
+---
+
+## Sesion — 15 de julio 2026 (cierre documentacion + roles + ops LAN)
+
+### Resumen
+
+Sesion larga de cierre operativo y backlog codeable. ERP LAN v0.3.0 en este PC (IP 192.168.1.48). Se dejo de inventar contabilidad sin Contador (#1-4, #8). Entrega de contrasenas a usuarios (#7) **aplazada a proposito** por el Superusuario.
+
+### Lo que se hizo
+
+**Codeable / producto**
+1. Politica de contrasenas (`app/core/passwords.py`) + tests.
+2. #14a puente Cliente/Proveedor -> Tercero al crear/editar.
+3. Staging LAN: `ops/STAGING.md`, `setup-staging.ps1`, `start-staging.ps1`.
+4. Roles de negocio: Superusuario, Directora, CEO, Contador, Auxiliar Contable.
+   - Migracion Alembic `b1c2d3e4f5a6`.
+   - Script `backend/scripts/aplicar_estructura_usuarios.py` (7 cuentas en BD).
+   - Frontend ROLE_VIEWS + permisos UI.
+5. Login: mensajes claros si API caida o rate limit (5/min).
+6. Infra previa del dia: tenancy Runs 2-5, Docker/Terraform/ECR/CloudFront (codigo, sin apply).
+
+**Operativo en este PC**
+- start.bat verificado; health v0.3.0; CA confiable en el usuario.
+- Backups cifrados + offsite OneDrive `SuperOzono-Backups-Offsite`.
+- Tareas programadas: backup, offsite, purga, reminder drill 2026-10-15.
+- Paquetes Escritorio: `Entrega-SuperOzono-v030` (tarjetas 01-07), `Entrega-Contador-PUC`, `HOY-GO-LIVE-SuperOzono.md`.
+- Docs ops: `ESTADO-OPERATIVO-PC.md`, `HOY-GO-LIVE.md`, `INSTRUCCIONES-REUNION-CONTADOR.md`, `smoke-prod.py`.
+
+### Decisiones
+- No entregar accesos ni manuales a nadie hasta nueva orden (#7 aplazado).
+- Superusuario sigue con clave de `.env` (SEED_ADMIN_PASSWORD); no rotar de fuerza.
+- Siguiente hilo de negocio cuando haya Contador: validar PUC (#1).
+
+### Commits representativos (main)
+- `1b4610e` politica contrasenas, puente Tercero, staging
+- `27e4c8a` / `cbc46c7` ops PC servidor
+- `bf96a42` login UX
+- `0837ef6` roles Superusuario/Directora/CEO/Aux. Contable
+- `fec96e3` / `2034675` go-live pack + aplazar #7
+- Esta actualizacion: PENDIENTES 33a + DOCUMENTACION §7/§13 + bitacora
+
+### Queda abierto (ver PENDIENTES.md)
+- Contador: #1-4, #8, #24
+- Ops ligero: #5 clave backup al gestor; #33op opcional
+- #7 entrega usuarios (cuando digan)
+- Features: #18 nomina, #20 DIAN, #21 Electron, cloud apply

@@ -3,8 +3,8 @@
 **Empresa:** TECNOLOGIA E INNOVACION SUPER OZONO S.A.S.
 **NIT:** 901841798-5
 **Ciudad:** Armenia, Quindío
-**Versión ERP:** 0.7.0
-**Última actualización:** 2026-07-01
+**Versión ERP (LAN):** 0.3.0 · **Docs:** 0.7.1
+**Última actualización:** 2026-07-15
 
 ---
 
@@ -28,15 +28,19 @@
 
 ## 1. Descripción general
 
-ERP interno para la gestión contable y comercial de Super Ozono Global. Diseñado para funcionar en red local (LAN) con 5 equipos:
+ERP interno para la gestión contable y comercial de Super Ozono Global. Diseñado para red local (LAN): un PC servidor corre backend + frontend; el resto abre el navegador.
 
-| Equipo | Rol | Acceso |
+| Perfil de negocio | Rol en el ERP | Acceso típico |
 |---|---|---|
-| PC Servidor | Admin | Todo el sistema |
-| PC Administradora | Administradora | Módulos contables + ventas + cartera |
-| PC Auxiliar 1, 2, 3 | Auxiliar | Ventas y cartera únicamente |
+| Dueño técnico del sistema | **Superusuario** | Todo + Usuarios & Accesos |
+| Dirección operativa | **Directora** | Contabilidad, ventas, compras, cartera, inventario, reportes |
+| Jefe de empresa | **CEO** | Dashboard, reportes y consulta de operación |
+| Contador | **Contador** | Área contable, cartera, reportes, ventas/compras |
+| Auxiliares (×3) | **Auxiliar Contable** | Contabilidad operativa + ventas/compras/cartera |
 
-**Arquitectura:** un PC actúa como servidor (corre backend + frontend), los otros 4 solo abren el navegador.
+**URL LAN actual (PC servidor):** `https://192.168.1.48:5173` · API `https://192.168.1.48:8000`  
+**Arranque:** acceso escritorio *Super Ozono ERP* (`start.bat`) / `stop.bat`.  
+Detalle ops: `ops/ESTADO-OPERATIVO-PC.md`.
 
 ---
 
@@ -349,68 +353,55 @@ certutil -addstore -f "ROOT" "C:\ruta\al\proyecto\certs\superozono-ca.crt"
 
 ## 7. Sistema de roles y permisos
 
-### Roles disponibles
+Actualizado **2026-07-15**. Roles válidos en BD (`ROLES_VALIDOS`, CHECK `ck_usuarios_rol`, migración `b1c2d3e4f5a6`):
 
 | Rol | Descripción |
 |---|---|
-| `Admin` | Acceso total. Único que puede crear/editar/desactivar usuarios |
-| `Administradora` | Módulos contables + ventas + compras + cartera. Sin gestión de usuarios |
-| `Auxiliar` | Solo ventas, compras y cartera. Sin acceso a configuración contable |
-| `Contador` | Área contable completa: PUC, centros de costo, períodos, tributarios, cartera (con abonos/anulaciones) y reportes/estados financieros. Ventas y compras **solo consulta** (no puede anular). Sin gestión de usuarios. Permiso backend `ContableDep` (`get_area_contable`) |
+| `Superusuario` | Acceso total. Único que gestiona usuarios, Alegra y onboard multi-tenant. (Antes: `Admin`) |
+| `Directora` | Operación: contabilidad, ventas, compras, cartera, inventario, reportes. Puede anular y editar maestros. Sin Usuarios. (Antes: `Administradora`) |
+| `CEO` | Visión ejecutiva: dashboard, reportes e inventario/ventas/compras/cartera en consulta (UI). Sin anular ni usuarios |
+| `Contador` | Área contable + cartera (abonos) + reportes + ventas/compras. No anula documentos ni gestiona usuarios |
+| `Auxiliar Contable` | Contabilidad operativa + ventas/compras/cartera + reportes. No anula ni gestiona usuarios |
 
-### Acceso por módulo
+Script de estructura en LAN: `backend/scripts/aplicar_estructura_usuarios.py` (7 cuentas típicas).  
+Entrega (cuando se decida): Escritorio `Entrega-SuperOzono-v030\` — **entrega de contraseñas aplazada a propósito (2026-07-15).**
 
-| Módulo | Admin | Administradora | Auxiliar | Contador |
-|---|---|---|---|---|
-| Dashboard | ✅ | ✅ | ✅ | ✅ |
-| Ventas | ✅ | ✅ | ✅ | 👁️ consulta |
-| Compras | ✅ | ✅ | ✅ | 👁️ consulta |
-| Cartera (CxC/CxP) | ✅ | ✅ | ✅ | ✅ |
-| PUC | ✅ | ✅ | ❌ | ✅ |
-| Centros de Costo | ✅ | ✅ | ❌ | ✅ |
-| Períodos Contables | ✅ | ✅ | ❌ | ✅ |
-| Parámetros Tributarios | ✅ | ✅ | ❌ | ✅ |
-| Parámetros Nómina | ✅ | ✅ | ❌ | ❌² |
-| Gestión de Usuarios | ✅ | ❌ | ❌ | ❌ |
-| Inventario | ✅ | ❌¹ | ❌¹ | ❌¹ |
-| RRHH (fase 2) | ✅ | ❌ | ❌ | ❌ |
-| Reportes | ✅ | ❌¹ | ❌¹ | ✅ |
+### Acceso por módulo (UI — `ROLE_VIEWS` en `App.tsx`)
 
-> ¹ El backend de Inventario acepta los 3 roles en sus endpoints GET (mismo patrón que Compras/Ventas) — hoy solo no se ve porque `ROLE_VIEWS` en `App.tsx` no incluye `'inventario'` para Administradora/Auxiliar. Si se decide abrir la vista a esos roles, no requiere cambios de backend.
->
-> ² Parámetros de Nómina: el backend (`ContableDep`) sí lo admite para Contador, pero la vista no está en su `ROLE_VIEWS` (no se pidió). Agregar `'nomina'` a `ROLE_VIEWS.Contador` lo habilita sin tocar backend.
+| Módulo | Superusuario | Directora | CEO | Contador | Auxiliar Contable |
+|---|---|---|---|---|---|
+| Dashboard | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Ventas | ✅ | ✅ | 👁️ | ✅ | ✅ |
+| Compras | ✅ | ✅ | 👁️ | ✅ | ✅ |
+| Cartera | ✅ | ✅ | 👁️ | ✅ | ✅ |
+| Inventario | ✅ | ✅ | 👁️ | ❌ | ❌ |
+| PUC / centros / períodos / tributarios | ✅ | ✅ | ❌ | ✅ | ✅ |
+| Nómina (params) | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Reportes | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Usuarios | ✅ | ❌ | ❌ | ❌ | ❌ |
 
 ### Implementación técnica
 
-**Backend (`api/deps.py`):**
+**Backend (`api/deps.py` + `usuarios/models.py`):**
 
-| Dependencia | Alias | Roles permitidos |
+| Dependencia | Alias | Roles |
 |---|---|---|
-| `get_current_user` | `CurrentUser` | Admin, Administradora, Auxiliar |
-| `get_admin_or_administradora` | `AdminOrAdministradoraDep` | Admin, Administradora |
-| `get_current_active_superuser` | `AdminDep` | Admin únicamente |
+| `get_current_user` | `CurrentUser` | Cualquier autenticado |
+| `get_admin_or_administradora` | `AdminOrAdministradoraDep` | Superusuario, Directora (`ROLES_OPERACION`) |
+| `get_area_contable` | `ContableDep` | Superusuario, Directora, Contador, Auxiliar Contable |
+| `get_current_active_superuser` | `AdminDep` | Solo Superusuario |
 
-**Reglas aplicadas por módulo:**
+**Reglas por módulo (resumen):**
 
-- **Contabilidad** (PUC, centros, períodos, terceros, tributarios, nómina): `AdminOrAdministradoraDep`
-- **Cartera GET / CREATE / UPDATE**: `CurrentUser` (todos los roles)
-- **Cartera abonar / anular**: `AdminOrAdministradoraDep`
-- **Ventas GET / crear venta / confirmar venta**: `CurrentUser` (todos los roles)
-- **Ventas crear/editar/desactivar productos y clientes**: `AdminOrAdministradoraDep`
-- **Ventas anular**: `AdminOrAdministradoraDep`
-- **Compras GET / crear compra / confirmar compra**: `CurrentUser` (todos los roles)
-- **Compras crear/editar/desactivar proveedores**: `AdminOrAdministradoraDep`
-- **Compras anular**: `AdminOrAdministradoraDep`
-- **Inventario GET (dashboard, movimientos)**: `CurrentUser` (todos los roles)
-- **Inventario ajuste manual**: `AdminOrAdministradoraDep`
-- **Reportes** (los 4 endpoints, todos GET): `CurrentUser` (todos los roles)
-- **Usuarios CRUD**: `AdminDep`
-- **Alegra** (sync y facturación): `AdminDep`
+- **Contabilidad / abonos cartera:** `ContableDep`
+- **Anular ventas/compras, maestros productos/clientes/proveedores, ajustes e import inventario:** `AdminOrAdministradoraDep` (Superusuario + Directora)
+- **Crear/confirmar venta o compra:** `CurrentUser` (si el rol ve el módulo en UI)
+- **Usuarios / Alegra / onboard tenant:** `AdminDep` (Superusuario)
 
 **Frontend (`App.tsx`):**
-- `ROLE_VIEWS` mapea cada rol a sus vistas permitidas
-- Al navegar a una vista no permitida, redirige al dashboard
-- El sidebar filtra los ítems según `allowedViews`
+- `ROLE_VIEWS` por rol; navegación no permitida → dashboard
+- Sidebar filtra por `allowedViews`
+- Login: mensajes claros si API caída o rate limit (2026-07-15)
 
 ---
 
@@ -704,7 +695,7 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | Parámetros nómina | 15 conceptos de prestación de servicios |
 | Productos | 15 productos de las 10 marcas |
 | Clientes | 6 distribuidores B2B de ejemplo |
-| Usuario inicial | `admin@superozonoglobal.com` / `Admin2026!` (rol: Admin) |
+| Usuario inicial | `admin@superozonoglobal.com` (rol: **Superusuario**). Clave: `SEED_ADMIN_PASSWORD` del `.env` del servidor (no usar `Admin2026!` de fábrica en prod) |
 
 ---
 
@@ -803,3 +794,6 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 - ~~**Política de contraseñas**~~ → ✅ **Completado 2026-07-15**: `app/core/passwords.py` (min 8, letra+dígito, denylist fábrica); validadores en schemas de usuarios y onboard tenant; tests `test_password_policy.py`.
 - ~~**#14a puente Cliente/Proveedor → Tercero**~~ → ✅ **Completado 2026-07-15** (capa codeable): `sync_tercero_from_cliente` / `sync_tercero_from_proveedor` al crear/editar; Mixto si el NIT es ambos; tests `test_tercero_sync.py`. Unificación de modelo con FK única queda opcional.
 - ~~**#21a Staging LAN**~~ → ✅ **Completado 2026-07-15** (docs+script): `ops/STAGING.md`, `ops/setup-staging.ps1` (BD y puertos 8010/5180).
+- ~~**Roles Superusuario / Directora / CEO / Auxiliar Contable**~~ → ✅ **Completado 2026-07-15**: migración `b1c2d3e4f5a6` (mapeo Admin→Superusuario, Administradora→Directora, Auxiliar→Auxiliar Contable); deps y `ROLE_VIEWS`; script `aplicar_estructura_usuarios.py` (7 cuentas en LAN); `MANUAL-DE-USUARIO.md` actualizado. Entrega de contraseñas **aplazada** por decisión del Superusuario.
+- ~~**Ops PC servidor LAN**~~ → ✅ **2026-07-15**: `ops/ESTADO-OPERATIVO-PC.md`, `ops/HOY-GO-LIVE.md`, `ops/smoke-prod.py`, backups + offsite OneDrive, paquete `Entrega-Contador-PUC`, login UX (API caída / rate limit).
+- **Pendientes vivos:** ver `PENDIENTES.md` (33ª rev) — abierto sobre todo #1–4/#8 (Contador), #5 resto (clave backup), #7 (entrega usuarios, aplazado), features #18/#20/#21.
