@@ -19,11 +19,11 @@ Estado general: suite API + Vitest + E2E (local y CI), versión LAN **v0.3.0**.
 
 | # | Pendiente | Notas (verificado 2026-07-05) |
 |---|---|---|
-| 5 | **Copiar backups fuera del PC servidor** (NAS/nube/otro PC) + guardar `BACKUP_ENCRYPTION_KEY` en un gestor de contraseñas | Riesgo #1: hoy BD, backups y clave viven en el mismo disco. El restore ya está verificado con simulacro (2026-07-02) |
-| 6 | Desplegar **v0.3.0** al servidor siguiendo [`DESPLIEGUE.md`](./DESPLIEGUE.md) | ⚠ **Desde v0.3.0 `alembic upgrade head` es obligatorio en cada actualización** (producción ya no hace `create_all`). Incluye además: `pip install`, rename `ACCESS_TOKEN_EXPIRE_*`, `alembic stamp` (una sola vez), CA en PCs cliente nuevos |
-| 7 | Entregar [`MANUAL-DE-USUARIO.md`](./MANUAL-DE-USUARIO.md) a los 4 usuarios y que cambien su contraseña inicial | ✔ Manual existe y está vigente |
-| 7a | **Drill de restore trimestral** (calendarizarlo) | El procedimiento se verificó una vez (2026-07-02); un backup solo es confiable si se prueba periódicamente |
-| 7b | Documentar la vigencia del certificado TLS local y cuándo regenerarlo | `scripts/generate_tls_cert.py` — nadie sabe hoy la fecha de expiración |
+| 5 | **Copiar backups fuera del PC servidor** (NAS/nube/otro PC) + guardar `BACKUP_ENCRYPTION_KEY` en un gestor de contraseñas | ✅ **En este PC (2026-07-15):** tarea offsite → OneDrive `SuperOzono-Backups-Offsite` + backup manual verificado. **Queda humano:** guardar `BACKUP_ENCRYPTION_KEY` en gestor de contraseñas personal |
+| 6 | Desplegar **v0.3.0** al servidor siguiendo [`DESPLIEGUE.md`](./DESPLIEGUE.md) | ✅ **Hecho en este PC:** health `v0.3.0`, Alembic head, CORS/IP `192.168.1.48`, CA confiable, `start.bat` + acceso escritorio. Ver `ops/ESTADO-OPERATIVO-PC.md` |
+| 7 | Entregar [`MANUAL-DE-USUARIO.md`](./MANUAL-DE-USUARIO.md) a los 4 usuarios y que cambien su contraseña inicial | ✔ Manual + carpeta `Entrega-SuperOzono-v030` en escritorio. **Queda humano:** entregar a cada persona y marcar cambio de clave |
+| 7a | **Drill de restore trimestral** (calendarizarlo) | ✅ Tarea `SuperOzonoERP-RestoreDrillReminder` + próximo **2026-10-15** en `ops/ENTREGA-OPERATIVA-v030.md`. Ejecutar el drill en esa fecha |
+| 7b | Documentar la vigencia del certificado TLS local y cuándo regenerarlo | ✅ Documentado: expira **2028-10-17**, SAN `192.168.1.48` (+ localhost). Ver ENTREGA y ESTADO-OPERATIVO |
 | 27 | **Revisar el job E2E del CI al hacer release** | Nuevo 2026-07-05: el job "E2E — smoke Playwright" es informativo (`continue-on-error`) — sus fallos NO bloquean el merge, hay que mirarlos a mano en Actions |
 | 33op | **🔐 (OPERATIVO) Definir `SEED_ADMIN_PASSWORD` en el `.env` del servidor y rotar la clave del admin** | ✅ **Código resuelto 2026-07-05**: con `DEBUG=false` la app ya NO arranca con la clave por defecto (validator en `config.py`), y `.env.servidor` trae el campo con nota. **Queda la acción operativa**: el admin del servidor debe poner su clave propia en `.env` (parte del #6 despliegue) y cambiarla desde la UI tras el primer login (parte del #7) |
 
