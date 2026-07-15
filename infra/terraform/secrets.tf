@@ -20,12 +20,8 @@ resource "aws_secretsmanager_secret_version" "db" {
     dbname   = var.db_name
     username = var.db_username
     password = random_password.db.result
-    # URL lista para FastAPI / SQLAlchemy async
-    # Construir URL en la app o con secret values; evitar password en logs de TF.
-    # Formato: postgresql+asyncpg://USER:PASSWORD@HOST:PORT/DB
-    host     = aws_db_instance.main.address
-    port     = aws_db_instance.main.port
-    database = var.db_name
+    # Clave leída por ECS (secrets valueFrom ...:database_url::)
+    database_url = "postgresql+asyncpg://${var.db_username}:${urlencode(random_password.db.result)}@${aws_db_instance.main.address}:${aws_db_instance.main.port}/${var.db_name}"
   })
 }
 
