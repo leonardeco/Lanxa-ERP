@@ -39,7 +39,7 @@ async def test_crear_usuario_rechaza_password_debil(
         json={
             "email": "debil@test.com",
             "nombre_completo": "Debil",
-            "rol": "Auxiliar",
+            "rol": "Auxiliar Contable",
             "is_active": True,
             "password": "sololetras",
         },
@@ -59,7 +59,7 @@ async def test_crear_usuario_rechaza_password_fabrica(
         json={
             "email": "fabrica@test.com",
             "nombre_completo": "Fabrica",
-            "rol": "Auxiliar",
+            "rol": "Auxiliar Contable",
             "is_active": True,
             "password": "Admin2026!",
         },

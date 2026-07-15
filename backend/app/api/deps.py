@@ -9,7 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.tenancy import DEFAULT_TENANT_ID, apply_rls_tenant, set_tenant_id
-from app.modules.usuarios.models import Usuario
+from app.modules.usuarios.models import (
+    Usuario,
+    ROL_SUPERUSUARIO,
+    ROLES_OPERACION,
+    ROLES_CONTABLES,
+)
 from app.modules.usuarios.schemas import TokenPayload
 
 settings = get_settings()
@@ -64,8 +69,8 @@ CurrentUser = Annotated[Usuario, Depends(get_current_user)]
 
 
 async def get_current_active_superuser(current_user: CurrentUser) -> Usuario:
-    """Solo Admin."""
-    if current_user.rol != "Admin":
+    """Solo Superusuario (gestión de usuarios, Alegra, onboard multi-tenant)."""
+    if current_user.rol != ROL_SUPERUSUARIO:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="El usuario no tiene suficientes privilegios",
@@ -74,8 +79,8 @@ async def get_current_active_superuser(current_user: CurrentUser) -> Usuario:
 
 
 async def get_admin_or_administradora(current_user: CurrentUser) -> Usuario:
-    """Admin o Administradora — operaciones sensibles (anular ventas/compras, etc.)."""
-    if current_user.rol not in ("Admin", "Administradora"):
+    """Superusuario o Directora — operaciones sensibles (anular ventas/compras, maestros)."""
+    if current_user.rol not in ROLES_OPERACION:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tiene permisos para realizar esta operación",
@@ -84,10 +89,9 @@ async def get_admin_or_administradora(current_user: CurrentUser) -> Usuario:
 
 
 async def get_area_contable(current_user: CurrentUser) -> Usuario:
-    """Admin, Administradora o Contador — área contable: maestros contables (PUC,
-    centros de costo, períodos, tributarios), cartera y sus abonos/anulaciones.
-    El Contador NO puede gestionar usuarios ni anular ventas/compras."""
-    if current_user.rol not in ("Admin", "Administradora", "Contador"):
+    """Área contable: maestros contables, cartera y abonos.
+    El Contador / Auxiliar Contable NO gestionan usuarios ni anulan ventas/compras."""
+    if current_user.rol not in ROLES_CONTABLES:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tiene permisos para realizar esta operación",

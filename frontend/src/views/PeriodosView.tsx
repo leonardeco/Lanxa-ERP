@@ -9,7 +9,7 @@ const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
 
 export default function PeriodosView() {
   const { user } = useAuth();
-  const canEdit = user?.rol === 'Admin' || user?.rol === 'Administradora';
+  const canEdit = user?.rol === 'Superusuario' || user?.rol === 'Directora';
 
   const [periodos, setPeriodos] = useState<Periodo[]>([]);
   const [loading, setLoading] = useState(true);

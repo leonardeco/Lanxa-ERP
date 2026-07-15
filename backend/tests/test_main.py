@@ -28,7 +28,7 @@ async def test_read_users_me(client: AsyncClient, auth_headers):
     assert response.status_code == 200
     data = response.json()
     assert data["email"] == "admin@test.com"
-    assert data["rol"] == "Admin"
+    assert data["rol"] == "Superusuario"
 
 
 @pytest.mark.asyncio
@@ -87,7 +87,7 @@ async def test_admin_resetea_password_de_otro_usuario(client: AsyncClient, auth_
         json={
             "email": "auxiliar@test.com",
             "nombre_completo": "Auxiliar Test",
-            "rol": "Auxiliar",
+            "rol": "Auxiliar Contable",
             "is_active": True,
             "password": "passwordvieja",
         },
@@ -124,7 +124,7 @@ async def test_no_admin_no_puede_resetear_password(client: AsyncClient, auth_hea
         json={
             "email": "auxiliar2@test.com",
             "nombre_completo": "Auxiliar Test 2",
-            "rol": "Auxiliar",
+            "rol": "Auxiliar Contable",
             "is_active": True,
             "password": "passwordvieja",
         },

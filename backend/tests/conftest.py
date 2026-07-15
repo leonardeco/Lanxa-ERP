@@ -89,7 +89,7 @@ async def setup_db():
         admin = Usuario(
             email="admin@test.com",
             nombre_completo="Admin Test",
-            rol="Admin",
+            rol="Superusuario",
             hashed_password=get_password_hash("testpassword"),
             tenant_id=DEFAULT_TENANT_ID,
         )

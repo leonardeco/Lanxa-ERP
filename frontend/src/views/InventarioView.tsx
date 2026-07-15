@@ -645,7 +645,7 @@ function ImportarTab({ onToast, onSaved }: { onToast: (msg: string, type: 'succe
 
 export default function InventarioView() {
   const { user } = useAuth();
-  const puedeAjustar = user?.rol === 'Admin' || user?.rol === 'Administradora';
+  const puedeAjustar = user?.rol === 'Superusuario' || user?.rol === 'Directora';
 
   const [tab, setTab] = useState<InventarioTab>('dashboard');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);

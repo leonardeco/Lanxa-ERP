@@ -26,10 +26,11 @@ Guía práctica para el uso diario del sistema. No necesitas conocimientos técn
 
 | Perfil | Módulos disponibles |
 |---|---|
-| Admin | Todo el sistema (incluye Usuarios & Accesos) |
-| Administradora | Dashboard, Contabilidad, Ventas, Compras, Cartera |
-| Contador | Área contable (contabilidad, cartera, reportes); ventas/compras en consulta |
-| Auxiliar | Dashboard, Ventas, Compras, Cartera |
+| Superusuario | Todo el sistema (incluye Usuarios & Accesos) |
+| Directora | Dashboard, contabilidad, ventas, compras, cartera, inventario, reportes |
+| CEO | Dashboard, reportes e inventario/ventas/compras/cartera en consulta |
+| Contador | Área contable, cartera, reportes; ventas/compras |
+| Auxiliar Contable | Contabilidad operativa, ventas, compras, cartera y reportes |
 
 ---
 

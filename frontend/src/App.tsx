@@ -40,10 +40,11 @@ export type ViewId =
   | 'reportes'
 
 export type RolUsuario =
-  | 'Admin'
-  | 'Administradora'
-  | 'Auxiliar'
+  | 'Superusuario'
+  | 'Directora'
+  | 'CEO'
   | 'Contador'
+  | 'Auxiliar Contable'
 
 const VIEW_TITLES: Record<ViewId, string> = {
   dashboard: 'Dashboard General',
@@ -64,11 +65,25 @@ const VIEW_TITLES: Record<ViewId, string> = {
 
 // Qué módulos puede ver cada rol
 const ROLE_VIEWS: Record<RolUsuario, ViewId[]> = {
-  Admin: ['dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios', 'nomina', 'ventas', 'compras', 'cartera', 'inventario', 'rrhh', 'plataformas', 'reportes', 'usuarios'],
-  Administradora: ['dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios', 'nomina', 'ventas', 'compras', 'cartera'],
-  Auxiliar: ['dashboard', 'ventas', 'compras', 'cartera'],
-  // Contador: área contable + reportes; ventas/compras solo consulta (sin anular)
-  Contador: ['dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios', 'cartera', 'reportes', 'ventas', 'compras'],
+  Superusuario: [
+    'dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios', 'nomina',
+    'ventas', 'compras', 'cartera', 'inventario', 'rrhh', 'plataformas', 'reportes', 'usuarios',
+  ],
+  // Dirección operativa (antes Administradora)
+  Directora: [
+    'dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios', 'nomina',
+    'ventas', 'compras', 'cartera', 'inventario', 'reportes',
+  ],
+  // CEO: dashboards, reportes y consulta de operación
+  CEO: ['dashboard', 'reportes', 'ventas', 'compras', 'cartera', 'inventario'],
+  Contador: [
+    'dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios',
+    'cartera', 'reportes', 'ventas', 'compras',
+  ],
+  'Auxiliar Contable': [
+    'dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios',
+    'ventas', 'compras', 'cartera', 'reportes',
+  ],
 }
 
 function App() {

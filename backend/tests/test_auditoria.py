@@ -116,7 +116,7 @@ async def test_acciones_de_usuarios_auditadas_sin_password(client: AsyncClient, 
     resp = await client.post(
         "/api/v1/usuarios",
         json={"email": "auditado@test.com", "nombre_completo": "Usuario Auditado",
-              "rol": "Auxiliar", "is_active": True, "password": "secreta123"},
+              "rol": "Auxiliar Contable", "is_active": True, "password": "secreta123"},
         headers=auth_headers,
     )
     assert resp.status_code == 201
@@ -124,7 +124,7 @@ async def test_acciones_de_usuarios_auditadas_sin_password(client: AsyncClient, 
 
     await client.put(
         f"/api/v1/usuarios/{uid}",
-        json={"rol": "Administradora"},
+        json={"rol": "Directora"},
         headers=auth_headers,
     )
     await client.put(
@@ -143,7 +143,7 @@ async def test_acciones_de_usuarios_auditadas_sin_password(client: AsyncClient, 
     assert "secreta123" not in _json.dumps(log)
     assert "otraclave123" not in _json.dumps(log)
     upd = next(r for r in log if r["accion"] == "Actualizar")
-    assert upd["cambios"] == {"rol": {"antes": "Auxiliar", "despues": "Administradora"}}
+    assert upd["cambios"] == {"rol": {"antes": "Auxiliar Contable", "despues": "Directora"}}
 
 
 @pytest.mark.asyncio
@@ -152,7 +152,7 @@ async def test_auditoria_solo_admin_o_administradora(client: AsyncClient, auth_h
     await client.post(
         "/api/v1/usuarios",
         json={"email": "aux.aud@test.com", "nombre_completo": "Aux Auditoría",
-              "rol": "Auxiliar", "is_active": True, "password": "password123"},
+              "rol": "Auxiliar Contable", "is_active": True, "password": "password123"},
         headers=auth_headers,
     )
     login = await client.post(

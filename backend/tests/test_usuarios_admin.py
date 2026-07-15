@@ -9,7 +9,7 @@ from httpx import AsyncClient
 NUEVO_USUARIO = {
     "email": "aux1@test.com",
     "nombre_completo": "Auxiliar Uno",
-    "rol": "Auxiliar",
+    "rol": "Auxiliar Contable",
     "is_active": True,
     "password": "password123",
 }
@@ -44,7 +44,7 @@ async def test_update_usuario(client: AsyncClient, auth_headers: dict):
     user = await _crear_usuario(client, auth_headers)
 
     # 404 si no existe
-    resp = await client.put("/api/v1/usuarios/99999", json={"rol": "Admin"}, headers=auth_headers)
+    resp = await client.put("/api/v1/usuarios/99999", json={"rol": "Superusuario"}, headers=auth_headers)
     assert resp.status_code == 404
 
     # Rol inválido
@@ -56,13 +56,13 @@ async def test_update_usuario(client: AsyncClient, auth_headers: dict):
     # Actualización válida de nombre y rol
     resp = await client.put(
         f"/api/v1/usuarios/{user['id']}",
-        json={"nombre_completo": "Auxiliar Renombrado", "rol": "Administradora"},
+        json={"nombre_completo": "Auxiliar Renombrado", "rol": "Directora"},
         headers=auth_headers,
     )
     assert resp.status_code == 200
     body = resp.json()
     assert body["nombre_completo"] == "Auxiliar Renombrado"
-    assert body["rol"] == "Administradora"
+    assert body["rol"] == "Directora"
 
 
 @pytest.mark.asyncio

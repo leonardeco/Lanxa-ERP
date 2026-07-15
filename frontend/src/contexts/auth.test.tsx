@@ -7,7 +7,7 @@ const usuario: User = {
   id: 1,
   email: 'admin@superozonoglobal.com',
   nombre_completo: 'Admin Test',
-  rol: 'Admin',
+  rol: 'Superusuario',
   is_active: true,
 };
 

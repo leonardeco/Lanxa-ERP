@@ -14,7 +14,7 @@ vi.mock('./contexts/auth', () => ({
       id: 1,
       email: 'admin@superozono.co',
       nombre_completo: 'Leonardo Guzmán',
-      rol: 'Admin',
+      rol: 'Superusuario',
       is_active: true,
     },
     token: 'tok',

@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 // Auth: Admin (para que se muestren todas las pestañas)
 vi.mock('../contexts/auth', () => ({
   useAuth: () => ({
-    user: { id: 1, email: 'a@a.co', nombre_completo: 'Admin', rol: 'Admin', is_active: true },
+    user: { id: 1, email: 'a@a.co', nombre_completo: 'Admin', rol: 'Superusuario', is_active: true },
     token: 'tok', login: vi.fn(), logout: vi.fn(), isLoading: false,
   }),
 }));
