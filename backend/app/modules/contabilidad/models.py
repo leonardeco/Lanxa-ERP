@@ -1,4 +1,4 @@
-"""
+﻿"""
 Super Ozono Global — Contabilidad Núcleo: Modelos SQLAlchemy
 Basado en el Excel de Carga Inicial Contable y la documentación v2.0
 """
@@ -11,6 +11,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
+from app.core.tenancy import TenantScoped
 from app.core.time import bogota_now, utcnow
 import enum
 
@@ -82,7 +83,7 @@ class EstadoDocumento(str, enum.Enum):
 # MODELOS
 # ══════════════════════════════════════════════════════════
 
-class PlanCuentas(Base):
+class PlanCuentas(TenantScoped, Base):
     """Plan Único de Cuentas — PUC Colombiano (Decreto 2650)"""
     __tablename__ = "plan_cuentas"
 
@@ -108,7 +109,7 @@ class PlanCuentas(Base):
         return f"<PlanCuentas {self.codigo_puc} - {self.nombre}>"
 
 
-class CentroCosto(Base):
+class CentroCosto(TenantScoped, Base):
     """Centros de costo — Rentabilidad por marca / área"""
     __tablename__ = "centros_costo"
 
@@ -130,7 +131,7 @@ class CentroCosto(Base):
         return f"<CentroCosto {self.codigo} - {self.nombre}>"
 
 
-class PeriodoContable(Base):
+class PeriodoContable(TenantScoped, Base):
     """Períodos contables — Cierre mensual y bloqueo"""
     __tablename__ = "periodos_contables"
 
@@ -153,7 +154,7 @@ class PeriodoContable(Base):
         return f"<PeriodoContable {self.periodo} - {self.estado.value}>"
 
 
-class Tercero(Base):
+class Tercero(TenantScoped, Base):
     """Registro único de terceros — Clientes, proveedores, empleados"""
     __tablename__ = "terceros"
 
@@ -176,7 +177,7 @@ class Tercero(Base):
         return f"<Tercero {self.nit_cc} - {self.razon_social}>"
 
 
-class AsientoContable(Base):
+class AsientoContable(TenantScoped, Base):
     """Cabecera de cada movimiento contable"""
     __tablename__ = "asientos_contables"
 
@@ -203,7 +204,7 @@ class AsientoContable(Base):
         return f"<AsientoContable {self.id} - {self.fecha} - {self.descripcion[:30]}>"
 
 
-class MovimientoAsiento(Base):
+class MovimientoAsiento(TenantScoped, Base):
     """Débitos y créditos de cada asiento (partida doble)"""
     __tablename__ = "movimientos_asiento"
 
@@ -226,7 +227,7 @@ class MovimientoAsiento(Base):
         return f"<MovimientoAsiento D:{self.debito} C:{self.credito}>"
 
 
-class SaldoInicial(Base):
+class SaldoInicial(TenantScoped, Base):
     """Saldos iniciales — Balance de apertura"""
     __tablename__ = "saldos_iniciales"
 
@@ -246,7 +247,7 @@ class SaldoInicial(Base):
         return f"<SaldoInicial Cuenta:{self.cuenta_id} D:{self.debito} C:{self.credito}>"
 
 
-class CuentaPorCobrar(Base):
+class CuentaPorCobrar(TenantScoped, Base):
     """Cartera — Cuentas por Cobrar (CxC) inicial"""
     __tablename__ = "cuentas_por_cobrar"
 
@@ -267,7 +268,7 @@ class CuentaPorCobrar(Base):
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
 
-class CuentaPorPagar(Base):
+class CuentaPorPagar(TenantScoped, Base):
     """Cuentas por Pagar (CxP) inicial"""
     __tablename__ = "cuentas_por_pagar"
 
@@ -294,7 +295,7 @@ class TipoPago(str, enum.Enum):
     CXP = "CxP"
 
 
-class Pago(Base):
+class Pago(TenantScoped, Base):
     """Comprobante de pago — Recibo de Caja (CxC) o Comprobante de Egreso (CxP)"""
     __tablename__ = "pagos"
 
@@ -316,7 +317,7 @@ class Pago(Base):
     created_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow)
 
 
-class ParametroTributario(Base):
+class ParametroTributario(TenantScoped, Base):
     """Parámetros tributarios — Tarifas IVA, retenciones, etc."""
     __tablename__ = "parametros_tributarios"
 
@@ -331,7 +332,7 @@ class ParametroTributario(Base):
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
 
-class ParametroNomina(Base):
+class ParametroNomina(TenantScoped, Base):
     """Parámetros de nómina — SMMLV, aportes, parafiscales"""
     __tablename__ = "parametros_nomina"
 

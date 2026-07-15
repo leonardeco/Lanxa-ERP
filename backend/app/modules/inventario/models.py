@@ -1,4 +1,4 @@
-"""
+﻿"""
 Super Ozono Global — Módulo de Inventario: Modelos SQLAlchemy
 Kardex de movimientos de stock, generado automáticamente desde Compras y Ventas
 o registrado manualmente como ajuste.
@@ -9,6 +9,7 @@ from decimal import Decimal
 from sqlalchemy import String, DateTime, Date, Numeric, ForeignKey, Enum as SAEnum, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
+from app.core.tenancy import TenantScoped
 from app.core.time import bogota_now, utcnow
 import enum
 
@@ -30,7 +31,7 @@ class OrigenMovimiento(str, enum.Enum):
     DEVOLUCION_COMPRA = "Devolución compra"
 
 
-class MovimientoInventario(Base):
+class MovimientoInventario(TenantScoped, Base):
     """Kardex — un registro por cada movimiento de stock, con snapshot antes/después."""
     __tablename__ = "movimientos_inventario"
 
@@ -60,7 +61,7 @@ class MovimientoInventario(Base):
     producto = relationship("Producto")
 
 
-class Lote(Base):
+class Lote(TenantScoped, Base):
     """Un lote de un producto con control de vencimiento (controla_lote=True).
 
     El stock del producto (stock_actual) es el agregado = Σ cantidad_actual de sus

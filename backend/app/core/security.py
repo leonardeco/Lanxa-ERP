@@ -27,16 +27,21 @@ def _preparar_password(password: str) -> bytes:
 
 
 def create_access_token(
-    subject: Union[str, Any], expires_delta: timedelta | None = None
+    subject: Union[str, Any],
+    expires_delta: timedelta | None = None,
+    *,
+    tenant_id: int | None = None,
 ) -> str:
-    """Genera un JWT para el usuario logueado."""
+    """Genera un JWT para el usuario logueado (incluye tenant_id — Run 2)."""
     if expires_delta:
         expire = utcnow() + expires_delta
     else:
         expire = utcnow() + timedelta(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
-    to_encode = {"exp": expire, "sub": str(subject)}
+    to_encode: dict[str, Any] = {"exp": expire, "sub": str(subject)}
+    if tenant_id is not None:
+        to_encode["tenant_id"] = int(tenant_id)
     encoded_jwt = jwt.encode(
         to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
     )
