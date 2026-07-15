@@ -127,7 +127,10 @@ servidor.
 | Tarea | Programación | Comando |
 |---|---|---|
 | `SuperOzonoERP-BackupDB` | Diario 2:00am | `backend\venv\Scripts\python.exe backend\scripts\backup_db.py` |
-| `SuperOzonoERP-PurgaAuditoria` | Mensual (día 1, 3:00am) | `backend\venv\Scripts\python.exe backend\scripts\purge_auditoria.py` |
+| `SuperOzonoERP-BackupOffsite` | Diario 2:15am | `backend\scripts\copy_backups_offsite.ps1` → OneDrive (o USB/NAS con `-Dest`) |
+| `SuperOzonoERP-PurgaAuditoria` | Mensual (día 1, 3:00am) | `backend\scripts\run_purge_auditoria.bat` |
+
+Ver detalle offsite y clave de cifrado: `backend\scripts\LEEME-BACKUPS-OFFSITE.md` (pendiente #5).
 
 > **Purga de auditoría (#28):** archiva y borra los registros del log de auditoría
 > anteriores a `AUDITORIA_RETENTION_DAYS` (por defecto 1825 ≈ 5 años, editable en
