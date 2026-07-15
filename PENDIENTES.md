@@ -19,9 +19,9 @@ Estado general: suite API + Vitest + E2E (local y CI), versión LAN **v0.3.0**.
 
 | # | Pendiente | Notas (verificado 2026-07-05) |
 |---|---|---|
-| 5 | **Copiar backups fuera del PC servidor** (NAS/nube/otro PC) + guardar `BACKUP_ENCRYPTION_KEY` en un gestor de contraseñas | ✅ **En este PC (2026-07-15):** tarea offsite → OneDrive `SuperOzono-Backups-Offsite` + backup manual verificado. **Queda humano:** guardar `BACKUP_ENCRYPTION_KEY` en gestor de contraseñas personal |
+| 5 | **Copiar backups fuera del PC servidor** (NAS/nube/otro PC) + guardar `BACKUP_ENCRYPTION_KEY` en un gestor de contraseñas | ✅ Offsite OneDrive OK. Recordatorio con valor local: `C:\SuperOzono-Backups\RECORDATORIO-CLAVE-BACKUP.txt` — **cópiala al gestor y borra ese archivo** |
 | 6 | Desplegar **v0.3.0** al servidor siguiendo [`DESPLIEGUE.md`](./DESPLIEGUE.md) | ✅ **Hecho en este PC:** health `v0.3.0`, Alembic head, CORS/IP `192.168.1.48`, CA confiable, `start.bat` + acceso escritorio. Ver `ops/ESTADO-OPERATIVO-PC.md` |
-| 7 | Entregar [`MANUAL-DE-USUARIO.md`](./MANUAL-DE-USUARIO.md) a los 4 usuarios y que cambien su contraseña inicial | ✔ Manual + carpeta `Entrega-SuperOzono-v030` en escritorio. **Queda humano:** entregar a cada persona y marcar cambio de clave |
+| 7 | Entregar [`MANUAL-DE-USUARIO.md`](./MANUAL-DE-USUARIO.md) a los 4 usuarios y que cambien su contraseña inicial | ✅ **Paquete listo 2026-07-15:** Escritorio `Entrega-SuperOzono-v030` con tarjetas `01`–`04`, checklist, manual, CA; OneDrive `SuperOzono-Entrega`. **Queda humano:** dar a cada persona su tarjeta y marcar cambio de clave en UI |
 | 7a | **Drill de restore trimestral** (calendarizarlo) | ✅ Tarea `SuperOzonoERP-RestoreDrillReminder` + próximo **2026-10-15** en `ops/ENTREGA-OPERATIVA-v030.md`. Ejecutar el drill en esa fecha |
 | 7b | Documentar la vigencia del certificado TLS local y cuándo regenerarlo | ✅ Documentado: expira **2028-10-17**, SAN `192.168.1.48` (+ localhost). Ver ENTREGA y ESTADO-OPERATIVO |
 | 27 | **Revisar el job E2E del CI al hacer release** | Nuevo 2026-07-05: el job "E2E — smoke Playwright" es informativo (`continue-on-error`) — sus fallos NO bloquean el merge, hay que mirarlos a mano en Actions |

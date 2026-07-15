@@ -23,25 +23,29 @@ Ver también el snapshot vivo [`ESTADO-OPERATIVO-PC.md`](./ESTADO-OPERATIVO-PC.m
 
 | # | Nombre | Correo | Rol | Temp password | Cambió clave |
 |---|---|---|---|---|---|
-| 1 | Administrador del Sistema | admin@superozonoglobal.com | Admin | ver `backend\.env` → `SEED_ADMIN_PASSWORD` | [ ] en UI |
-| 2 | Administradora Operativa | administradora@superozonoglobal.com | Administradora | ver `CREDENCIALES-TEMPORALES.txt` | [ ] |
-| 3 | Contador / Area Contable | contador@superozonoglobal.com | Contador | ver `CREDENCIALES-TEMPORALES.txt` | [ ] |
-| 4 | Auxiliar Comercial | auxiliar@superozonoglobal.com | Auxiliar | ver `CREDENCIALES-TEMPORALES.txt` | [ ] |
+| 1 | Administrador del Sistema | admin@superozonoglobal.com | Admin | ver `01-ADMIN.txt` o `backend\.env` | [ ] en UI |
+| 2 | Administradora Operativa | administradora@superozonoglobal.com | Administradora | ver `02-ADMINISTRADORA.txt` | [ ] |
+| 3 | Contador / Area Contable | contador@superozonoglobal.com | Contador | ver `03-CONTADOR.txt` | [ ] |
+| 4 | Auxiliar Comercial | auxiliar@superozonoglobal.com | Auxiliar | ver `04-AUXILIAR.txt` | [ ] |
 
-Archivo local de claves (NO va a GitHub):
+**Paquete de entrega listo (2026-07-15, go-live #7):**
 
-- Escritorio: `Entrega-SuperOzono-v030\CREDENCIALES-TEMPORALES.txt`
-- OneDrive: `SuperOzono-Entrega\CREDENCIALES-TEMPORALES.txt`
-- Servidor: `C:\SuperOzono-Backups\CREDENCIALES-TEMPORALES-NO-SUBIR.txt`
+| Ubicación | Contenido |
+|---|---|
+| Escritorio | `Entrega-SuperOzono-v030\` |
+| OneDrive | `SuperOzono-Entrega\` |
+| Servidor | `C:\SuperOzono-Backups\CREDENCIALES-TEMPORALES-NO-SUBIR.txt` |
+
+Incluye: `INICIO.txt`, `01`–`04` tarjetas por usuario, `CHECKLIST-CAMBIO-CLAVES.txt`, manual, CA, credenciales maestras.
 
 Si los nombres/correos reales de la empresa son otros: Admin → Usuarios & Accesos → editar o recrear; luego actualizar esta tabla.
 
 Pasos de entrega por usuario:
 
-1. Entregar acceso + manual (sección B) + clave temporal del archivo.
-2. Usuario entra y **cambia la contraseña**.
-3. Marcar la fila “Cambió clave”.
-4. Cuando los 4 hayan cambiado: **borrar** los archivos `CREDENCIALES-TEMPORALES*`.
+1. Entregar **tarjeta `0N-….txt`** + `MANUAL-DE-USUARIO.md` + URL.
+2. Usuario entra y **cambia la contraseña** (Usuarios & Accesos → Cambiar mi contraseña).
+3. Marcar en `CHECKLIST-CAMBIO-CLAVES.txt` y en la tabla de arriba.
+4. Cuando los 4 hayan cambiado: **borrar** los archivos `CREDENCIALES-TEMPORALES*` y las tarjetas `01`–`04` si ya no hacen falta.
 
 ### B. Entregar el manual
 
@@ -49,15 +53,15 @@ Archivo: [`MANUAL-DE-USUARIO.md`](../MANUAL-DE-USUARIO.md)
 
 Copias listas para entregar (generadas en el servidor):
 
-- Escritorio del admin: carpeta `Entrega-SuperOzono-v030\` (si se creó con el script de ops)
+- Escritorio del admin: carpeta `Entrega-SuperOzono-v030\`
 - OneDrive: `OneDrive\SuperOzono-Entrega\`
 
 Marcar:
 
-- [ ] Usuario 1 recibió manual + URL/acceso
-- [ ] Usuario 2 recibió manual + URL/acceso
-- [ ] Usuario 3 recibió manual + URL/acceso
-- [ ] Usuario 4 recibió manual + URL/acceso
+- [ ] Usuario 1 recibió manual + tarjeta + URL/acceso
+- [ ] Usuario 2 recibió manual + tarjeta + URL/acceso
+- [ ] Usuario 3 recibió manual + tarjeta + URL/acceso
+- [ ] Usuario 4 recibió manual + tarjeta + URL/acceso
 - [ ] Cada uno confirmó que puede entrar y ve los módulos de su rol
 
 ### C. URL y acceso cliente
@@ -127,10 +131,11 @@ Si cambia la IP del servidor: actualizar `frontend\.env` (`VITE_API_URL`), `back
 
 ## Cierre de esta entrega
 
-- [ ] Tabla de 4 usuarios completa y claves cambiadas
-- [ ] Manual entregado
-- [ ] `BACKUP_ENCRYPTION_KEY` en gestor de contraseñas
-- [ ] Confirmado OneDrive sync de `SuperOzono-Backups-Offsite`
-- [ ] Recordatorio de drill 2026-10-15 aceptado
+- [x] Paquete de 4 usuarios preparado (tarjetas + checklist en Escritorio) — **2026-07-15**
+- [ ] Tabla de 4 usuarios: claves **cambiadas en UI** (humano)
+- [ ] Manual entregado en mano a cada persona (humano)
+- [ ] `BACKUP_ENCRYPTION_KEY` en gestor de contraseñas — recordatorio en `C:\SuperOzono-Backups\RECORDATORIO-CLAVE-BACKUP.txt`
+- [x] Confirmado OneDrive sync de `SuperOzono-Backups-Offsite`
+- [x] Recordatorio de drill 2026-10-15 (tarea Windows + ENTREGA)
 
 **Al terminar:** mover ítems cerrados a `DOCUMENTACION.md` §13 y una línea en `BITACORA.md`.
