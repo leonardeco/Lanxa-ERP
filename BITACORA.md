@@ -1431,3 +1431,13 @@ MAX+1 en la numeración de documentos bajo multi-writer.
 - #12 locks de stock/abonos si multi-worker.
 - Runs 2–5 multi-tenant (ADR 0001) o asiento costo de venta (#8, bloqueado por #3).
 
+
+### Continuación misma sesión — #12 locks stock/abonos
+
+- `inventario/service.py`: `FOR UPDATE` en producto + `StockError` si salida dejaría stock < 0.
+- `inventario/lotes.py`: lock de lote en entrada y en FEFO.
+- `ventas/services.py`: lock de productos por id al confirmar.
+- `contabilidad/router.py`: lock CxC/CxP en abonar y en anular pago.
+- Tests: `test_locks_stock.py`.
+- #12 y #12a quedan cerrados en PENDIENTES.
+

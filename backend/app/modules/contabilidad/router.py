@@ -493,7 +493,10 @@ async def update_cxc(cxc_id: int, body: CxCUpdate, _: CurrentUser, db: AsyncSess
 async def abonar_cxc(
     cxc_id: int, body: AbonoCreate, current: ContableDep, db: AsyncSession = Depends(get_db)
 ):
-    cxc = await db.get(CuentaPorCobrar, cxc_id)
+    # #12: bloquear la CxC para serializar abonos concurrentes (doble cobro).
+    cxc = await db.scalar(
+        select(CuentaPorCobrar).where(CuentaPorCobrar.id == cxc_id).with_for_update()
+    )
     if not cxc:
         raise HTTPException(404, "CxC no encontrada")
     if cxc.estado in ("Pagado", "Anulado"):
@@ -594,7 +597,10 @@ async def update_cxp(cxp_id: int, body: CxPUpdate, _: CurrentUser, db: AsyncSess
 async def abonar_cxp(
     cxp_id: int, body: AbonoCreate, current: ContableDep, db: AsyncSession = Depends(get_db)
 ):
-    cxp = await db.get(CuentaPorPagar, cxp_id)
+    # #12: bloquear la CxP para serializar abonos concurrentes (doble pago).
+    cxp = await db.scalar(
+        select(CuentaPorPagar).where(CuentaPorPagar.id == cxp_id).with_for_update()
+    )
     if not cxp:
         raise HTTPException(404, "CxP no encontrada")
     if cxp.estado in ("Pagado", "Anulado"):
@@ -682,7 +688,8 @@ async def anular_pago(
     el reverso del asiento contable. El comprobante queda marcado como anulado
     pero visible (trazabilidad). Bloqueado si el período contable está cerrado.
     """
-    pago = await db.get(Pago, pago_id)
+    # #12: bloquear el pago y el documento de cartera antes de restaurar saldos.
+    pago = await db.scalar(select(Pago).where(Pago.id == pago_id).with_for_update())
     if not pago:
         raise HTTPException(404, "Comprobante de pago no encontrado")
     if pago.anulado:
@@ -699,7 +706,9 @@ async def anular_pago(
 
     # Restaurar saldo y estado del documento de cartera
     if pago.tipo == TipoPago.CXC and pago.cxc_id:
-        cxc = await db.get(CuentaPorCobrar, pago.cxc_id)
+        cxc = await db.scalar(
+            select(CuentaPorCobrar).where(CuentaPorCobrar.id == pago.cxc_id).with_for_update()
+        )
         if cxc:
             cxc.abonos = max((cxc.abonos or Decimal("0")) - pago.valor, Decimal("0"))
             if cxc.estado != EstadoDocumento.ANULADO:
@@ -707,7 +716,9 @@ async def anular_pago(
                     EstadoDocumento.PARCIAL if cxc.abonos > 0 else EstadoDocumento.PENDIENTE
                 )
     elif pago.tipo == TipoPago.CXP and pago.cxp_id:
-        cxp = await db.get(CuentaPorPagar, pago.cxp_id)
+        cxp = await db.scalar(
+            select(CuentaPorPagar).where(CuentaPorPagar.id == pago.cxp_id).with_for_update()
+        )
         if cxp:
             cxp.abonos = max((cxp.abonos or Decimal("0")) - pago.valor, Decimal("0"))
             if cxp.estado != EstadoDocumento.ANULADO:

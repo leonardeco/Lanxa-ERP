@@ -25,7 +25,7 @@ from app.modules.contabilidad.models import CuentaPorCobrar, EstadoDocumento
 from app.modules.contabilidad.asientos import (
     asiento_venta_confirmada, reversar_asientos,
 )
-from app.modules.inventario.service import registrar_movimiento
+from app.modules.inventario.service import registrar_movimiento, StockError
 from app.modules.inventario.models import TipoMovimientoInventario, OrigenMovimiento
 from app.modules.inventario.lotes import consumir_fefo, revertir_por_lotes, LoteError
 
@@ -48,10 +48,20 @@ async def confirmar_venta(db: AsyncSession, venta: VentaDocumento, usuario) -> N
     `venta.estado == BORRADOR` (la valida el caller)."""
     detalles = await _detalles(db, venta.id)
 
-    # Validar stock disponible ANTES de descontar (evita sobreventa)
+    # #12: bloquear productos en orden de id (evita deadlock entre ventas
+    # concurrentes) y validar stock con la fila ya bloqueada.
+    prod_ids = sorted({d.producto_id for d in detalles})
+    prods: dict[int, Producto] = {}
+    for pid in prod_ids:
+        prod = await db.scalar(
+            select(Producto).where(Producto.id == pid).with_for_update()
+        )
+        if prod is not None:
+            prods[pid] = prod
+
     faltantes = []
     for d in detalles:
-        prod = await db.get(Producto, d.producto_id)
+        prod = prods.get(d.producto_id)
         disponible = prod.stock_actual if (prod and prod.stock_actual is not None) else Decimal("0")
         if disponible < d.cantidad:
             nombre = prod.nombre if prod else f"Producto {d.producto_id}"
@@ -63,7 +73,7 @@ async def confirmar_venta(db: AsyncSession, venta: VentaDocumento, usuario) -> N
 
     # Salidas de inventario: FEFO para productos con lote, stock simple para el resto
     for d in detalles:
-        prod = await db.get(Producto, d.producto_id)
+        prod = prods.get(d.producto_id)
         if prod and prod.controla_lote:
             try:
                 await consumir_fefo(
@@ -79,17 +89,20 @@ async def confirmar_venta(db: AsyncSession, venta: VentaDocumento, usuario) -> N
             except LoteError as exc:
                 raise VentaError(str(exc))
         else:
-            await registrar_movimiento(
-                db,
-                producto_id=d.producto_id,
-                tipo=TipoMovimientoInventario.SALIDA,
-                origen=OrigenMovimiento.VENTA,
-                cantidad=d.cantidad,
-                motivo=f"Salida por venta {venta.numero}",
-                usuario_id=usuario.id,
-                venta_id=venta.id,
-                venta_detalle_id=d.id,
-            )
+            try:
+                await registrar_movimiento(
+                    db,
+                    producto_id=d.producto_id,
+                    tipo=TipoMovimientoInventario.SALIDA,
+                    origen=OrigenMovimiento.VENTA,
+                    cantidad=d.cantidad,
+                    motivo=f"Salida por venta {venta.numero}",
+                    usuario_id=usuario.id,
+                    venta_id=venta.id,
+                    venta_detalle_id=d.id,
+                )
+            except StockError as exc:
+                raise VentaError(str(exc))
 
     # CxC automática (espejo de compras→CxP), idempotente
     existing_cxc = await db.scalar(
