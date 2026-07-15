@@ -47,9 +47,12 @@ async def entrada_lote(
         raise LoteError("El código de lote es obligatorio para productos con control de lote.")
     codigo = str(codigo_lote).strip()
 
-    lote = (await db.execute(
-        select(Lote).where(Lote.producto_id == producto_id, Lote.codigo_lote == codigo)
-    )).scalar_one_or_none()
+    # #12: bloquear el lote existente (si hay) antes de incrementar cantidad.
+    lote = await db.scalar(
+        select(Lote)
+        .where(Lote.producto_id == producto_id, Lote.codigo_lote == codigo)
+        .with_for_update()
+    )
 
     if lote is None:
         lote = Lote(
@@ -112,10 +115,13 @@ async def consumir_fefo(
         raise LoteError("La cantidad a consumir debe ser mayor a cero.")
     dia = hoy or bogota_now().date()
 
+    # #12: bloquear todos los lotes candidatos en un solo SELECT … FOR UPDATE
+    # (orden estable por id para reducir deadlocks entre transacciones).
     lotes = (await db.execute(
         select(Lote)
         .where(Lote.producto_id == producto_id, Lote.activo.is_(True), Lote.cantidad_actual > 0)
         .order_by(Lote.fecha_vencimiento.is_(None), Lote.fecha_vencimiento, Lote.id)
+        .with_for_update()
     )).scalars().all()
 
     disponibles = [
