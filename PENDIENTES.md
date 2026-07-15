@@ -10,7 +10,7 @@ Estado general: suite API + Vitest + E2E (local y CI), versión LAN **v0.3.0**.
 
 | # | Pendiente | Quién | Notas (verificado 2026-07-05) |
 |---|---|---|---|
-| 1 | **Validar el mapeo PUC** del motor contable | Contadora | ✔ Documento listo: [`MAPEO-PUC-PARA-CONTADOR.md`](./MAPEO-PUC-PARA-CONTADOR.md) — tiene las preguntas concretas (4135 vs 4120, Caja vs Bancos, compras de gasto) |
+| 1 | **Validar el mapeo PUC** del motor contable | Contador | ✔ Documento + paquete reunión listos: [`MAPEO-PUC-PARA-CONTADOR.md`](./MAPEO-PUC-PARA-CONTADOR.md), `ops/INSTRUCCIONES-REUNION-CONTADOR.md`, carpeta Escritorio `Entrega-Contador-PUC\`. **Queda humano:** reunión y respuestas por escrito |
 | 2 | **Datos maestros reales**: PUC definitivo, inventario inicial, saldos de apertura | Contadora + empresa | ✔ Las tablas ya existen (`SaldoInicial`, seeds). **Importador de inventario LISTO (2026-07-09)**: plantilla `.xlsx` + validación fila-por-fila + carga atómica con entrada en el kardex (Inventario → Importar). Solo falta cargar la información real. El **asiento de apertura** contable sigue pendiente (depende de #3) |
 | 3 | Definir **método de costeo** (promedio ponderado recomendado con el kardex actual) | Contadora | ✔ Prerequisito del ítem 8 (asiento de costo de venta) |
 | 4 | Confirmar **`UVT_VALOR` 2026** y activar flags `retiene_*` en clientes retenedores | Contadora | ✔ Verificado: sigue el placeholder 49799 en `config.py`; afecta el umbral de retefuente en ventas |
@@ -19,9 +19,9 @@ Estado general: suite API + Vitest + E2E (local y CI), versión LAN **v0.3.0**.
 
 | # | Pendiente | Notas (verificado 2026-07-05) |
 |---|---|---|
-| 5 | **Copiar backups fuera del PC servidor** (NAS/nube/otro PC) + guardar `BACKUP_ENCRYPTION_KEY` en un gestor de contraseñas | ✅ Offsite OneDrive OK. Recordatorio con valor local: `C:\SuperOzono-Backups\RECORDATORIO-CLAVE-BACKUP.txt` — **cópiala al gestor y borra ese archivo** |
+| 5 | **Copiar backups fuera del PC servidor** (NAS/nube/otro PC) + guardar `BACKUP_ENCRYPTION_KEY` en un gestor de contraseñas | ✅ Offsite OneDrive OK (último backup 2026-07-15 15:55). Recordatorio: `C:\SuperOzono-Backups\RECORDATORIO-CLAVE-BACKUP.txt` — **cópiala al gestor y borra ese archivo** (paso en `ops/HOY-GO-LIVE.md`) |
 | 6 | Desplegar **v0.3.0** al servidor siguiendo [`DESPLIEGUE.md`](./DESPLIEGUE.md) | ✅ **Hecho en este PC:** health `v0.3.0`, Alembic head, CORS/IP `192.168.1.48`, CA confiable, `start.bat` + acceso escritorio. Ver `ops/ESTADO-OPERATIVO-PC.md` |
-| 7 | Entregar [`MANUAL-DE-USUARIO.md`](./MANUAL-DE-USUARIO.md) a los 4 usuarios y que cambien su contraseña inicial | ✅ **Paquete listo 2026-07-15:** Escritorio `Entrega-SuperOzono-v030` con tarjetas `01`–`04`, checklist, manual, CA; OneDrive `SuperOzono-Entrega`. **Queda humano:** dar a cada persona su tarjeta y marcar cambio de clave en UI |
+| 7 | Entregar [`MANUAL-DE-USUARIO.md`](./MANUAL-DE-USUARIO.md) a los usuarios y que cambien su contraseña inicial | ✅ **Paquete 7 roles listo:** Escritorio `Entrega-SuperOzono-v030` (`01`–`07` + checklist) y guía `ops/HOY-GO-LIVE.md` / Escritorio `HOY-GO-LIVE-SuperOzono.md`. **Queda humano:** entregar tarjetas y marcar cambio de clave |
 | 7a | **Drill de restore trimestral** (calendarizarlo) | ✅ Tarea `SuperOzonoERP-RestoreDrillReminder` + próximo **2026-10-15** en `ops/ENTREGA-OPERATIVA-v030.md`. Ejecutar el drill en esa fecha |
 | 7b | Documentar la vigencia del certificado TLS local y cuándo regenerarlo | ✅ Documentado: expira **2028-10-17**, SAN `192.168.1.48` (+ localhost). Ver ENTREGA y ESTADO-OPERATIVO |
 | 27 | **Revisar el job E2E del CI al hacer release** | Nuevo 2026-07-05: el job "E2E — smoke Playwright" es informativo (`continue-on-error`) — sus fallos NO bloquean el merge, hay que mirarlos a mano en Actions |
