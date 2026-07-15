@@ -1,0 +1,106 @@
+# Producción / staging local (sin bind-mount de código, con migraciones al arrancar).
+# Uso:
+#   1. copiar .env.docker.example → .env.docker y completar secretos
+#   2. docker compose -f docker-compose.prod.yml --env-file .env.docker up -d --build
+#
+# Requiere Docker Desktop instalado. No usa --reload.
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Vacío = el browser llama /api en el mismo origen (nginx proxy)
+        VITE_API_URL: ${VITE_API_URL:-}
+    image: superozono-frontend:${IMAGE_TAG:-latest}
+    container_name: superozono-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - superozono-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: superozono-api:${IMAGE_TAG:-latest}
+    container_name: superozono-api
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY}
+      DEBUG: ${DEBUG:-false}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
+      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-30}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://127.0.0.1}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@superozonoglobal.com}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD}
+      EMPRESA_NIT: ${EMPRESA_NIT:-901841798-5}
+      EMPRESA_RAZON_SOCIAL: ${EMPRESA_RAZON_SOCIAL:-TECNOLOGIA E INNOVACION SUPER OZONO S.A.S.}
+      EMPRESA_CIUDAD: ${EMPRESA_CIUDAD:-Armenia, Quindio}
+      SEED_DEMO: ${SEED_DEMO:-false}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - superozono-net
+    # entrypoint: wait PG → alembic upgrade head → uvicorn
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+
+  db:
+    image: postgres:16-alpine
+    container_name: superozono-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - superozono-net
+    # En prod real no exponer 5432 a host; solo red interna.
+    # ports: ["5432:5432"]
+
+  redis:
+    image: redis:7-alpine
+    container_name: superozono-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - superozono-net
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  superozono-net:
+    driver: bridge

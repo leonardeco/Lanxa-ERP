@@ -1473,3 +1473,11 @@ MAX+1 en la numeración de documentos bajo multi-writer.
 - Tests `test_tenant_onboard.py`.
 - Cierra el arco multi-tenant de aplicación (sin AWS aún).
 
+
+### Continuación — Fase 2 Docker prod (runbook AWS)
+
+- Dockerfile backend multi-stage non-root + entrypoint (alembic upgrade).
+- Frontend nginx endurecido + dockerignore.
+- docker-compose.prod.yml + .env.docker.example.
+- Docker Desktop no instalado en este PC: no se pudo compose up.
+

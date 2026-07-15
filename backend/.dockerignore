@@ -1,0 +1,41 @@
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Local DBs & secrets
+*.db
+*.sqlite3
+.env
+.env.*
+!.env.example
+*.bak*
+.seed_admin*
+
+# Tests & tooling (not needed in runtime image)
+tests/
+pytest.ini
+.flake8
+mypy.ini
+.coveragerc
+REPORTE_*.md
+
+# Logs / OS
+logs/
+*.log
+.DS_Store
+Thumbs.db
+
+# Git / IDE
+.git/
+.gitignore
+.vscode/
+.idea/
