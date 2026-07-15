@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.numbering import next_sequential_numero
+from app.core.tenancy import for_tenant, tenant_clause
 from app.api.deps import CurrentUser, AdminOrAdministradoraDep
 
 from .models import (
@@ -118,7 +119,9 @@ async def list_proveedores(
     _: CurrentUser,
     session: AsyncSession = Depends(get_db),
 ):
-    result = await session.execute(select(Proveedor).order_by(Proveedor.razon_social))
+    result = await session.execute(
+        for_tenant(select(Proveedor).order_by(Proveedor.razon_social), Proveedor)
+    )
     return result.scalars().all()
 
 
@@ -128,7 +131,9 @@ async def create_proveedor(
     current: AdminOrAdministradoraDep,
     session: AsyncSession = Depends(get_db),
 ):
-    existing = await session.execute(select(Proveedor).where(Proveedor.nit_cc == data.nit_cc))
+    existing = await session.execute(
+        select(Proveedor).where(Proveedor.nit_cc == data.nit_cc, tenant_clause(Proveedor))
+    )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail=f"Ya existe un proveedor con NIT {data.nit_cc}")
     proveedor = Proveedor(**data.model_dump())
@@ -148,7 +153,9 @@ async def update_proveedor(
     current: AdminOrAdministradoraDep,
     session: AsyncSession = Depends(get_db),
 ):
-    result = await session.execute(select(Proveedor).where(Proveedor.id == id))
+    result = await session.execute(
+        for_tenant(select(Proveedor).where(Proveedor.id == id), Proveedor)
+    )
     p = result.scalar_one_or_none()
     if not p:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
@@ -170,7 +177,9 @@ async def delete_proveedor(
     current: AdminOrAdministradoraDep,
     session: AsyncSession = Depends(get_db),
 ):
-    result = await session.execute(select(Proveedor).where(Proveedor.id == id))
+    result = await session.execute(
+        for_tenant(select(Proveedor).where(Proveedor.id == id), Proveedor)
+    )
     p = result.scalar_one_or_none()
     if not p:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
@@ -231,11 +240,14 @@ async def list_compras(
 ):
     """Listar compras (paginado: limit/offset, más recientes primero)."""
     result = await session.execute(
-        select(CompraDocumento)
-        .options(selectinload(CompraDocumento.detalles))
-        .order_by(CompraDocumento.id.desc())
-        .limit(limit)
-        .offset(offset)
+        for_tenant(
+            select(CompraDocumento)
+            .options(selectinload(CompraDocumento.detalles))
+            .order_by(CompraDocumento.id.desc())
+            .limit(limit)
+            .offset(offset),
+            CompraDocumento,
+        )
     )
     return result.scalars().all()
 
@@ -247,9 +259,12 @@ async def get_compra(
     session: AsyncSession = Depends(get_db),
 ):
     result = await session.execute(
-        select(CompraDocumento)
-        .options(selectinload(CompraDocumento.detalles))
-        .where(CompraDocumento.id == id)
+        for_tenant(
+            select(CompraDocumento)
+            .options(selectinload(CompraDocumento.detalles))
+            .where(CompraDocumento.id == id),
+            CompraDocumento,
+        )
     )
     c = result.scalar_one_or_none()
     if not c:
