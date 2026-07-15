@@ -798,3 +798,4 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 - **Fase 3 AWS Terraform (2026-07-15):** esqueleto `infra/terraform` (VPC 2 AZ, SG ALB/backend/RDS, RDS Postgres 16 privado, Secrets Manager, ECR). Pendiente `terraform apply` con cuenta AWS + tooling. Plan: `docs/hydraia/plans/2026-07-15-fase3-aws-terraform.md`.
 - **Fase 4 migración SQLite→PG (2026-07-15):** script `backend/scripts/migrate_sqlite_to_postgres.py` + guía `MIGRATE-SQLITE-POSTGRES.md` (dry-run de 145 filas LAN verificado).
 - **Fase 5 ECS borrador (2026-07-15):** `infra/terraform/ecs.tf` (cluster, ALB HTTP, task/service Fargate) detrás de `enable_ecs = false`. Plan: `docs/hydraia/plans/2026-07-15-fase4-migrate-fase5-ecs.md`.
+- **HTTPS/ACM + CI ECR (2026-07-15):** `acm.tf` (cert + listener 443 + redirect 80), `iam_github_oidc.tf`, workflow `.github/workflows/ecr-publish.yml`. Flags off por defecto. Plan: `docs/hydraia/plans/2026-07-15-https-acm-ecr-ci.md`.

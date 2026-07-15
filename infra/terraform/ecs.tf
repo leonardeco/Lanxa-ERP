@@ -125,10 +125,25 @@ resource "aws_lb_listener" "http" {
   port              = 80
   protocol          = "HTTP"
 
-  # En Fase 5 real: redirect a HTTPS con ACM.
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.api[0].arn
+  # Con HTTPS activo: redirigir todo a 443. Sin certificado: forward HTTP (dev/staging).
+  dynamic "default_action" {
+    for_each = var.enable_https && var.domain_name != "" ? [1] : []
+    content {
+      type = "redirect"
+      redirect {
+        port        = "443"
+        protocol    = "HTTPS"
+        status_code = "HTTP_301"
+      }
+    }
+  }
+
+  dynamic "default_action" {
+    for_each = var.enable_https && var.domain_name != "" ? [] : [1]
+    content {
+      type             = "forward"
+      target_group_arn = aws_lb_target_group.api[0].arn
+    }
   }
 }
 
