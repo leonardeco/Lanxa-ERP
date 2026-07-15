@@ -1,6 +1,6 @@
 ﻿from datetime import datetime, date
 from decimal import Decimal
-from sqlalchemy import String, Date, DateTime, Numeric, ForeignKey, Text
+from sqlalchemy import String, Date, DateTime, Numeric, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 from app.core.tenancy import TenantScoped
@@ -9,9 +9,12 @@ from app.core.time import utcnow
 
 class Proveedor(TenantScoped, Base):
     __tablename__ = "proveedores"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "nit_cc", name="uq_proveedores_tenant_nit"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    nit_cc: Mapped[str] = mapped_column(String(20), unique=True, index=True)
+    nit_cc: Mapped[str] = mapped_column(String(20), index=True)
     dv: Mapped[str | None] = mapped_column(String(1))
     razon_social: Mapped[str] = mapped_column(String(200))
     nombre_comercial: Mapped[str | None] = mapped_column(String(200))
