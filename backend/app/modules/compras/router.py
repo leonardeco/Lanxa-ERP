@@ -25,7 +25,7 @@ from app.modules.contabilidad.asientos import (
     asiento_compra_confirmada, asiento_devolucion_compra, reversar_asientos,
 )
 from app.modules.inventario.models import TipoMovimientoInventario, OrigenMovimiento
-from app.modules.inventario.service import registrar_movimiento
+from app.modules.inventario.service import registrar_movimiento, StockError
 from app.modules.inventario.lotes import entrada_lote, revertir_por_lotes, LoteError
 from app.modules.auditoria.service import registrar_auditoria, diff_cambios
 
@@ -468,17 +468,20 @@ async def anular_compra(
                     usuario_id=current.id,
                 )
             else:
-                await registrar_movimiento(
-                    session,
-                    producto_id=d.producto_id,
-                    tipo=TipoMovimientoInventario.SALIDA,
-                    origen=OrigenMovimiento.REVERSO_COMPRA,
-                    cantidad=d.cantidad,
-                    motivo=f"Reverso por anulación de compra {c.numero}",
-                    usuario_id=current.id,
-                    compra_id=c.id,
-                    compra_detalle_id=d.id,
-                )
+                try:
+                    await registrar_movimiento(
+                        session,
+                        producto_id=d.producto_id,
+                        tipo=TipoMovimientoInventario.SALIDA,
+                        origen=OrigenMovimiento.REVERSO_COMPRA,
+                        cantidad=d.cantidad,
+                        motivo=f"Reverso por anulación de compra {c.numero}",
+                        usuario_id=current.id,
+                        compra_id=c.id,
+                        compra_detalle_id=d.id,
+                    )
+                except StockError as exc:
+                    raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     # Reverso del asiento contable si la compra ya lo había generado
     await reversar_asientos(
@@ -610,17 +613,20 @@ async def crear_devolucion_compra(
                     usuario_id=current.id,
                 )
             else:
-                await registrar_movimiento(
-                    session,
-                    producto_id=det.producto_id,
-                    tipo=TipoMovimientoInventario.SALIDA,
-                    origen=OrigenMovimiento.DEVOLUCION_COMPRA,
-                    cantidad=item.cantidad,
-                    motivo=f"Devolución {numero} de compra {compra.numero}: {data.motivo}",
-                    usuario_id=current.id,
-                    compra_id=compra.id,
-                    compra_detalle_id=det.id,
-                )
+                try:
+                    await registrar_movimiento(
+                        session,
+                        producto_id=det.producto_id,
+                        tipo=TipoMovimientoInventario.SALIDA,
+                        origen=OrigenMovimiento.DEVOLUCION_COMPRA,
+                        cantidad=item.cantidad,
+                        motivo=f"Devolución {numero} de compra {compra.numero}: {data.motivo}",
+                        usuario_id=current.id,
+                        compra_id=compra.id,
+                        compra_detalle_id=det.id,
+                    )
+                except StockError as exc:
+                    raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     devolucion.subtotal = subtotal
     devolucion.iva_total = iva_total
