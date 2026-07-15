@@ -25,7 +25,19 @@ const LoginView: React.FC = () => {
 
       login(response.data.access_token);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error al iniciar sesión. Verifica tus credenciales.');
+      const status = err.response?.status as number | undefined;
+      const data = err.response?.data;
+      const detail = typeof data?.detail === 'string' ? data.detail : undefined;
+      const rateMsg = typeof data?.error === 'string' ? data.error : undefined;
+      if (!err.response) {
+        setError(
+          'No se puede conectar al servidor. En el PC servidor ejecuta start.bat y espera a que Backend y Frontend estén abiertos.',
+        );
+      } else if (status === 429 || (rateMsg && /rate limit/i.test(rateMsg))) {
+        setError('Demasiados intentos de login. Espera 1 minuto e inténtalo de nuevo.');
+      } else {
+        setError(detail || rateMsg || 'Error al iniciar sesión. Verifica tus credenciales.');
+      }
     } finally {
       setLoading(false);
     }
