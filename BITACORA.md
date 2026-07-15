@@ -1465,3 +1465,11 @@ MAX+1 en la numeración de documentos bajo multi-writer.
 - Tests HTTP de aislamiento de productos y usuarios.
 - Defensa en profundidad además de RLS (Run 3).
 
+
+### Continuación — Run 5 onboarding + uniques por tenant
+
+- Migración `a0b1c2d3e4f5`: UNIQUE(tenant_id, sku|email|nit|numero…).
+- API `POST /api/v1/tenants/onboard` y `GET /api/v1/tenants/`.
+- Tests `test_tenant_onboard.py`.
+- Cierra el arco multi-tenant de aplicación (sin AWS aún).
+

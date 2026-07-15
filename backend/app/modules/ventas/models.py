@@ -7,6 +7,7 @@ from datetime import datetime, date
 from decimal import Decimal
 from sqlalchemy import (
     String, Date, DateTime, Numeric, ForeignKey, Text, Enum as SAEnum,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
@@ -64,9 +65,12 @@ class CategoriaProducto(str, enum.Enum):
 class Producto(TenantScoped, Base):
     """Catálogo de productos — Biocidas y agroquímicos por marca"""
     __tablename__ = "productos"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "sku", name="uq_productos_tenant_sku"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    sku: Mapped[str] = mapped_column(String(30), unique=True, index=True)
+    sku: Mapped[str] = mapped_column(String(30), index=True)
     nombre: Mapped[str] = mapped_column(String(200))
     descripcion: Mapped[str | None] = mapped_column(Text)
     categoria: Mapped[CategoriaProducto] = mapped_column(
@@ -104,9 +108,12 @@ class Producto(TenantScoped, Base):
 class Cliente(TenantScoped, Base):
     """Clientes comerciales — Distribuidores y compradores B2B"""
     __tablename__ = "clientes"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "nit_cc", name="uq_clientes_tenant_nit"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    nit_cc: Mapped[str] = mapped_column(String(20), unique=True, index=True)
+    nit_cc: Mapped[str] = mapped_column(String(20), index=True)
     dv: Mapped[str | None] = mapped_column(String(1))
     razon_social: Mapped[str] = mapped_column(String(200))
     nombre_comercial: Mapped[str | None] = mapped_column(String(200))
@@ -147,7 +154,7 @@ class VentaDocumento(TenantScoped, Base):
     __tablename__ = "ventas_documentos"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    numero: Mapped[str] = mapped_column(String(20), unique=True, index=True)  # SOG-V-0001
+    numero: Mapped[str] = mapped_column(String(20), index=True)  # SOG-V-0001 (único por tenant)
     fecha: Mapped[date] = mapped_column(Date, default=date.today)
     fecha_vencimiento: Mapped[date | None] = mapped_column(Date)
     cliente_id: Mapped[int] = mapped_column(ForeignKey("clientes.id"))
