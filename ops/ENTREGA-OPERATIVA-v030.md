@@ -10,31 +10,35 @@ Checklist del administrador del PC servidor. Completar fuera de horario si afect
 | Migraciones Alembic en head | Hecho |
 | Backup diario + offsite OneDrive | Hecho |
 | Admin sin clave de fábrica `Admin2026!` | Hecho (rotada; cambiar otra vez en UI) |
-| Usuarios en BD | **Solo 1:** `admin@superozonoglobal.com` (Admin) |
+| Usuarios en BD | **4 creados** (Admin + Administradora + Contador + Auxiliar) |
 
 ---
 
 ## #7 — Manual y contraseñas (4 usuarios)
 
-### A. Crear los usuarios que faltan
+### A. Usuarios en el sistema (creados 2026-07-15)
 
-Hoy solo existe el Admin. Crear los otros desde **Usuarios & Accesos** (login Admin):
-
-| # | Nombre sugerido | Correo (completar) | Rol | Temp password | Cambió clave |
+| # | Nombre | Correo | Rol | Temp password | Cambió clave |
 |---|---|---|---|---|---|
-| 1 | Administrador del Sistema | admin@superozonoglobal.com | Admin | (ya rotada en servidor) | [ ] en UI |
-| 2 | | | Administradora / Contador / Auxiliar | | [ ] |
-| 3 | | | | | [ ] |
-| 4 | | | | | [ ] |
+| 1 | Administrador del Sistema | admin@superozonoglobal.com | Admin | ver `backend\.env` → `SEED_ADMIN_PASSWORD` | [ ] en UI |
+| 2 | Administradora Operativa | administradora@superozonoglobal.com | Administradora | ver `CREDENCIALES-TEMPORALES.txt` | [ ] |
+| 3 | Contador / Area Contable | contador@superozonoglobal.com | Contador | ver `CREDENCIALES-TEMPORALES.txt` | [ ] |
+| 4 | Auxiliar Comercial | auxiliar@superozonoglobal.com | Auxiliar | ver `CREDENCIALES-TEMPORALES.txt` | [ ] |
 
-Pasos por usuario nuevo:
+Archivo local de claves (NO va a GitHub):
 
-1. Admin → **Usuarios & Accesos → + Nuevo**.
-2. Asignar rol correcto (ver manual).
-3. Anotar contraseña temporal **fuera del chat/correo público** (papel o gestor).
-4. Entregar acceso + manual (sección B).
-5. Usuario entra y **cambia la contraseña**.
-6. Marcar la fila.
+- Escritorio: `Entrega-SuperOzono-v030\CREDENCIALES-TEMPORALES.txt`
+- OneDrive: `SuperOzono-Entrega\CREDENCIALES-TEMPORALES.txt`
+- Servidor: `C:\SuperOzono-Backups\CREDENCIALES-TEMPORALES-NO-SUBIR.txt`
+
+Si los nombres/correos reales de la empresa son otros: Admin → Usuarios & Accesos → editar o recrear; luego actualizar esta tabla.
+
+Pasos de entrega por usuario:
+
+1. Entregar acceso + manual (sección B) + clave temporal del archivo.
+2. Usuario entra y **cambia la contraseña**.
+3. Marcar la fila “Cambió clave”.
+4. Cuando los 4 hayan cambiado: **borrar** los archivos `CREDENCIALES-TEMPORALES*`.
 
 ### B. Entregar el manual
 

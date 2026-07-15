@@ -35,6 +35,12 @@ frontend/.env.*.local
 backend/.env
 backend/.env.local
 backend/.env.*.local
+backend/.env.bak*
+backend/.seed_admin_password*
+
+# Credenciales temporales de entrega (solo en Desktop/OneDrive/Backups)
+**/CREDENCIALES-TEMPORALES*
+**/*NO-SUBIR*
 
 # IDE
 .vscode/
