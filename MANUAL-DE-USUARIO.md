@@ -6,21 +6,29 @@ Guía práctica para el uso diario del sistema. No necesitas conocimientos técn
 
 ## 1. Entrar al sistema
 
-1. Abre el acceso directo **"Super Ozono ERP"** del escritorio (o el navegador en la
-   dirección que te indicó el administrador).
+1. Abre el acceso directo **"Super Ozono ERP"** del escritorio, o el navegador en la
+   dirección que te indicó el administrador (en la red local suele ser
+   `https://192.168.1.48:5173` — el admin te confirma si la IP cambió).
 2. Escribe tu **correo** y **contraseña** y pulsa **Acceder al Sistema**.
-3. Si olvidaste tu contraseña, pídele al administrador que te la restablezca
+3. **Primera vez:** el admin te da una contraseña temporal. Entra y **cámbiala de
+   inmediato** (si el sistema te lo pide, o pídele al admin que te ayude desde
+   Usuarios & Accesos). No compartas tu clave.
+4. Si olvidaste tu contraseña, pídele al administrador que te la restablezca
    (Usuarios & Accesos → Restablecer contraseña). El sistema no envía correos.
 
 > 🔒 La sesión se mantiene sola mientras trabajas. Si dejas el sistema abierto sin
 > usar por mucho tiempo, puede pedirte entrar de nuevo — es normal, es por seguridad.
+>
+> Si el navegador avisa de “conexión no segura”, el admin debe instalar el
+> certificado de la empresa (`certs\superozono-ca.crt`) una sola vez en ese PC.
 
 **Qué ves según tu perfil:**
 
 | Perfil | Módulos disponibles |
 |---|---|
-| Admin | Todo el sistema |
+| Admin | Todo el sistema (incluye Usuarios & Accesos) |
 | Administradora | Dashboard, Contabilidad, Ventas, Compras, Cartera |
+| Contador | Área contable (contabilidad, cartera, reportes); ventas/compras en consulta |
 | Auxiliar | Dashboard, Ventas, Compras, Cartera |
 
 ---
