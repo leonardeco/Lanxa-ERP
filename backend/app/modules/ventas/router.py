@@ -35,7 +35,10 @@ from app.modules.inventario.service import registrar_movimiento
 from app.modules.inventario.lotes import revertir_por_lotes
 from app.modules.contabilidad.models import CuentaPorCobrar, EstadoDocumento, ParametroTributario
 from app.modules.ventas import services as ventas_service
-from app.modules.contabilidad.asientos import asiento_devolucion_venta
+from app.modules.contabilidad.asientos import (
+    asiento_devolucion_venta,
+    sync_tercero_from_cliente,
+)
 from app.modules.auditoria.service import registrar_auditoria, diff_cambios
 
 router = APIRouter(prefix="/api/v1/ventas", tags=["Ventas & Comercial"])
@@ -391,6 +394,8 @@ async def create_cliente(data: ClienteCreate, current: AdminOrAdministradoraDep,
     cliente = Cliente(**data.model_dump())
     db.add(cliente)
     await db.flush()
+    # #14a: espejo en maestros contables `terceros` (NIT → Tercero tipo Cliente/Mixto)
+    await sync_tercero_from_cliente(db, cliente)
     await db.refresh(cliente)
     registrar_auditoria(db, current, "Crear", "Cliente", cliente.id,
                         f"Cliente {cliente.nit_cc} — {cliente.razon_social}")
@@ -411,6 +416,9 @@ async def update_cliente(
     cambios = diff_cambios(cliente, update_data)
     for field, value in update_data.items():
         setattr(cliente, field, value)
+
+    # #14a: mantener Tercero alineado si cambian NIT o razón social
+    await sync_tercero_from_cliente(db, cliente)
 
     if cambios:
         registrar_auditoria(db, current, "Actualizar", "Cliente", cliente.id,

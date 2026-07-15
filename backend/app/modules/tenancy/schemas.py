@@ -1,4 +1,6 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
+
+from app.core.passwords import PasswordPolicyError, validate_password_policy
 
 
 class TenantOnboardRequest(BaseModel):
@@ -11,6 +13,14 @@ class TenantOnboardRequest(BaseModel):
     admin_nombre: str = Field(..., min_length=2, max_length=255)
     admin_password: str = Field(..., min_length=8, max_length=128)
     notas: str | None = None
+
+    @field_validator("admin_password")
+    @classmethod
+    def _password_policy(cls, v: str) -> str:
+        try:
+            return validate_password_policy(v)
+        except PasswordPolicyError as exc:
+            raise ValueError(str(exc)) from exc
 
 
 class TenantResponse(BaseModel):
