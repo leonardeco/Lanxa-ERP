@@ -1,8 +1,8 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **15 de julio de 2026** (33ª revisión).
+Backlog vivo del proyecto. Actualizado: **17 de julio de 2026** (34ª revisión).
 
-**Resumen de la sesión 2026-07-15:** ERP LAN **v0.3.0 operativo** en este PC (health OK, Alembic head `b1c2d3e4f5a6`). Completado codeable sin contadora: política de contraseñas, #14a puente Tercero, staging LAN, tenancy Runs 2–5, #12/#12a, Docker/Terraform/ECR/CloudFront como **código** (sin apply cloud). **Roles de negocio nuevos:** Superusuario, Directora, CEO, Contador, Auxiliar Contable (7 cuentas en BD). Ops: backups + offsite OneDrive, paquete entrega, paquete Contador #1, mensajes login claros si API caída. **#7 entrega de contraseñas aplazada a propósito** (Superusuario aún no entrega accesos).
+**Resumen de la sesión 2026-07-17:** Cierre ops **#5** (clave de backup sin plaintext en carpeta de backups; offsite OneDrive verificado) + **sincronización de docs** (README: lotes ✅, 5 roles; `ESTADO-OPERATIVO-PC.md` con 7 usuarios y Alembic `b1c2d3e4f5a6`). No se inventó contabilidad (#1–4/#8). **#7 entrega de contraseñas sigue aplazada.**
 
 **Fuente única de pendientes:** este archivo. Completados → `DOCUMENTACION.md` §13 + `BITACORA.md`.
 
@@ -17,7 +17,7 @@ Estado: suite API + Vitest + E2E (local/CI). Versión LAN **v0.3.0**.
 | 1 | **Validar el mapeo PUC** del motor contable | Contador | Paquete listo: [`MAPEO-PUC-PARA-CONTADOR.md`](./MAPEO-PUC-PARA-CONTADOR.md), `ops/INSTRUCCIONES-REUNION-CONTADOR.md`, Escritorio `Entrega-Contador-PUC\`. **Falta:** reunión + respuestas por escrito |
 | 2 | **Datos maestros reales**: PUC definitivo, inventario inicial, saldos de apertura | Contador + empresa | Importador de inventario listo. Asiento de apertura depende de #3 |
 | 3 | Definir **método de costeo** (promedio ponderado recomendado) | Contador | Prerrequisito del #8 |
-| 4 | Confirmar **`UVT_VALOR` 2026** y flags `retiene_*` en clientes | Contador | Placeholder 49799 en `config.py` |
+| 4 | Confirmar **`UVT_VALOR` 2026** y flags `retiene_*` en clientes | Contador | Placeholder en código: **49799** (UVT 2025). Referencia DIAN 2026: **52374** (Res. 000238 de 2025) — **no aplicar en `.env` hasta confirmación del Contador** |
 | 8 | **Asiento de costo de venta** (DB 6135 / CR 1435 al confirmar venta) | Dev (tras #3) | Sin esto el P&L muestra ingresos, no margen |
 | 24 | Política de redondeo de retenciones | Contador | Hoy `round()` half-even de Python |
 
@@ -27,7 +27,7 @@ Estado: suite API + Vitest + E2E (local/CI). Versión LAN **v0.3.0**.
 
 | # | Pendiente | Estado |
 |---|---|---|
-| 5 | Backup offsite + `BACKUP_ENCRYPTION_KEY` en gestor | ✅ Offsite OneDrive OK. **Queda:** copiar clave al gestor y borrar `C:\SuperOzono-Backups\RECORDATORIO-CLAVE-BACKUP.txt` |
+| 5 | Backup offsite + `BACKUP_ENCRYPTION_KEY` | ✅ **Cerrado 2026-07-17:** offsite OneDrive OK; clave solo en `backend\.env`; RECORDATORIO sin valor en claro. **Residual opcional:** confirmar copia en gestor personal |
 | 6 | Desplegar v0.3.0 en este servidor | ✅ Hecho (health, Alembic, IP `192.168.1.48`, `start.bat`). Ver `ops/ESTADO-OPERATIVO-PC.md` |
 | 7 | Entregar manual + contraseñas a usuarios | ⏸ **Aplazado (2026-07-15):** paquete listo en `Entrega-SuperOzono-v030` (7 tarjetas); no entregar hasta decisión del Superusuario |
 | 7a | Drill de restore trimestral | ✅ Calendarizado **2026-10-15** (tarea Windows) |
@@ -47,6 +47,7 @@ Estado: suite API + Vitest + E2E (local/CI). Versión LAN **v0.3.0**.
 | 13 | Servicios de dominio ventas | ✅ 2026-07-10 |
 | 14a | Puente Cliente/Proveedor → Tercero | ✅ 2026-07-15 (unificación FK total queda opcional) |
 | 14a-bis | Roles Superusuario/Directora/CEO/Aux. Contable | ✅ 2026-07-15 — migración `b1c2d3e4f5a6` + script `aplicar_estructura_usuarios.py` |
+| docs | README / estado operativo desfasados | ✅ 2026-07-17 — lotes, roles, 7 usuarios, #5 |
 
 ---
 
@@ -56,7 +57,7 @@ Estado: suite API + Vitest + E2E (local/CI). Versión LAN **v0.3.0**.
 |---|---|---|
 | 18 | RRHH y nómina (Fase 2) | Requiere definiciones de negocio |
 | 20 | Alegra + facturación electrónica DIAN | Código mock listo; falta cuenta/token real |
-| 21 | Empaquetado Electron | App .exe |
+| 21 | Empaquetado Electron | App .exe — candidato a descartar si SaaS web |
 | 21a | Staging LAN | ✅ Docs+script listos (`ops/STAGING.md`) |
 | 21b | ¿Multi-bodega? | Pregunta de negocio |
 
@@ -90,7 +91,7 @@ DIAN FE, nómina electrónica, documento soporte, exógena; producción por fór
 
 | Prioridad | Ítems |
 |---|---|
-| **Cuando quieras (5 min)** | #5 guardar clave backup; #33op rotar clave Superusuario |
+| **Cuando quieras (1 min)** | Confirmar clave backup en gestor personal (residual #5); #33op rotar clave Superusuario |
 | **Cuando haya Contador** | #1 → #2/#3/#4 → #8 + #24 |
 | **Cuando haya negocio/legal** | #20+#22, #18, #21, #21b, #23 |
 | **Cuando digas** | #7 entregar accesos a los 7 usuarios |

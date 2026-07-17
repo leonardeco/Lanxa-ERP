@@ -766,8 +766,9 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 
 - ~~Limpieza de refresh tokens expirados; `int(sub)` 500; guard de "último admin"; enumeración en login; paginación~~ → ✅ **todos resueltos el 2026-07-02** (ver BITACORA.md).
 - ~~Alembic~~ → ✅ configurado (async) con migración baseline el 2026-07-02; ~~datetime tz-aware~~ → ✅ helper `utcnow()` en `core/time.py`.
-- **Pendiente real:** locks de concurrencia (`with_for_update`) en abonos y stock — solo aplica si el despliegue pasa a multi-worker; migración de nulabilidad legacy (documentada en `alembic/versions/72f7b9fae762`); migrar `security.py` de passlib a bcrypt directo (passlib 1.7.4 bloquea bcrypt ≥ 4.1 — PR #7 de Dependabot rechazado con evidencia de CI).
-- **Config/negocio:** confirmar `UVT_VALOR` con la contadora, activar flags `retiene_*` en clientes retenedores y **validar `MAPEO-PUC-PARA-CONTADOR.md`**.
+- ~~Locks de concurrencia (`with_for_update`) en abonos y stock~~ → ✅ **2026-07-15** (#12 / #12a).
+- ~~passlib → bcrypt directo~~ → ✅ **2026-07-03**.
+- **Config/negocio (sigue abierto):** confirmar `UVT_VALOR` 2026 con el Contador (código aún 49799; DIAN 2026 = 52374 pendiente de validar), activar flags `retiene_*` en clientes retenedores y **validar `MAPEO-PUC-PARA-CONTADOR.md`**.
 
 ### Fase 2 — Módulos futuros
 
@@ -796,4 +797,6 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 - ~~**#21a Staging LAN**~~ → ✅ **Completado 2026-07-15** (docs+script): `ops/STAGING.md`, `ops/setup-staging.ps1` (BD y puertos 8010/5180).
 - ~~**Roles Superusuario / Directora / CEO / Auxiliar Contable**~~ → ✅ **Completado 2026-07-15**: migración `b1c2d3e4f5a6` (mapeo Admin→Superusuario, Administradora→Directora, Auxiliar→Auxiliar Contable); deps y `ROLE_VIEWS`; script `aplicar_estructura_usuarios.py` (7 cuentas en LAN); `MANUAL-DE-USUARIO.md` actualizado. Entrega de contraseñas **aplazada** por decisión del Superusuario.
 - ~~**Ops PC servidor LAN**~~ → ✅ **2026-07-15**: `ops/ESTADO-OPERATIVO-PC.md`, `ops/HOY-GO-LIVE.md`, `ops/smoke-prod.py`, backups + offsite OneDrive, paquete `Entrega-Contador-PUC`, login UX (API caída / rate limit).
-- **Pendientes vivos:** ver `PENDIENTES.md` (33ª rev) — abierto sobre todo #1–4/#8 (Contador), #5 resto (clave backup), #7 (entrega usuarios, aplazado), features #18/#20/#21.
+- ~~**#5 resto clave backup**~~ → ✅ **2026-07-17**: offsite OneDrive verificado; `BACKUP_ENCRYPTION_KEY` solo en `backend\.env`; `RECORDATORIO-CLAVE-BACKUP.txt` sin valor en claro; docs ops/README/LEEME actualizados.
+- ~~**Docs desfasadas (README lotes/roles, ESTADO-OPERATIVO 4 vs 7 usuarios)**~~ → ✅ **2026-07-17**.
+- **Pendientes vivos:** ver `PENDIENTES.md` (34ª rev) — abierto sobre todo #1–4/#8/#24 (Contador), #7 (entrega usuarios, aplazado), features #18/#20/#21/#22/#23, cloud apply.

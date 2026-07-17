@@ -36,12 +36,12 @@
 
 ---
 
-## B. #5 — Clave de cifrado de backups
+## B. #5 — Clave de cifrado de backups (cerrado 2026-07-17)
 
-1. Abrir: `C:\SuperOzono-Backups\RECORDATORIO-CLAVE-BACKUP.txt`
-2. Copiar el valor de `BACKUP_ENCRYPTION_KEY` a Bitwarden / 1Password / gestor personal.
-3. Confirmar que OneDrive tiene backups: carpeta `SuperOzono-Backups-Offsite`.
-4. **Borrar** el archivo `RECORDATORIO-CLAVE-BACKUP.txt` (o dejar solo la nota sin el valor).
+1. Offsite OneDrive: `SuperOzono-Backups-Offsite` — OK.
+2. Valor de `BACKUP_ENCRYPTION_KEY` **solo** en `backend\.env` (no en texto plano en la carpeta de backups).
+3. **Una vez (si aún no):** copiar la clave desde `backend\.env` al gestor personal (Bitwarden / 1Password).
+4. `RECORDATORIO-CLAVE-BACKUP.txt` queda como nota **sin secreto**.
 
 Sin esta clave, un `.db.enc` no se puede restaurar.
 
