@@ -1,8 +1,9 @@
-# Hoy — cerrar go-live (#7 + #5) y arrancar Contador (#1)
+# Hoy — go-live usuarios (#7)
 
-**Fecha:** 2026-07-15  
+**Actualizado:** 2026-07-17  
 **URL ERP:** https://192.168.1.48:5173  
-**Paquete:** Escritorio → `Entrega-SuperOzono-v030\`
+**Paquete:** Escritorio → `Entrega-SuperOzono-v030\`  
+**Guía completa:** [`ENTREGA-7-USUARIOS.md`](./ENTREGA-7-USUARIOS.md)
 
 ---
 
@@ -22,17 +23,17 @@
 
 ### Por cada persona
 
-1. Entregar su tarjeta + `MANUAL-DE-USUARIO.md` (o copiar el PDF/print).
+1. Entregar su tarjeta + `MANUAL-DE-USUARIO.md`.
 2. En PCs cliente nuevos: instalar `superozono-ca.crt`  
    `certutil -user -addstore Root superozono-ca.crt`
-3. Login → **Usuarios & Accesos** → **Cambiar mi contraseña**  
-   (mín. 8, letra + dígito).
+3. Login → cambiar contraseña (mín. 8, letra + dígito).
 4. Marcar en `CHECKLIST-CAMBIO-CLAVES.txt`.
 
 ### Al terminar los 7
 
 - [ ] Borrar `CREDENCIALES-ESTRUCTURA-USUARIOS.txt` y `CREDENCIALES-TEMPORALES.txt`
 - [ ] Borrar copia en `C:\SuperOzono-Backups\CREDENCIALES-*-NO-SUBIR.txt` si ya no hace falta
+- [ ] Cerrar #7 en `PENDIENTES.md`
 
 ---
 

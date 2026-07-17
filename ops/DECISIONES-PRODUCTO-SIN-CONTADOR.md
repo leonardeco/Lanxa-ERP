@@ -1,40 +1,40 @@
-# Decisiones de producto (sin Contador) — propuestas 2026-07-17
+# Decisiones de producto (sin Contador) — **confirmadas 2026-07-17**
 
-Registro de **propuestas** para no dejar el backlog en limbo.  
-Se pueden revertir cuando el dueño del negocio diga lo contrario.
+Confirmadas por el dueño del proyecto al continuar el backlog sin reunión contable
+(“sí, continúa con eso”: entrega #7 + cierre de propuestas Electron / multi-bodega).
 
 ---
 
-## #21 Electron (.exe) — **propuesta: DESCARTAR para v0.3 / SaaS**
+## #21 Electron (.exe) — **DESCARTADO**
 
 | | |
 |---|---|
-| **Decisión propuesta** | No invertir en empaquetado Electron |
-| **Motivo** | El ERP ya se usa por **navegador en LAN** (HTTPS). El roadmap apunta a **web/SaaS** (ADR multi-tenant + AWS). Un `.exe` duplica costo de build, updates y soporte. |
-| **Qué se usa en su lugar** | Acceso directo de escritorio → `start.bat` + Edge/Chrome; o favorito a `https://IP:5173` |
-| **Estado en backlog** | Candidato a cerrar como “no planificado” hasta nueva orden |
-| **Cómo reabrir** | Pedir explícitamente “retomar Electron” |
+| **Decisión** | No se desarrolla empaquetado Electron |
+| **Motivo** | Uso por **navegador en LAN** (HTTPS). Roadmap web/SaaS (ADR multi-tenant + AWS). Un `.exe` duplica build, updates y soporte. |
+| **Alternativa** | Acceso directo **Super Ozono ERP** → `start.bat` + Chrome/Edge; o favorito a `https://IP:5173` |
+| **Reabrir** | Pedir explícitamente “retomar Electron” |
 
 ---
 
-## #21b Multi-bodega — **propuesta: NO en LAN v0.3**
+## #21b Multi-bodega — **NO en v0.3 / fuera de alcance actual**
 
 | | |
 |---|---|
-| **Decisión propuesta** | Una sola bodega / un solo stock por producto |
-| **Motivo** | Super Ozono opera mono-empresa LAN; multi-bodega implica modelo de stock, transferencias y reportes por almacén. |
-| **Estado** | Fuera de alcance de v0.3.0 |
-| **Cómo reabrir** | Definir: ¿cuántas bodegas? ¿transferencias? ¿costeo por bodega? (ahí sí entra Contador) |
+| **Decisión** | Una sola bodega / un stock por producto |
+| **Motivo** | LAN mono-empresa; multi-bodega implica transferencias, reportes por almacén y costeo (Contador). |
+| **Reabrir** | Definir número de bodegas, transferencias y reglas de costeo |
 
 ---
 
-## #18 RRHH / nómina — **sin cambio**
+## #18 RRHH / nómina
 
-Sigue en Fase 2. Solo parámetros de nómina en UI. No se inventan liquidaciones sin definiciones de negocio (y Contador/abogado laboral).
+Sin cambio: Fase 2. Solo parámetros de nómina en UI. Requiere definiciones de negocio.
 
 ---
 
-## Cómo confirmar estas propuestas
+## Registro
 
-- **Confirmar:** “OK, descarta Electron y multi-bodega” → se cierra en `PENDIENTES.md` y `DOCUMENTACION.md` §13.
-- **Rechazar:** “Queremos Electron” o “sí multi-bodega” → se reabre el ítem con alcance.
+| Fecha | Acción |
+|---|---|
+| 2026-07-17 | Propuestas documentadas |
+| 2026-07-17 | Confirmadas al continuar entrega #7 + descarte Electron/multi-bodega |

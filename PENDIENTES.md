@@ -1,8 +1,8 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **17 de julio de 2026** (40ª revisión).
+Backlog vivo del proyecto. Actualizado: **17 de julio de 2026** (41ª revisión).
 
-**Resumen:** Sin Contador: B+C (tests Postgres + go-live) + **#20 checklist Alegra** (`ops/ACTIVAR-ALEGRA-DIAN.md`, status sin 400) + **#21/#21b propuestas** de no Electron / mono-bodega (`ops/DECISIONES-PRODUCTO-SIN-CONTADOR.md`). Contador #1–3/#8 y #7 siguen fuera.
+**Resumen:** **#21 Electron DESCARTADO** y **#21b multi-bodega fuera de v0.3** (confirmado). **#7** plan de entrega listo: `ops/ENTREGA-7-USUARIOS.md` + carpeta Escritorio (falta ejecución humana). Contador #1–3/#8 sigue aparte.
 
 **Fuente única de pendientes:** este archivo. Completados → `DOCUMENTACION.md` §13 + `BITACORA.md`.
 
@@ -29,7 +29,7 @@ Estado: suite API + Vitest + E2E (local/CI). Versión LAN **v0.3.0**.
 |---|---|---|
 | 5 | Backup offsite + `BACKUP_ENCRYPTION_KEY` | ✅ **Cerrado 2026-07-17:** offsite OneDrive OK; clave solo en `backend\.env`; RECORDATORIO sin valor en claro. **Residual opcional:** confirmar copia en gestor personal |
 | 6 | Desplegar v0.3.0 en este servidor | ✅ Hecho (health, Alembic, IP `192.168.1.48`, `start.bat`). Ver `ops/ESTADO-OPERATIVO-PC.md` |
-| 7 | Entregar manual + contraseñas a usuarios | ⏸ **Aplazado (2026-07-15):** paquete listo en `Entrega-SuperOzono-v030` (7 tarjetas); no entregar hasta decisión del Superusuario |
+| 7 | Entregar manual + contraseñas a usuarios | 📋 **Listo para ejecutar:** `ops/ENTREGA-7-USUARIOS.md` + Escritorio `Entrega-SuperOzono-v030\`. **Falta:** repartir tarjetas y marcar checklist (acción humana) |
 | 7a | Drill de restore trimestral | ✅ Calendarizado **2026-10-15** (tarea Windows) |
 | 7b | Vigencia certificado TLS | ✅ Documentado: expira **2028-10-17** |
 | 27 | Revisar job E2E del CI en cada release | Mejorado 2026-07-17 (timeouts, retry CI, labels Superusuario). Sigue `continue-on-error` — revisar log en cada release |
@@ -57,9 +57,9 @@ Estado: suite API + Vitest + E2E (local/CI). Versión LAN **v0.3.0**.
 |---|---|---|
 | 18 | RRHH y nómina (Fase 2) | Requiere definiciones de negocio |
 | 20 | Alegra + facturación electrónica DIAN | ✅ Checklist + `GET /alegra/status` amigable. **Falta:** token real en `.env` (ver `ops/ACTIVAR-ALEGRA-DIAN.md`) |
-| 21 | Empaquetado Electron | ⏸ **Propuesta DESCARTAR** (web/LAN + SaaS). Confirmar: `ops/DECISIONES-PRODUCTO-SIN-CONTADOR.md` |
+| 21 | Empaquetado Electron | ✅ **DESCARTADO 2026-07-17** — uso web/LAN; ver `ops/DECISIONES-PRODUCTO-SIN-CONTADOR.md` |
 | 21a | Staging LAN | ✅ Docs+script listos (`ops/STAGING.md`) |
-| 21b | ¿Multi-bodega? | ⏸ **Propuesta NO en v0.3** (mono-bodega). Confirmar en el mismo doc de decisiones |
+| 21b | ¿Multi-bodega? | ✅ **NO en v0.3** (mono-bodega) — mismo doc de decisiones |
 
 ---
 
@@ -94,7 +94,7 @@ DIAN FE, nómina electrónica, documento soporte, exógena; producción por fór
 | **Cuando quieras (1 min)** | Confirmar clave backup en gestor personal (residual #5); #33op rotar clave Superusuario |
 | **Cuando haya Contador** | #1 → #2/#3 → #8; #4 marcar `retiene_*`; opcional `RETENCION_REDONDEO=half_up` (#24) |
 | **Cuando haya negocio/legal** | #20 Alegra token; completar #22 resolución en `.env`; validar texto #23; #18, #21, #21b |
-| **Cuando digas** | #7 entregar accesos a los 7 usuarios |
+| **Listo para ti (#7)** | Seguir `ops/ENTREGA-7-USUARIOS.md` (30–45 min) y marcar checklist |
 | **Calendario** | #7a drill restore 2026-10-15 |
 | **Cloud** | `terraform apply` / Docker Desktop (código listo) |
 | **Dev local** | Postgres tests: `ops/run-tests.ps1` · go-live: `ops/CHECKLIST-GO-LIVE-DIARIO.md` |
