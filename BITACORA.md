@@ -1848,3 +1848,64 @@ Pendientes codeables sin contadora ni entrega #7.
 - vitest config 4/4
 - backup_auto exit 0 (SQLite .db.enc)
 
+
+## Sesión — 18 de julio de 2026 — Ops, seguridad, #7 y carril técnico
+
+### Resumen
+
+Jornada de cierre operativo y técnico **sin Contador**: IP LAN `.131`, UX v0.3.0, diagnóstico, backups Postgres, seguridad LAN, preflight de entrega #7, arranque robusto y `backup_auto`. Producción LAN sigue en **SQLite**; Postgres para tests y futuro. Skill full-dev-team usado para priorizar.
+
+### Commits representativos
+
+| Commit | Tema |
+|---|---|
+| `1b9d470` | UI APP_VERSION 0.3.0, probe login, StatusBar/health |
+| `63f55d1` | backup_pg/restore_pg, SEGURIDAD-LAN, diagnostico ampliado |
+| `8cd97a4` | IP .131 en entrega #7 + Contador; PRODUCTION-READINESS-LAN |
+| `f93eaad` | preflight-entrega-7 + HOY-ENTREGA-7 |
+| `817cb2f` | start.bat robusto, backup_auto, login ops, config.test |
+
+### Hecho (detalle)
+
+1. **Arranque y red**
+   - IP operativa `192.168.1.131`; `sync-lan-ip` en start.bat; cert SAN actualizado.
+   - `start.bat`: `start /D` + certs relativos (evita rotura por espacios en `MI PC`).
+
+2. **UI / login**
+   - `frontend/src/config.ts` (APP_VERSION, healthUrl); probe en LoginView; StatusBar dinámico.
+   - Login Playwright/ops: `ops/_login_chrome.cjs`, `abrir-login-chrome.ps1` (sesión Superusuario verificada).
+
+3. **Seguridad y backups**
+   - `ops/SEGURIDAD-LAN.md`, `ops/PRODUCTION-READINESS-LAN.md`.
+   - `backup_pg.py` / `restore_pg.py` / `BACKUP-POSTGRES.md`.
+   - `backup_auto.py` (elige SQLite o Postgres según DATABASE_URL) — verificado.
+   - Diagnóstico: motor BD, backups recientes, clave Fernet (sin secretos).
+
+4. **Entrega #7 (lista; falta humano)**
+   - Paquetes Escritorio con IP `.131`; preflight 7 usuarios activos + health.
+   - `ops/HOY-ENTREGA-7.md`, `ops/ENTREGA-7-USUARIOS.md`.
+
+5. **Docs / backlog técnico**
+   - `ops/BACKLOG-TECNICO-SIN-NEGOCIO.md` (qué se puede codear sin Contador).
+   - Tests: LoginView 6/6; config.ts 4/4; smoke y diagnostico verdes con ERP arriba.
+
+### Evidencia
+
+- smoke-prod: health / login / me / empresa OK
+- diagnostico.ps1: sin errores críticos (ERP arriba)
+- preflight-entrega-7: listo para repartir tarjetas
+- backup_auto → `.db.enc` OK
+
+### Abierto (sin inventar contabilidad)
+
+- **Humano:** #7 repartir tarjetas; clave backup en gestor; #33op opcional
+- **Contador:** #1 PUC → #3 costeo → #8 asiento costo; #2/#4 datos
+- **Negocio:** #20 Alegra token; #22 DIAN; #23 Habeas texto; #18 nómina
+- **Calendario:** #7a drill restore 2026-10-15
+- **Técnico menor:** E2E CI #27; tarea Windows con backup_auto
+
+### URL LAN
+
+- App: `https://192.168.1.131:5173`
+- API: `https://192.168.1.131:8000`
+

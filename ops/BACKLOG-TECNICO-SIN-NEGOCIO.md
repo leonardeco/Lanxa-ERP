@@ -2,7 +2,7 @@
 
 Trabajo que el equipo de desarrollo puede hacer **sin** reunión contable ni repartir usuarios.
 
-## Hecho en este carril (2026-07-17+)
+## Hecho en este carril (2026-07-18)
 
 | Item | Entrega |
 |---|---|

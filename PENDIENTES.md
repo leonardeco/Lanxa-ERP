@@ -1,8 +1,8 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **17 de julio de 2026** (44ª revisión).
+Backlog vivo del proyecto. Actualizado: **18 de julio de 2026** (45ª revisión).
 
-**Resumen de la jornada 2026-07-17:** Sin Contador se avanzó ops, tests Postgres, go-live, Alegra checklist, descarte Electron/multi-bodega, plan #7, smoke diario + tarea 08:00. **Fix crítico de arranque:** `.env` UTF-8 roto + IP LAN `192.168.1.48` → **`192.168.1.131`** (`start.bat` + `ops/sync-lan-ip.ps1`). **Verificado:** Superusuario entra por API y por UI (Playwright); usuario confirmó “ya estoy dentro”.
+**Resumen de la jornada 2026-07-18:** Carril **técnico/ops sin Contador** cerrado en repo: UI v0.3.0 + probe login, IP LAN **192.168.1.131**, `diagnostico.ps1`, SEGURIDAD-LAN, PRODUCTION-READINESS, backup Postgres + `backup_auto`, start.bat robusto (paths con espacios), preflight y pack #7 listos (falta repartir tarjetas humano). Smoke/diagnóstico/login Superusuario verificados. Fuente de detalle: `BITACORA.md` sesión 18-jul + `ops/BACKLOG-TECNICO-SIN-NEGOCIO.md`.
 
 **Fuente única de pendientes:** este archivo. Completados → `DOCUMENTACION.md` §13 + `BITACORA.md`.
 
@@ -28,8 +28,8 @@ Estado: LAN **v0.3.0** operativa. Suite API (Postgres local) + Vitest + E2E (CI 
 | # | Pendiente | Estado |
 |---|---|---|
 | 5 | Backup offsite + `BACKUP_ENCRYPTION_KEY` | ✅ Cerrado 2026-07-17 (offsite + sin plaintext). Residual opcional: gestor personal |
-| 6 | Desplegar / mantener v0.3.0 en este servidor | ✅ Operativo. **IP actual LAN: `192.168.1.131`**. Ver `ops/ESTADO-OPERATIVO-PC.md`. Arranque: `start.bat` (auto-sync IP) |
-| 7 | Entregar manual + contraseñas a usuarios | 📋 **Listo GO:** preflight OK + IP .131 + `ops/HOY-ENTREGA-7.md` + Escritorio. **Falta:** repartir tarjetas (humano) |
+| 6 | Desplegar / mantener v0.3.0 en este servidor | ✅ Operativo. **IP actual LAN: `192.168.1.131`**. Ver `ops/ESTADO-OPERATIVO-PC.md`. Arranque: `start.bat` (auto-sync IP + certs relativos) |
+| 7 | Entregar manual + contraseñas a usuarios | 📋 **Listo GO (2026-07-18):** preflight OK + IP .131 + `ops/HOY-ENTREGA-7.md` + Escritorio. **Falta:** repartir tarjetas (humano) |
 | 7a | Drill de restore trimestral | ✅ Calendarizado **2026-10-15** |
 | 7b | Vigencia certificado TLS | ✅ Documentado; cert regenerado con IP `.131` + localhost (CA local) |
 | 27 | Revisar job E2E del CI en cada release | Abierto informativo (`continue-on-error`) |
@@ -49,6 +49,9 @@ Estado: LAN **v0.3.0** operativa. Suite API (Postgres local) + Vitest + E2E (CI 
 | 14a-bis | Roles negocio | ✅ |
 | env-ip | Encoding `.env` + IP LAN | ✅ 2026-07-17 — UTF-8 + `ops/sync-lan-ip.ps1` en `start.bat` |
 | tests-pg | Suite local Postgres | ✅ guía `ops/TESTES-LOCAL-POSTGRES.md` + `run-tests.ps1` + fixes tests |
+| ops-lan-18 | Ops/seguridad/backup/login sin Contador | ✅ 2026-07-18 — ver `ops/BACKLOG-TECNICO-SIN-NEGOCIO.md` + DOCUMENTACION §13 #57–#58 |
+| start-paths | start.bat paths con espacios | ✅ 2026-07-18 — `/D` + certs `..\certs\...` |
+| backup-auto | Un solo job SQLite/Postgres | ✅ 2026-07-18 — `scripts/backup_auto.py` |
 
 ---
 
@@ -75,25 +78,23 @@ Estado: LAN **v0.3.0** operativa. Suite API (Postgres local) + Vitest + E2E (CI 
 
 ## 🔵 Nice-to-have
 
-- ~~Seeder demo~~ · ~~Tests print~~ · ~~Token memoria~~ · ~~Política contraseñas~~ · ~~PyJWT~~ · ~~Login UX API caída~~ ✅
-- `APP_VERSION` manual en `config.py` alinear en cada release
+- ~~Seeder demo~~ · ~~Tests print~~ · ~~Token memoria~~ · ~~Política contraseñas~~ · ~~PyJWT~~ · ~~Login UX API caída~~ · ~~config APP_VERSION tests~~ ✅
+- `APP_VERSION` alinear en cada release (`backend` config.py + `frontend` config.ts); preflight avisa mismatch
 
 ---
 
 ## Snapshot: qué queda realmente abierto
 
-**Carril tecnico sin Contador (2026-07-17+):** start.bat robusto, backup_auto, login ops, preflight versiones — ver `ops/BACKLOG-TECNICO-SIN-NEGOCIO.md`.
-
-
 | Prioridad | Ítems |
 |---|---|
 | **Cuando quieras (1 min)** | Clave backup en gestor (#5 residual); #33op rotar Superusuario |
-| **Listo para ti (#7)** | `ops\preflight-entrega-7.bat` + `HOY-ENTREGA-7.md` + Escritorio — solo falta repartir |
+| **Listo para ti (#7)** | `ops\preflight-entrega-7.bat` + `HOY-ENTREGA-7.md` + Escritorio — **solo falta repartir** |
 | **Cuando haya Contador** | #1 → #2/#3 → #8; #4 flags reales; opcional #24 half_up |
 | **Cuando haya negocio** | #20 token Alegra; #22 resolución DIAN; #23 texto Habeas; #18 nómina |
 | **Calendario** | #7a drill restore **2026-10-15** |
 | **Cloud** | Docker Desktop / `terraform apply` (código listo) |
-| **Ops diarias** | smoke · diagnostico · SEGURIDAD · readiness · `BACKLOG-TECNICO-SIN-NEGOCIO.md` |
+| **Ops diarias** | smoke · diagnostico · SEGURIDAD-LAN · readiness · `BACKLOG-TECNICO-SIN-NEGOCIO.md` |
+| **Técnico menor (sin Contador)** | E2E CI #27; registrar tarea `backup_auto` en Programador Windows |
 
 **URL LAN actual:** `https://192.168.1.131:5173` (si cambia la IP: `start.bat` o `ops\sync-lan-ip.ps1`).
 

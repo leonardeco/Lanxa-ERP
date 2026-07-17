@@ -1,6 +1,6 @@
-﻿# Estado operativo — este PC servidor
+# Estado operativo — este PC servidor
 
-**Verificado:** 2026-07-17 (sesión cierre docs + login UI)  
+**Verificado:** 2026-07-18 (docs 45ª + carril técnico)
 **Código:** `main` v0.3.0 — arranque estable con sync IP
 
 ## Producción LAN (ahora)
@@ -41,7 +41,7 @@ Offsite OneDrive OK. Clave en `backend\.env` + gestor (sin plaintext en carpeta 
 
 ## Docs
 
-- Pendientes: `PENDIENTES.md` (44ª+ rev)
+- Pendientes: `PENDIENTES.md` (45ª rev)
 - Bitácora: `BITACORA.md`
 - Checklist diario: `ops\CHECKLIST-GO-LIVE-DIARIO.md`
 - Seguridad: `ops\SEGURIDAD-LAN.md`
