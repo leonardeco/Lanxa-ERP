@@ -87,6 +87,12 @@ describe('LoginView', () => {
     ).toBeInTheDocument();
   });
 
+  it('muestra boton Probar conexion y version', () => {
+    renderLogin();
+    expect(screen.getByRole('button', { name: /Probar conexión al servidor/i })).toBeInTheDocument();
+    expect(screen.getByText(/Portal ERP Corporativo · v0\.3\.0/i)).toBeInTheDocument();
+  });
+
   it('rate limit 429: muestra mensaje de demasiados intentos', async () => {
     vi.mocked(api.post).mockRejectedValueOnce({
       response: { status: 429, data: { error: 'Rate limit exceeded: 5 per 1 minute' } },
