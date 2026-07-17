@@ -819,5 +819,6 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 - ~~**#21 Electron**~~ → ✅ **DESCARTADO 2026-07-17** (`ops/DECISIONES-PRODUCTO-SIN-CONTADOR.md`).
 - ~~**#21b multi-bodega**~~ → ✅ **NO en v0.3** (mono-bodega).
 - ~~**#7 plan de entrega**~~ → ✅ `ops/ENTREGA-7-USUARIOS.md` + carpeta Escritorio; falta solo la ejecución humana (repartir tarjetas).
-- ~~**Smoke diario + Alegra en smoke**~~ → ✅ **2026-07-17**: `ops/smoke-diario.bat`, `registrar-smoke-diario.ps1`, `smoke-prod.py` chequea `/alegra/status` (informativo o `--strict-alegra`).
-- **Pendientes vivos:** ver `PENDIENTES.md` (42ª rev) — Contador #1–3/#8; #4 datos; #7 ejecutar; token Alegra real.
+- ~~**Smoke diario + Alegra en smoke**~~ → ✅ **2026-07-17**: `ops/smoke-diario.bat`, `registrar-smoke-diario.ps1`, `smoke-prod.py` chequea `/alegra/status` (informativo o `--strict-alegra`). Tarea Windows **SuperOzonoERP-SmokeDiario** 08:00.
+- ~~**Fix arranque LAN (encoding .env + IP)**~~ → ✅ **2026-07-17**: `backend\.env` reescrito UTF-8; IP **`192.168.1.131`**; `ops/sync-lan-ip.ps1` + `start.bat` valida config, espera health `:8000`, regenera cert. Smoke + login UI Superusuario verificados (usuario dentro del ERP).
+- **Pendientes vivos:** ver `PENDIENTES.md` (43ª rev) — Contador #1–3/#8; #4 datos; #7 ejecutar entrega; token Alegra; resolución DIAN / texto Habeas.
