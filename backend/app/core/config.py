@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     # UVT 2026 = $52.374 (DIAN Res. 000238 de 15-dic-2025). Override vía .env.
     UVT_VALOR: Decimal = Decimal("52374")
     RETEFUENTE_BASE_UVT: Decimal = Decimal("27")   # tope en UVT para retefuente de compras generales
+    # #24 redondeo de retenciones sugeridas: half_even (default) | half_up
+    RETENCION_REDONDEO: str = "half_even"
 
     # Seed — usuario administrador inicial (override vía .env en producción)
     SEED_ADMIN_EMAIL: str = "admin@superozonoglobal.com"
@@ -88,6 +90,14 @@ class Settings(BaseSettings):
     AUDITORIA_RETENTION_DAYS: int = 1825
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @field_validator("RETENCION_REDONDEO")
+    @classmethod
+    def _redondeo_retencion_valido(cls, v: str) -> str:
+        modo = (v or "half_even").strip().lower().replace("-", "_")
+        if modo not in ("half_even", "half_up"):
+            raise ValueError("RETENCION_REDONDEO debe ser 'half_even' o 'half_up'")
+        return modo
 
     @field_validator("CORS_ORIGINS")
     @classmethod

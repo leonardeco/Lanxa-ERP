@@ -127,8 +127,10 @@ jobs:
         run: npm run build
 
   e2e:
-    name: E2E — smoke Playwright (opcional, no bloquea)
+    name: E2E — smoke Playwright (informativo; no bloquea merge)
     runs-on: ubuntu-latest
+    # #27: sigue continue-on-error hasta estabilizar en todos los runners;
+    # el job se reporta y se revisa en cada release (PENDIENTES).
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
@@ -159,4 +161,6 @@ jobs:
 
       - name: Smoke E2E
         working-directory: frontend
+        env:
+          CI: true
         run: npm run test:e2e

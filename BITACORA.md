@@ -1630,3 +1630,28 @@ Push de commits previos y avance de cumplimiento codeable: resolución DIAN en i
 - Validar `HABEAS_DATA_TEXTO` con la empresa.
 - #20 token Alegra.
 
+
+
+## Sesión — 17 de julio de 2026 (continuación) — #24 redondeo + UX #4 + E2E
+
+### Resumen
+
+Todo lo codeable sin Contador: redondeo de retenciones configurable, herramientas UI para marcar retenedores, y endurecimiento del smoke E2E.
+
+### Técnico
+
+1. **#24** `app/core/money.py` + `RETENCION_REDONDEO` (half_even|half_up) en config; usado en `_sugerir_retenciones`. Tests `test_money.py` con marker `no_db` (conftest omite Postgres).
+2. **#4 UX** Clientes: filtro "Solo retenedores", export CSV (NIT + flags + Habeas), columna Habeas (OK/Pend. natural).
+3. **#27** Playwright: timeout 45s, retry en CI, webServer reuse local; smoke renombrado Superusuario; workflow CI documentado.
+4. `.env.example` con UVT, DIAN_*, RETENCION_REDONDEO.
+
+### Tests
+
+- `pytest tests/test_money.py` → 3 passed (sin Postgres).
+- Vitest exportCsv → 4 passed.
+
+### Abierto
+
+- Contador: #1 PUC, #2 maestros, #3→#8, marcar retiene_*.
+- #7 entrega; #20 Alegra; cloud.
+

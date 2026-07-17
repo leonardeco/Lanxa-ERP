@@ -24,10 +24,10 @@ test('login con credenciales malas muestra el error del backend', async ({ page 
   await expect(page.getByText('Correo o contraseña incorrectos')).toBeVisible();
 });
 
-test('login correcto entra al Dashboard con el menú completo de Admin', async ({ page }) => {
+test('login correcto entra al Dashboard con el menú de Superusuario', async ({ page }) => {
   await login(page);
   await expect(page.getByRole('heading', { name: 'Dashboard General' })).toBeVisible();
-  // Menú de Admin: módulos operativos y administración visibles
+  // Menú Superusuario: módulos operativos y administración de usuarios
   await expect(page.getByText('Ventas & Comercial')).toBeVisible();
   await expect(page.getByText('Reportes & BI')).toBeVisible();
   await expect(page.getByText('Usuarios & Accesos')).toBeVisible();

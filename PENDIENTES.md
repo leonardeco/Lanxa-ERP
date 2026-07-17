@@ -1,8 +1,8 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **17 de julio de 2026** (36ª revisión).
+Backlog vivo del proyecto. Actualizado: **17 de julio de 2026** (37ª revisión).
 
-**Resumen de la sesión 2026-07-17:** #5 + UVT 52374 + push. Luego **#22/#23 codeable:** resolución DIAN en `.env` + bloque en factura impresa; Habeas Data en cliente (campos + UI) y texto en pie de factura. **Falta:** resolución real DIAN, texto legal final, token Alegra. **#7 sigue aplazada.**
+**Resumen de la sesión 2026-07-17 (continuación):** #24 redondeo configurable (`RETENCION_REDONDEO`); UX #4 (filtro retenedores + CSV + columna Habeas); #27 E2E más tolerante (timeout/retry CI). Sigue bloqueado Contador: #1–3/#8 y marcar `retiene_*`. **#7 aplazada.**
 
 **Fuente única de pendientes:** este archivo. Completados → `DOCUMENTACION.md` §13 + `BITACORA.md`.
 
@@ -17,9 +17,9 @@ Estado: suite API + Vitest + E2E (local/CI). Versión LAN **v0.3.0**.
 | 1 | **Validar el mapeo PUC** del motor contable | Contador | Paquete listo: [`MAPEO-PUC-PARA-CONTADOR.md`](./MAPEO-PUC-PARA-CONTADOR.md), `ops/INSTRUCCIONES-REUNION-CONTADOR.md`, Escritorio `Entrega-Contador-PUC\`. **Falta:** reunión + respuestas por escrito |
 | 2 | **Datos maestros reales**: PUC definitivo, inventario inicial, saldos de apertura | Contador + empresa | Importador de inventario listo. Asiento de apertura depende de #3 |
 | 3 | Definir **método de costeo** (promedio ponderado recomendado) | Contador | Prerrequisito del #8 |
-| 4 | Flags **`retiene_*`** en clientes retenedores (+ revisar UVT en `.env` si se sobreescribe) | Contador | ✅ Default código **52374** (DIAN 2026). **Queda:** marcar en maestros qué clientes retienen fuente/IVA/ICA |
+| 4 | Flags **`retiene_*`** en clientes retenedores | Contador | ✅ UVT 52374. ✅ UI: filtro “Solo retenedores” + export CSV. **Queda:** marcar en maestros los clientes reales |
 | 8 | **Asiento de costo de venta** (DB 6135 / CR 1435 al confirmar venta) | Dev (tras #3) | Sin esto el P&L muestra ingresos, no margen |
-| 24 | Política de redondeo de retenciones | Contador | Hoy `round()` half-even de Python |
+| 24 | Política de redondeo de retenciones | Contador elige; dev listo | ✅ **2026-07-17:** `RETENCION_REDONDEO=half_even\|half_up` + `core/money.py`. Default half_even (comportamiento previo) |
 
 ---
 
@@ -32,7 +32,7 @@ Estado: suite API + Vitest + E2E (local/CI). Versión LAN **v0.3.0**.
 | 7 | Entregar manual + contraseñas a usuarios | ⏸ **Aplazado (2026-07-15):** paquete listo en `Entrega-SuperOzono-v030` (7 tarjetas); no entregar hasta decisión del Superusuario |
 | 7a | Drill de restore trimestral | ✅ Calendarizado **2026-10-15** (tarea Windows) |
 | 7b | Vigencia certificado TLS | ✅ Documentado: expira **2028-10-17** |
-| 27 | Revisar job E2E del CI en cada release | Abierto (informativo, `continue-on-error`) |
+| 27 | Revisar job E2E del CI en cada release | Mejorado 2026-07-17 (timeouts, retry CI, labels Superusuario). Sigue `continue-on-error` — revisar log en cada release |
 | 33op | Rotar clave Superusuario en UI | Clave ya no es de fábrica en `.env`. **Opcional:** cambiar otra vez desde Usuarios |
 
 ---
@@ -92,7 +92,7 @@ DIAN FE, nómina electrónica, documento soporte, exógena; producción por fór
 | Prioridad | Ítems |
 |---|---|
 | **Cuando quieras (1 min)** | Confirmar clave backup en gestor personal (residual #5); #33op rotar clave Superusuario |
-| **Cuando haya Contador** | #1 → #2/#3 → #8 + #24; #4 flags `retiene_*` en clientes |
+| **Cuando haya Contador** | #1 → #2/#3 → #8; #4 marcar `retiene_*`; opcional `RETENCION_REDONDEO=half_up` (#24) |
 | **Cuando haya negocio/legal** | #20 Alegra token; completar #22 resolución en `.env`; validar texto #23; #18, #21, #21b |
 | **Cuando digas** | #7 entregar accesos a los 7 usuarios |
 | **Calendario** | #7a drill restore 2026-10-15 |

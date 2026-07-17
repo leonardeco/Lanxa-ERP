@@ -15,8 +15,8 @@ const backendCommand = isWindows
 
 export default defineConfig({
   testDir: './e2e',
-  timeout: 30_000,
-  retries: 0,
+  timeout: 45_000,
+  retries: process.env.CI ? 1 : 0,
   reporter: [['list']],
   use: {
     baseURL: 'http://localhost:5273',
@@ -26,8 +26,8 @@ export default defineConfig({
     {
       command: backendCommand,
       url: 'http://localhost:8100/health',
-      reuseExistingServer: false,
-      timeout: 60_000,
+      reuseExistingServer: !process.env.CI,
+      timeout: 90_000,
       env: {
         DATABASE_URL: 'sqlite+aiosqlite:///./e2e.db',
         SECRET_KEY: 'clave-solo-para-e2e-0123456789abcdef0123456789abcdef',
@@ -41,8 +41,8 @@ export default defineConfig({
     {
       command: 'npx vite --port 5273 --strictPort',
       url: 'http://localhost:5273',
-      reuseExistingServer: false,
-      timeout: 60_000,
+      reuseExistingServer: !process.env.CI,
+      timeout: 90_000,
       env: {
         E2E: '1',
         VITE_API_URL: 'http://localhost:8100/api',

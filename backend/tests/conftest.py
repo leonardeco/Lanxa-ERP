@@ -68,7 +68,12 @@ _app_main.async_session = TestingSessionLocal
 
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
-async def setup_db():
+async def setup_db(request):
+    # Tests unitarios puros (sin BD) marcan @pytest.mark.no_db — p.ej. money/redondeo.
+    if request.node.get_closest_marker("no_db"):
+        yield
+        return
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
