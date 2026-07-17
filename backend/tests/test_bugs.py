@@ -415,7 +415,7 @@ async def test_bug010_retefuente_ventas_no_aplica_bajo_umbral(client: AsyncClien
 @pytest.mark.asyncio
 async def test_bug010_retefuente_ventas_aplica_sobre_umbral(client: AsyncClient, auth_headers: dict):
     """Retefuente debe aplicar si el cliente es agente retenedor de fuente y la base
-    supera el tope (RETEFUENTE_BASE_UVT × UVT_VALOR = 27 × 49.799 ≈ $1.344.573)."""
+    supera el tope (RETEFUENTE_BASE_UVT × UVT_VALOR = 27 × 52.374 ≈ $1.414.098)."""
     # Cliente agente retenedor de fuente
     cli_resp = await client.post(
         "/api/v1/ventas/clientes",

@@ -35,7 +35,8 @@ class Settings(BaseSettings):
     # Retenciones en ventas — VERIFICAR/ACTUALIZAR con el contador cada año.
     # La aplicabilidad depende del perfil del cliente (flags retiene_*); estos son
     # los topes/valores base. Las tarifas viven en ParametroTributario.
-    UVT_VALOR: Decimal = Decimal("49799")          # UVT vigente (placeholder — actualizar por año)
+    # UVT 2026 = $52.374 (DIAN Res. 000238 de 15-dic-2025). Override vía .env.
+    UVT_VALOR: Decimal = Decimal("52374")
     RETEFUENTE_BASE_UVT: Decimal = Decimal("27")   # tope en UVT para retefuente de compras generales
 
     # Seed — usuario administrador inicial (override vía .env en producción)
