@@ -44,6 +44,12 @@ backend\venv\Scripts\python.exe ops\smoke-prod.py --strict-alegra
 
 Si el smoke falla: `stop.bat` → esperar 5 s → `start.bat` → reintentar.
 
+Diagnóstico completo (IP, .env UTF-8, puertos, cert, health):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ops\diagnostico.ps1
+```
+
 ### Tarea programada (opcional)
 
 ```powershell

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { APP_VERSION, healthUrl } from '../config'
 
 interface StatusBarProps {
   role: string
@@ -7,61 +8,67 @@ interface StatusBarProps {
 
 export default function StatusBar({ role, userName }: StatusBarProps) {
   const [time, setTime] = useState(new Date())
-  const [dbStatus, setDbStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking')
+  const [apiStatus, setApiStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking')
+  const [apiVersion, setApiVersion] = useState<string>(APP_VERSION)
 
-  // Reloj en tiempo real
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
 
-  // Health check periódico
   useEffect(() => {
     const checkHealth = async () => {
       try {
-        const res = await fetch('http://localhost:8000/health')
+        const res = await fetch(healthUrl(), {
+          // health es público; en LAN el cert puede ser la CA local
+          // el navegador ya confía si se instaló superozono-ca.crt
+        })
+        if (!res.ok) {
+          setApiStatus('disconnected')
+          return
+        }
         const data = await res.json()
-        setDbStatus(data.database === 'connected' ? 'connected' : 'disconnected')
+        setApiStatus(data.status === 'ok' || data.database === 'connected' ? 'connected' : 'disconnected')
+        if (data.version) setApiVersion(String(data.version))
       } catch {
-        setDbStatus('disconnected')
+        setApiStatus('disconnected')
       }
     }
     checkHealth()
-    const interval = setInterval(checkHealth, 30000) // cada 30s
+    const interval = setInterval(checkHealth, 30000)
     return () => clearInterval(interval)
   }, [])
 
-  const formatTime = (d: Date) => {
-    return d.toLocaleTimeString('es-CO', {
+  const formatTime = (d: Date) =>
+    d.toLocaleTimeString('es-CO', {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
       hour12: true,
     })
-  }
 
-  const formatDate = (d: Date) => {
-    return d.toLocaleDateString('es-CO', {
+  const formatDate = (d: Date) =>
+    d.toLocaleDateString('es-CO', {
       weekday: 'short',
       day: 'numeric',
       month: 'short',
       year: 'numeric',
     })
-  }
+
+  const apiLabel =
+    apiStatus === 'connected' ? 'API conectada' : apiStatus === 'checking' ? 'Verificando…' : 'API desconectada'
 
   return (
     <footer className="status-bar" id="erp-status-bar">
       <div className="status-bar-left">
         <div className="status-bar-item">
-          <span className={`status-bar-dot ${dbStatus}`} />
-          <span>
-            PostgreSQL {dbStatus === 'connected' ? 'Conectado' : dbStatus === 'checking' ? 'Verificando...' : 'Desconectado'}
-          </span>
+          <span className={`status-bar-dot ${apiStatus === 'connected' ? 'connected' : apiStatus === 'checking' ? 'checking' : 'disconnected'}`} />
+          <span>{apiLabel}</span>
         </div>
         <div className="status-bar-divider" />
         <div className="status-bar-item">
           <span className="status-bar-icon">⚡</span>
-          <span>v0.2.0</span>
+          <span>v{apiVersion}</span>
         </div>
         <div className="status-bar-divider" />
         <div className="status-bar-item">
@@ -78,11 +85,9 @@ export default function StatusBar({ role, userName }: StatusBarProps) {
         <div className="status-bar-divider" />
         <div className="status-bar-item">
           <span className="status-bar-icon">📅</span>
-          <span>{formatDate(time)}</span>
-        </div>
-        <div className="status-bar-divider" />
-        <div className="status-bar-item status-bar-clock">
-          <span>{formatTime(time)}</span>
+          <span>
+            {formatDate(time)} · {formatTime(time)}
+          </span>
         </div>
       </div>
     </footer>

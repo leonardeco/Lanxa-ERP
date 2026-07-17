@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { RolUsuario } from '../App'
+import { APP_VERSION } from '../config'
 
 interface HeaderBarProps {
   title: string
@@ -16,7 +17,7 @@ export default function HeaderBar({ title, role }: HeaderBarProps) {
   }, [])
 
   const notifications = [
-    { id: 1, text: 'ERP LAN v0.3.0 operativo', type: 'success', time: 'Actual' },
+    { id: 1, text: `ERP LAN v${APP_VERSION} operativo`, type: 'success', time: 'Actual' },
     { id: 2, text: 'Pendiente: validar PUC con el Contador', type: 'warning', time: 'Negocio' },
     { id: 3, text: 'RRHH / FE DIAN: fase siguiente', type: 'info', time: 'Roadmap' },
   ]
