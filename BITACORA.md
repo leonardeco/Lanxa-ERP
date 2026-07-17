@@ -1696,3 +1696,18 @@ Sin reunión Contador: se añadió el flujo plantilla→Excel→import para flag
 - MANUAL-DE-USUARIO: roles, Habeas, plantilla retenciones, mensajes login
 - ESTADO-OPERATIVO + DESPLIEGUE enlaces
 
+
+
+## Sesión — 17 de julio de 2026 — #7 plan + descarte Electron/multi-bodega
+
+### Decisiones
+- #21 Electron: DESCARTADO (web/LAN).
+- #21b multi-bodega: NO en v0.3.
+- #7: plan de ejecución listo (`ENTREGA-7-USUARIOS.md`); paquete Escritorio actualizado.
+
+### Artefactos
+- ops/ENTREGA-7-USUARIOS.md
+- ops/DECISIONES-PRODUCTO-SIN-CONTADOR.md (confirmadas)
+- ops/ENTREGA-OPERATIVA-v030.md (7 usuarios)
+- Copia a Desktop\Entrega-SuperOzono-v030\
+

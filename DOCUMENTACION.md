@@ -816,5 +816,7 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 - **#27 E2E CI** → timeouts/retry y naming Superusuario (2026-07-17); job sigue informativo (`continue-on-error`).
 - ~~**Go-live / tests sin Contador (B+C)**~~ → ✅ **2026-07-17**: `ops/TESTES-LOCAL-POSTGRES.md`, `ops/run-tests.ps1`, `ops/CHECKLIST-GO-LIVE-DIARIO.md`, smoke ampliado, manual (roles/Habeas/import retenciones); tests de locks/password alineados a Postgres y política de claves.
 - ~~**#20 checklist Alegra**~~ → ✅ **2026-07-17**: `ops/ACTIVAR-ALEGRA-DIAN.md`; `GET /alegra/status` devuelve pasos si no hay token (sin 400).
-- ~~**#21/#21b decisiones propuestas**~~ → ✅ doc `ops/DECISIONES-PRODUCTO-SIN-CONTADOR.md` (descartar Electron; no multi-bodega en v0.3) — pendiente confirmación del dueño.
-- **Pendientes vivos:** ver `PENDIENTES.md` (40ª rev) — Contador #1–3/#8; #4 datos; #7 entrega; token Alegra real; confirmación #21/#21b.
+- ~~**#21 Electron**~~ → ✅ **DESCARTADO 2026-07-17** (`ops/DECISIONES-PRODUCTO-SIN-CONTADOR.md`).
+- ~~**#21b multi-bodega**~~ → ✅ **NO en v0.3** (mono-bodega).
+- ~~**#7 plan de entrega**~~ → ✅ `ops/ENTREGA-7-USUARIOS.md` + carpeta Escritorio; falta solo la ejecución humana (repartir tarjetas).
+- **Pendientes vivos:** ver `PENDIENTES.md` (41ª rev) — Contador #1–3/#8; #4 datos; #7 ejecutar entrega; token Alegra.
