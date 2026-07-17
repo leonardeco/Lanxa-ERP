@@ -73,7 +73,7 @@ describe('LoginView', () => {
     expect(mockLogin).not.toHaveBeenCalled();
   });
 
-  it('error de red sin response: muestra el mensaje genérico', async () => {
+  it('error de red sin response: indica que el servidor no responde (start.bat)', async () => {
     vi.mocked(api.post).mockRejectedValueOnce(new Error('Network Error'));
     const user = userEvent.setup();
     renderLogin();
@@ -83,7 +83,25 @@ describe('LoginView', () => {
     await user.click(screen.getByRole('button', { name: 'Acceder al Sistema' }));
 
     expect(
-      await screen.findByText('Error al iniciar sesión. Verifica tus credenciales.'),
+      await screen.findByText(/No se puede conectar al servidor/i),
     ).toBeInTheDocument();
   });
+
+  it('rate limit 429: muestra mensaje de demasiados intentos', async () => {
+    vi.mocked(api.post).mockRejectedValueOnce({
+      response: { status: 429, data: { error: 'Rate limit exceeded: 5 per 1 minute' } },
+    });
+    const user = userEvent.setup();
+    renderLogin();
+
+    await user.type(screen.getByPlaceholderText('usuario@superozonoglobal.com'), 'x@test.com');
+    await user.type(screen.getByPlaceholderText('••••••••'), 'clave123');
+    await user.click(screen.getByRole('button', { name: 'Acceder al Sistema' }));
+
+    expect(
+      await screen.findByText(/Demasiados intentos de login/i),
+    ).toBeInTheDocument();
+    expect(mockLogin).not.toHaveBeenCalled();
+  });
 });
+
