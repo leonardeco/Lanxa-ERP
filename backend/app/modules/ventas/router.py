@@ -13,6 +13,7 @@ from datetime import date, timedelta
 
 from app.core.database import get_db
 from app.core.config import get_settings
+from app.core.money import redondear_cop
 from app.core.numbering import next_sequential_numero
 from app.core.tenancy import for_tenant, get_for_tenant, tenant_clause
 from app.api.deps import CurrentUser, AdminOrAdministradoraDep
@@ -66,14 +67,22 @@ async def _sugerir_retenciones(db: AsyncSession, cliente, base_gravable: Decimal
     reteiva = Decimal("0.00")
     reteica = Decimal("0.00")
 
+    modo = getattr(settings, "RETENCION_REDONDEO", "half_even") or "half_even"
+
     if getattr(cliente, "retiene_fuente", False):
         umbral = settings.RETEFUENTE_BASE_UVT * settings.UVT_VALOR
         if base_gravable >= umbral:
-            retefuente = round(base_gravable * rates.get(_CONCEPTO_RETEFUENTE, Decimal("0")), 2)
+            retefuente = redondear_cop(
+                base_gravable * rates.get(_CONCEPTO_RETEFUENTE, Decimal("0")), modo
+            )
     if getattr(cliente, "retiene_iva", False):
-        reteiva = round(iva_total * rates.get(_CONCEPTO_RETEIVA, Decimal("0")), 2)
+        reteiva = redondear_cop(
+            iva_total * rates.get(_CONCEPTO_RETEIVA, Decimal("0")), modo
+        )
     if getattr(cliente, "retiene_ica", False) and cliente.tarifa_reteica:
-        reteica = round(base_gravable * (cliente.tarifa_reteica / Decimal("1000")), 2)
+        reteica = redondear_cop(
+            base_gravable * (cliente.tarifa_reteica / Decimal("1000")), modo
+        )
 
     return retefuente, reteiva, reteica
 

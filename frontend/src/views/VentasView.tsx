@@ -16,6 +16,7 @@ import {
 } from '../services/ventasApi';
 import { printFactura, type PrintFacturaOptions } from '../utils/printFactura';
 import { printCotizacion } from '../utils/printCotizacion';
+import { descargarCsv } from '../utils/exportCsv';
 import Toast from '../components/Toast';
 import Modal from '../components/Modal';
 import ErrorState from '../components/ErrorState';
@@ -432,6 +433,8 @@ function ClientesTab() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  /** #4 Contador: filtrar solo agentes retenedores */
+  const [soloRetenedores, setSoloRetenedores] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Cliente | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
@@ -446,11 +449,41 @@ function ClientesTab() {
 
   useEffect(() => { fetchClientes(); }, [fetchClientes]);
 
-  const filtered = clientes.filter(c =>
-    c.razon_social.toLowerCase().includes(search.toLowerCase()) ||
-    c.nit_cc.includes(search) ||
-    (c.ciudad || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = clientes.filter(c => {
+    const q = search.toLowerCase();
+    const matchText =
+      c.razon_social.toLowerCase().includes(q) ||
+      c.nit_cc.includes(search) ||
+      (c.ciudad || '').toLowerCase().includes(q);
+    if (!matchText) return false;
+    if (soloRetenedores) {
+      return !!(c.retiene_fuente || c.retiene_iva || c.retiene_ica);
+    }
+    return true;
+  });
+
+  const exportClientesCsv = () => {
+    const encabezados = [
+      'NIT', 'DV', 'Razón social', 'Tipo persona', 'Ciudad',
+      'ReteFuente', 'ReteIVA', 'ReteICA', 'Tarifa ReteICA ‰',
+      'Habeas Data', 'Fecha Habeas', 'Activo',
+    ];
+    const filas = filtered.map(c => [
+      c.nit_cc,
+      c.dv ?? '',
+      c.razon_social,
+      c.tipo_persona,
+      c.ciudad ?? '',
+      c.retiene_fuente ? 'Sí' : 'No',
+      c.retiene_iva ? 'Sí' : 'No',
+      c.retiene_ica ? 'Sí' : 'No',
+      c.tarifa_reteica ?? '',
+      c.habeas_data_aceptado ? 'Sí' : 'No',
+      c.habeas_data_fecha ?? '',
+      c.activo ? 'Sí' : 'No',
+    ]);
+    descargarCsv(`clientes-retenciones-${new Date().toISOString().slice(0, 10)}.csv`, encabezados, filas);
+  };
 
   const handleSaveCliente = async (data: Record<string, any>) => {
     try {
@@ -487,7 +520,7 @@ function ClientesTab() {
       <div className="table-container">
         <div className="table-header">
           <div className="table-title">👥 Clientes Comerciales</div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <input
               className="form-search"
               type="text"
@@ -495,6 +528,13 @@ function ClientesTab() {
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              <input type="checkbox" checked={soloRetenedores} onChange={e => setSoloRetenedores(e.target.checked)} />
+              Solo retenedores
+            </label>
+            <button type="button" className="btn-secondary" style={{ fontSize: '0.8rem' }} onClick={exportClientesCsv} title="CSV para revisar con el Contador (#4)">
+              ⬇ CSV
+            </button>
             <div className="table-count">{filtered.length} clientes</div>
             <button className="btn-primary-sm" onClick={() => { setEditing(null); setShowModal(true); }}>
               + Nuevo Cliente
@@ -515,6 +555,7 @@ function ClientesTab() {
                   <th>Contacto</th>
                   <th>Lista</th>
                   <th>Retenciones</th>
+                  <th>Habeas</th>
                   <th>Cupo Crédito</th>
                   <th>Estado</th>
                   <th>Acciones</th>
@@ -527,6 +568,9 @@ function ClientesTab() {
                     <td>
                       <div style={{ fontWeight: 600 }}>{c.razon_social}</div>
                       {c.nombre_comercial && <div style={{ fontSize: '0.7rem', color: 'var(--neutral-500)' }}>{c.nombre_comercial}</div>}
+                      {c.tipo_persona === 'Natural' && (
+                        <div style={{ fontSize: '0.68rem', color: 'var(--neutral-500)' }}>Persona natural</div>
+                      )}
                     </td>
                     <td>
                       <div>{c.ciudad || '—'}</div>
@@ -548,6 +592,15 @@ function ClientesTab() {
                           {c.retiene_iva && <span className="badge amber" title="Practica ReteIVA" style={{ marginRight: 3, fontSize: 10 }}>RteIVA</span>}
                           {c.retiene_ica && <span className="badge amber" title={`Practica ReteICA${c.tarifa_reteica ? ` (${c.tarifa_reteica}‰)` : ''}`} style={{ fontSize: 10 }}>RteICA</span>}
                         </>
+                      ) : (
+                        <span style={{ color: 'var(--neutral-500)', fontSize: '0.75rem' }}>—</span>
+                      )}
+                    </td>
+                    <td>
+                      {c.habeas_data_aceptado ? (
+                        <span className="badge green" title={c.habeas_data_fecha || 'Aceptado'} style={{ fontSize: 10 }}>OK</span>
+                      ) : c.tipo_persona === 'Natural' ? (
+                        <span className="badge amber" title="Pendiente consentimiento" style={{ fontSize: 10 }}>Pend.</span>
                       ) : (
                         <span style={{ color: 'var(--neutral-500)', fontSize: '0.75rem' }}>—</span>
                       )}
