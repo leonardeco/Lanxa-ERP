@@ -1813,3 +1813,19 @@ PO / SM / DevOps / QA: activado skill full-dev-team.
 - Contador #1
 - Clave backup en gestor
 
+
+## Sesion — full-dev-team cont. — preflight #7
+
+### Hecho
+- Verificados 7 usuarios activos en SQLite (roles correctos).
+- `ops/preflight-entrega-7.py` + `.bat` (BD, paquete Escritorio, CA, health, IP).
+- `ops/HOY-ENTREGA-7.md` (una pagina) copiado al Escritorio.
+- ERP arrancado; preflight exit 0; smoke OK.
+
+### Evidencia
+- preflight: listo para repartir tarjetas
+- smoke: health/login/me/empresa OK
+
+### Humano
+- Repartir tarjetas y marcar checklist de claves.
+

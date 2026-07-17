@@ -29,7 +29,7 @@ Estado: LAN **v0.3.0** operativa. Suite API (Postgres local) + Vitest + E2E (CI 
 |---|---|---|
 | 5 | Backup offsite + `BACKUP_ENCRYPTION_KEY` | ✅ Cerrado 2026-07-17 (offsite + sin plaintext). Residual opcional: gestor personal |
 | 6 | Desplegar / mantener v0.3.0 en este servidor | ✅ Operativo. **IP actual LAN: `192.168.1.131`**. Ver `ops/ESTADO-OPERATIVO-PC.md`. Arranque: `start.bat` (auto-sync IP) |
-| 7 | Entregar manual + contraseñas a usuarios | 📋 **Listo para ejecutar:** `ops/ENTREGA-7-USUARIOS.md` + Escritorio `Entrega-SuperOzono-v030\`. **Falta:** repartir tarjetas (humano) |
+| 7 | Entregar manual + contraseñas a usuarios | 📋 **Listo GO:** preflight OK + IP .131 + `ops/HOY-ENTREGA-7.md` + Escritorio. **Falta:** repartir tarjetas (humano) |
 | 7a | Drill de restore trimestral | ✅ Calendarizado **2026-10-15** |
 | 7b | Vigencia certificado TLS | ✅ Documentado; cert regenerado con IP `.131` + localhost (CA local) |
 | 27 | Revisar job E2E del CI en cada release | Abierto informativo (`continue-on-error`) |
@@ -85,7 +85,7 @@ Estado: LAN **v0.3.0** operativa. Suite API (Postgres local) + Vitest + E2E (CI 
 | Prioridad | Ítems |
 |---|---|
 | **Cuando quieras (1 min)** | Clave backup en gestor (#5 residual); #33op rotar Superusuario |
-| **Listo para ti (#7)** | Paquete Escritorio IP **.131** actualizada — repartir 7 tarjetas (`ops/ENTREGA-7-USUARIOS.md`) |
+| **Listo para ti (#7)** | `ops\preflight-entrega-7.bat` + `HOY-ENTREGA-7.md` + Escritorio — solo falta repartir |
 | **Cuando haya Contador** | #1 → #2/#3 → #8; #4 flags reales; opcional #24 half_up |
 | **Cuando haya negocio** | #20 token Alegra; #22 resolución DIAN; #23 texto Habeas; #18 nómina |
 | **Calendario** | #7a drill restore **2026-10-15** |
