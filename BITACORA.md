@@ -1792,3 +1792,24 @@ Carril seguridad/ops sin Contador: **A** backup Postgres cifrado, **B** guia SEG
 
 Produccion LAN sigue en **SQLite** (`backup_db.py`). Scripts Postgres listos para tests/migracion.
 
+
+## Sesion — full-dev-team sprint — IP entrega + readiness
+
+### Roles
+PO / SM / DevOps / QA: activado skill full-dev-team.
+
+### Hecho
+- Corregida IP **192.168.1.48 -> 192.168.1.131** en docs ops, MANUAL, DOCUMENTACION y paquetes Escritorio (#7 + Contador).
+- `ops/PRODUCTION-READINESS-LAN.md` (checklist skill).
+- ERP arrancado; smoke OK; diagnostico sin errores criticos.
+- CA y docs refrescados en `Entrega-SuperOzono-v030` y `Entrega-Contador-PUC`.
+
+### Evidencia
+- smoke-prod.py: health/login/me/empresa OK
+- diagnostico.ps1: exit 0
+
+### Queda humano
+- #7 repartir tarjetas
+- Contador #1
+- Clave backup en gestor
+

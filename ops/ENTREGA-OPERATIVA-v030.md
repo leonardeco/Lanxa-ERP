@@ -49,8 +49,8 @@ Cuando las 7 filas estén completas: borrar `CREDENCIALES-TEMPORALES*` y marcar 
 
 | Dato | Valor |
 |---|---|
-| App | `https://192.168.1.48:5173` |
-| API | `https://192.168.1.48:8000` |
+| App | `https://192.168.1.131:5173` |
+| API | `https://192.168.1.131:8000` |
 | CA clientes | `certutil -user -addstore Root superozono-ca.crt` |
 
 ---

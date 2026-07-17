@@ -1,4 +1,4 @@
-﻿# Pendientes — Super Ozono ERP
+# Pendientes — Super Ozono ERP
 
 Backlog vivo del proyecto. Actualizado: **17 de julio de 2026** (44ª revisión).
 
@@ -85,12 +85,12 @@ Estado: LAN **v0.3.0** operativa. Suite API (Postgres local) + Vitest + E2E (CI 
 | Prioridad | Ítems |
 |---|---|
 | **Cuando quieras (1 min)** | Clave backup en gestor (#5 residual); #33op rotar Superusuario |
-| **Listo para ti (#7)** | `ops/ENTREGA-7-USUARIOS.md` — repartir 7 tarjetas y checklist |
+| **Listo para ti (#7)** | Paquete Escritorio IP **.131** actualizada — repartir 7 tarjetas (`ops/ENTREGA-7-USUARIOS.md`) |
 | **Cuando haya Contador** | #1 → #2/#3 → #8; #4 flags reales; opcional #24 half_up |
 | **Cuando haya negocio** | #20 token Alegra; #22 resolución DIAN; #23 texto Habeas; #18 nómina |
 | **Calendario** | #7a drill restore **2026-10-15** |
 | **Cloud** | Docker Desktop / `terraform apply` (código listo) |
-| **Ops diarias** | `ops\smoke-diario.bat` · checklist · `ops/diagnostico.ps1` · `ops/SEGURIDAD-LAN.md` |
+| **Ops diarias** | smoke · diagnostico · `SEGURIDAD-LAN` · `PRODUCTION-READINESS-LAN` |
 
 **URL LAN actual:** `https://192.168.1.131:5173` (si cambia la IP: `start.bat` o `ops\sync-lan-ip.ps1`).
 

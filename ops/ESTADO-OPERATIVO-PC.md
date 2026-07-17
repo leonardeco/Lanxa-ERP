@@ -41,6 +41,8 @@ Offsite OneDrive OK. Clave en `backend\.env` + gestor (sin plaintext en carpeta 
 
 ## Docs
 
-- Pendientes: `PENDIENTES.md` (43ª rev)
+- Pendientes: `PENDIENTES.md` (44ª+ rev)
 - Bitácora: `BITACORA.md`
 - Checklist diario: `ops\CHECKLIST-GO-LIVE-DIARIO.md`
+- Seguridad: `ops\SEGURIDAD-LAN.md`
+- Readiness: `ops\PRODUCTION-READINESS-LAN.md`

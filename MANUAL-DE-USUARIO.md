@@ -8,7 +8,7 @@ Guía práctica para el uso diario del sistema. No necesitas conocimientos técn
 
 1. Abre el acceso directo **"Super Ozono ERP"** del escritorio, o el navegador en la
    dirección que te indicó el administrador (en la red local suele ser
-   `https://192.168.1.48:5173` — el admin te confirma si la IP cambió).
+   `https://192.168.1.131:5173` — el admin te confirma si la IP cambió).
 2. Escribe tu **correo** y **contraseña** y pulsa **Acceder al Sistema**.
 3. **Primera vez:** el admin te da una contraseña temporal. Entra y **cámbiala de
    inmediato** (Usuarios & Accesos → cambiar contraseña, o pide al Superusuario).

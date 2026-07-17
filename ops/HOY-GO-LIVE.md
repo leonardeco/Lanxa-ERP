@@ -1,7 +1,7 @@
 # Hoy — go-live usuarios (#7)
 
 **Actualizado:** 2026-07-17  
-**URL ERP:** https://192.168.1.48:5173  
+**URL ERP:** https://192.168.1.131:5173  
 **Paquete:** Escritorio → `Entrega-SuperOzono-v030\`  
 **Guía completa:** [`ENTREGA-7-USUARIOS.md`](./ENTREGA-7-USUARIOS.md)
 
