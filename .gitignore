@@ -60,6 +60,10 @@ docs/hydraia/.run-complete
 docs/hydraia/.active-plan
 docs/hydraia/.heartbeats/
 
-# Capturas smoke UI locales
+# Capturas smoke UI locales + creds temporales de login auto
 ops/smoke-screens/
+frontend/smoke-screens/
+frontend/_login_chrome.cjs
+ops/smoke-screens/_login_cred.json
+**/_login_cred.json
 

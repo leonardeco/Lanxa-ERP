@@ -82,6 +82,9 @@ Estado: LAN **v0.3.0** operativa. Suite API (Postgres local) + Vitest + E2E (CI 
 
 ## Snapshot: qué queda realmente abierto
 
+**Carril tecnico sin Contador (2026-07-17+):** start.bat robusto, backup_auto, login ops, preflight versiones — ver `ops/BACKLOG-TECNICO-SIN-NEGOCIO.md`.
+
+
 | Prioridad | Ítems |
 |---|---|
 | **Cuando quieras (1 min)** | Clave backup en gestor (#5 residual); #33op rotar Superusuario |
@@ -90,7 +93,7 @@ Estado: LAN **v0.3.0** operativa. Suite API (Postgres local) + Vitest + E2E (CI 
 | **Cuando haya negocio** | #20 token Alegra; #22 resolución DIAN; #23 texto Habeas; #18 nómina |
 | **Calendario** | #7a drill restore **2026-10-15** |
 | **Cloud** | Docker Desktop / `terraform apply` (código listo) |
-| **Ops diarias** | smoke · diagnostico · `SEGURIDAD-LAN` · `PRODUCTION-READINESS-LAN` |
+| **Ops diarias** | smoke · diagnostico · SEGURIDAD · readiness · `BACKLOG-TECNICO-SIN-NEGOCIO.md` |
 
 **URL LAN actual:** `https://192.168.1.131:5173` (si cambia la IP: `start.bat` o `ops\sync-lan-ip.ps1`).
 

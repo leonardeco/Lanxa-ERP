@@ -132,22 +132,37 @@ def main() -> int:
     else:
         bad("Falta certs/superozono-ca.crt")
 
-    # 4 Health API
+    # 4 Health API + version
     print()
     print("--- 4 Health API ---")
     ctx = ssl._create_unverified_context()
     health_ok = False
+    api_version = None
+    last: Exception | str = "sin intento"
     for base in ("https://127.0.0.1:8000", "https://localhost:8000"):
         try:
             with urlopen(base + "/health", context=ctx, timeout=4) as r:
                 data = json.loads(r.read().decode())
-            ok(f"{base} status={data.get('status')} v={data.get('version')}")
+            api_version = data.get("version")
+            ok(f"{base} status={data.get('status')} v={api_version}")
             health_ok = True
             break
         except (URLError, HTTPError, TimeoutError, OSError) as e:
             last = e
     if not health_ok:
         bad(f"API no responde — ejecuta start.bat ({last})")
+    else:
+        # Alinear con frontend APP_VERSION (config.ts) sin importar TS
+        fe_cfg = ROOT / "frontend" / "src" / "config.ts"
+        if fe_cfg.exists() and api_version:
+            txt = fe_cfg.read_text(encoding="utf-8", errors="replace")
+            m = __import__("re").search(r"APP_VERSION\s*=\s*['\"]([^'\"]+)['\"]", txt)
+            if m:
+                fe_ver = m.group(1)
+                if str(api_version) == fe_ver:
+                    ok(f"Versiones alineadas API=FE={fe_ver}")
+                else:
+                    warn(f"Version mismatch API={api_version} FE={fe_ver} — actualizar config.ts/config.py")
 
     # 5 Frontend env IP
     print()
