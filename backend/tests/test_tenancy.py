@@ -102,6 +102,8 @@ async def test_rls_oculta_productos_de_otro_tenant(db_session):
     db_session.add(Tenant(id=2, codigo="otra", razon_social="Otra", activo=True))
     await db_session.flush()
 
+    # stamp before_insert usa contextvar: hay que set_tenant_id además del GUC RLS
+    set_tenant_id(1)
     await apply_rls_tenant(db_session, 1)
     db_session.add(Producto(
         sku="T1-A", nombre="Del tenant 1", marca="M",
@@ -109,6 +111,7 @@ async def test_rls_oculta_productos_de_otro_tenant(db_session):
     ))
     await db_session.flush()
 
+    set_tenant_id(2)
     await apply_rls_tenant(db_session, 2)
     db_session.add(Producto(
         sku="T2-B", nombre="Del tenant 2", marca="M",
@@ -116,8 +119,10 @@ async def test_rls_oculta_productos_de_otro_tenant(db_session):
     ))
     await db_session.flush()
 
+    set_tenant_id(1)
     await apply_rls_tenant(db_session, 1)
     visibles = (await db_session.execute(select(Producto))).scalars().all()
     skus = {p.sku for p in visibles}
     assert "T1-A" in skus
     assert "T2-B" not in skus
+    reset_tenant_id()

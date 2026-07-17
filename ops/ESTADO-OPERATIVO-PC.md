@@ -1,7 +1,7 @@
 # Estado operativo — este PC servidor
 
 **Verificado:** 2026-07-17  
-**Código:** `main` (v0.3.0 + roles de negocio + tenancy code + ops #5 cerrado)
+**Código:** `main` (v0.3.0 + cumplimiento DIAN/Habeas infra + tests Postgres local)
 
 ## Ahora mismo (producción LAN)
 
@@ -10,11 +10,14 @@
 | Backend | **ON** (si `start.bat` activo) | `https://192.168.1.48:8000` / health `v0.3.0` |
 | Frontend | **ON** (si `start.bat` activo) | `https://192.168.1.48:5173` |
 | Login Superusuario | **OK** | `admin@superozonoglobal.com` |
-| BD SQLite | **OK** | `backend\superozono.db` — Alembic head `b1c2d3e4f5a6` |
+| BD SQLite | **OK** | `backend\superozono.db` — Alembic head `c6d7e8f9a0b1` (Habeas) |
 | Usuarios | **7 activos** | Superusuario, Directora, CEO, Contador, Auxiliar×3 |
 | IP LAN | `192.168.1.48` | Alineada con `frontend\.env` y cert SAN |
 | CA confiable (este PC) | **OK** | instalada en almacén Root del usuario |
 | Acceso escritorio | **OK** | `Super Ozono ERP.lnk` → `start.bat` |
+| Postgres (solo tests) | **Running** | servicio `postgresql-x64-17`, BD `superozono_test` |
+| Checklist diario | — | `ops\CHECKLIST-GO-LIVE-DIARIO.md` |
+| Tests locales | — | `ops\TESTES-LOCAL-POSTGRES.md` + `ops\run-tests.ps1` |
 
 ## Backups (#5)
 
@@ -61,7 +64,7 @@ powershell -ExecutionPolicy Bypass -File ops\start-staging.ps1
 1. Doble clic **Super Ozono ERP** en el escritorio (`start.bat`).
 2. Para parar: `stop.bat` o cerrar ventanas Backend/Frontend.
 3. Tras `git pull`: `stop.bat` → `DESPLIEGUE.md` (deps + `alembic upgrade head`) → `start.bat`.
-4. Smoke rápido:  
+4. Smoke go-live (health + login + me + empresa):  
    `backend\venv\Scripts\python.exe ops\smoke-prod.py`
 
 ## Entrega a personas (#7 — aplazada)

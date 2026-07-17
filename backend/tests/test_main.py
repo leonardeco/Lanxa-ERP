@@ -89,16 +89,16 @@ async def test_admin_resetea_password_de_otro_usuario(client: AsyncClient, auth_
             "nombre_completo": "Auxiliar Test",
             "rol": "Auxiliar Contable",
             "is_active": True,
-            "password": "passwordvieja",
+            "password": "viejaClave1",
         },
         headers=auth_headers,
     )
-    assert create_resp.status_code == 201
+    assert create_resp.status_code == 201, create_resp.text
     user_id = create_resp.json()["id"]
 
     reset_resp = await client.put(
         f"/api/v1/usuarios/{user_id}/reset-password",
-        json={"new_password": "passwordnueva"},
+        json={"new_password": "nuevaClave1"},
         headers=auth_headers,
     )
     assert reset_resp.status_code == 200
@@ -106,13 +106,13 @@ async def test_admin_resetea_password_de_otro_usuario(client: AsyncClient, auth_
     # La contraseña vieja ya no funciona, la nueva si
     old_login = await client.post(
         "/api/login/access-token",
-        data={"username": "auxiliar@test.com", "password": "passwordvieja"},
+        data={"username": "auxiliar@test.com", "password": "viejaClave1"},
     )
     assert old_login.status_code == 400
 
     new_login = await client.post(
         "/api/login/access-token",
-        data={"username": "auxiliar@test.com", "password": "passwordnueva"},
+        data={"username": "auxiliar@test.com", "password": "nuevaClave1"},
     )
     assert new_login.status_code == 200
 
@@ -126,15 +126,16 @@ async def test_no_admin_no_puede_resetear_password(client: AsyncClient, auth_hea
             "nombre_completo": "Auxiliar Test 2",
             "rol": "Auxiliar Contable",
             "is_active": True,
-            "password": "passwordvieja",
+            "password": "viejaClave1",
         },
         headers=auth_headers,
     )
+    assert create_resp.status_code == 201, create_resp.text
     user_id = create_resp.json()["id"]
 
     login_resp = await client.post(
         "/api/login/access-token",
-        data={"username": "auxiliar2@test.com", "password": "passwordvieja"},
+        data={"username": "auxiliar2@test.com", "password": "viejaClave1"},
     )
     auxiliar_headers = {"Authorization": f"Bearer {login_resp.json()['access_token']}"}
 

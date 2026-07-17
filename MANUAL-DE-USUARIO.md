@@ -11,9 +11,10 @@ Guía práctica para el uso diario del sistema. No necesitas conocimientos técn
    `https://192.168.1.48:5173` — el admin te confirma si la IP cambió).
 2. Escribe tu **correo** y **contraseña** y pulsa **Acceder al Sistema**.
 3. **Primera vez:** el admin te da una contraseña temporal. Entra y **cámbiala de
-   inmediato** (si el sistema te lo pide, o pídele al admin que te ayude desde
-   Usuarios & Accesos). No compartas tu clave.
-4. Si olvidaste tu contraseña, pídele al administrador que te la restablezca
+   inmediato** (Usuarios & Accesos → cambiar contraseña, o pide al Superusuario).
+   Requisitos: mínimo **8 caracteres**, al menos **una letra y un dígito**. No
+   compartas tu clave.
+4. Si olvidaste tu contraseña, pídele al **Superusuario** que te la restablezca
    (Usuarios & Accesos → Restablecer contraseña). El sistema no envía correos.
 
 > 🔒 La sesión se mantiene sola mientras trabajas. Si dejas el sistema abierto sin
@@ -21,6 +22,10 @@ Guía práctica para el uso diario del sistema. No necesitas conocimientos técn
 >
 > Si el navegador avisa de “conexión no segura”, el admin debe instalar el
 > certificado de la empresa (`certs\superozono-ca.crt`) una sola vez en ese PC.
+>
+> Si dice que **no puede conectar al servidor**, en el PC servidor hay que ejecutar
+> `start.bat` (o el acceso de escritorio) y esperar a que Backend y Frontend estén abiertos.
+> Si pide “espera 1 minuto”, son demasiados intentos fallidos de login (protección).
 
 **Qué ves según tu perfil:**
 
@@ -52,6 +57,11 @@ Al entrar ves:
 3. **Importante (sección "Perfil tributario")**: si el cliente es agente retenedor,
    marca las casillas ReteFuente / ReteIVA / ReteICA — el sistema calculará las
    retenciones automáticamente en sus facturas. Si tienes dudas, pregunta a la contadora.
+4. **Persona natural:** puedes marcar la casilla de **Habeas Data** (autorización de
+   tratamiento de datos). Queda registrada la fecha.
+5. **Varios clientes a la vez (Superusuario / área contable):** en Clientes usa
+   **Plantilla** (baja un CSV), edita Sí/No de retenciones en Excel e **Importar**.
+   También puedes filtrar “Solo retenedores” y exportar CSV de la vista.
 
 ### 3.2 Hacer una factura
 1. **Ventas & Comercial → pestaña Nueva Venta**.
@@ -68,8 +78,12 @@ Al entrar ves:
 3. Puedes **imprimir** la factura en PDF con el botón de impresión.
 
 ### 3.4 Anular una factura
-- Botón **Anular** (solo Admin/Administradora). El inventario y la contabilidad
-  se reversan solos. La factura anulada queda visible para trazabilidad.
+- Botón **Anular** (solo **Superusuario** o **Directora**). El inventario y la
+  contabilidad se reversan solos. La factura anulada queda visible para trazabilidad.
+
+### 3.5 Imprimir factura
+- Botón de impresión/PDF. Si aún no hay resolución DIAN configurada, el pie indica
+  que es **documento interno** del ERP (no factura electrónica).
 
 ---
 

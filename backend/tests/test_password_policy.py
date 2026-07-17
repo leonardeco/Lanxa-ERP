@@ -34,7 +34,7 @@ async def test_crear_usuario_rechaza_password_debil(
     client: AsyncClient, auth_headers: dict
 ):
     resp = await client.post(
-        "/api/v1/usuarios/",
+        "/api/v1/usuarios",
         headers=auth_headers,
         json={
             "email": "debil@test.com",
@@ -54,7 +54,7 @@ async def test_crear_usuario_rechaza_password_fabrica(
     client: AsyncClient, auth_headers: dict
 ):
     resp = await client.post(
-        "/api/v1/usuarios/",
+        "/api/v1/usuarios",
         headers=auth_headers,
         json={
             "email": "fabrica@test.com",
