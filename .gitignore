@@ -59,3 +59,7 @@ Thumbs.db
 docs/hydraia/.run-complete
 docs/hydraia/.active-plan
 docs/hydraia/.heartbeats/
+
+# Capturas smoke UI locales
+ops/smoke-screens/
+
