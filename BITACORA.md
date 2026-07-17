@@ -1719,3 +1719,58 @@ Sin reunión Contador: se añadió el flujo plantilla→Excel→import para flag
 - test_alegra status sin credenciales → 200 configurado=false
 - Checklist go-live y ACTIVAR-ALEGRA-DIAN actualizados
 
+
+
+## Sesión — 17 de julio de 2026 (cierre docs) — arranque LAN + login UI + backlog 43ª
+
+### Resumen
+
+Cierre documental de la jornada. ERP LAN **operativo** en IP **192.168.1.131**. Superusuario verificado por API, smoke y **navegador (Playwright)**; el usuario confirmó estar dentro del sistema.
+
+### Problema de arranque (resuelto)
+
+1. `backend\.env` con bytes no-UTF-8 (p. ej. 0x97) → `UnicodeDecodeError` al cargar Settings → **uvicorn no arrancaba**.
+2. Configs y cert apuntaban a **192.168.1.48** mientras la NIC era **192.168.1.131** → navegador colgado en SYN_SENT.
+3. Solo Vite en :5173; backend :8000 caído.
+
+### Fix
+
+- Reescritura UTF-8 de `.env`, CORS y `VITE_API_URL` a `.131`.
+- Cert TLS regenerado (SAN: 192.168.1.131, localhost, 127.0.0.1).
+- `ops/sync-lan-ip.ps1` + `start.bat` endurecido (valida config, espera health, abre host correcto).
+- Commit `2f9b32c`.
+
+### Verificación
+
+- Smoke: health / login / me / empresa OK; Alegra no configurado (esperado).
+- Playwright: LOGIN_UI_OK, Dashboard + Ventas; capturas en `ops/smoke-screens/`.
+- Usuario: “sí ya estoy dentro”.
+
+### Ops del día (sin Contador) — commits representativos
+
+| Commit | Tema |
+|---|---|
+| `8cee614` … `29b7451` | #5, UVT, DIAN/Habeas print |
+| `b24b621` `b6c0c80` | redondeo, retenedores, import CSV |
+| `b8dc7f6` | tests Postgres + go-live B+C |
+| `76c2f42` | #7 plan + descarte Electron/multi-bodega |
+| `1dc8c9c` | smoke diario + Alegra en smoke |
+| `2f9b32c` | start.bat IP/encoding |
+
+### Estado operativo actual
+
+| Elemento | Valor |
+|---|---|
+| Frontend | https://192.168.1.131:5173 |
+| Backend | https://192.168.1.131:8000 |
+| Rol verificado | Superusuario (`admin@superozonoglobal.com`) |
+| Smoke diario | Tarea 08:00 + `ops\smoke-diario.bat` |
+| Postgres tests | Servicio `postgresql-x64-17` + `ops/run-tests.ps1` |
+
+### Abierto (ver PENDIENTES 43ª)
+
+- Contador: #1 PUC → #2/#3 → #8; #4 datos reales.
+- #7: repartir tarjetas (humano).
+- #20 token Alegra; #22 resolución; #23 texto legal.
+- Cloud apply opcional.
+
