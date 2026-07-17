@@ -1,6 +1,6 @@
-# Pendientes — Super Ozono ERP
+﻿# Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **17 de julio de 2026** (43ª revisión).
+Backlog vivo del proyecto. Actualizado: **17 de julio de 2026** (44ª revisión).
 
 **Resumen de la jornada 2026-07-17:** Sin Contador se avanzó ops, tests Postgres, go-live, Alegra checklist, descarte Electron/multi-bodega, plan #7, smoke diario + tarea 08:00. **Fix crítico de arranque:** `.env` UTF-8 roto + IP LAN `192.168.1.48` → **`192.168.1.131`** (`start.bat` + `ops/sync-lan-ip.ps1`). **Verificado:** Superusuario entra por API y por UI (Playwright); usuario confirmó “ya estoy dentro”.
 
@@ -90,7 +90,7 @@ Estado: LAN **v0.3.0** operativa. Suite API (Postgres local) + Vitest + E2E (CI 
 | **Cuando haya negocio** | #20 token Alegra; #22 resolución DIAN; #23 texto Habeas; #18 nómina |
 | **Calendario** | #7a drill restore **2026-10-15** |
 | **Cloud** | Docker Desktop / `terraform apply` (código listo) |
-| **Ops diarias** | `ops\smoke-diario.bat` · checklist `ops/CHECKLIST-GO-LIVE-DIARIO.md` |
+| **Ops diarias** | `ops\smoke-diario.bat` · checklist · `ops/diagnostico.ps1` · `ops/SEGURIDAD-LAN.md` |
 
 **URL LAN actual:** `https://192.168.1.131:5173` (si cambia la IP: `start.bat` o `ops\sync-lan-ip.ps1`).
 

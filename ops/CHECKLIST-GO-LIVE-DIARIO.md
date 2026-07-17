@@ -44,11 +44,13 @@ backend\venv\Scripts\python.exe ops\smoke-prod.py --strict-alegra
 
 Si el smoke falla: `stop.bat` → esperar 5 s → `start.bat` → reintentar.
 
-Diagnóstico completo (IP, .env UTF-8, puertos, cert, health):
+Diagnóstico completo (IP, UTF-8, puertos, cert, health, motor BD, backups):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File ops\diagnostico.ps1
 ```
+
+Seguridad LAN (firewall mental, Wi‑Fi, backups, VPN): `ops/SEGURIDAD-LAN.md`
 
 ### Tarea programada (opcional)
 
@@ -91,8 +93,11 @@ Migración reciente de ejemplo: `c6d7e8f9a0b1` (Habeas Data en clientes).
 
 - [ ] Clave de `BACKUP_ENCRYPTION_KEY` en gestor personal (no en txt en la carpeta de backups)
 - [ ] OneDrive offsite con `.enc` recientes
+- [ ] Router **sin** port-forward de 8000 / 5173 / 5432 a Internet
+- [ ] Leer/repasar `ops/SEGURIDAD-LAN.md` (al menos una vez)
 - [ ] No entregar tarjetas de acceso hasta decidir **#7**
 - [ ] Tras login de cada persona: **cambiar contraseña** (política: min 8, letra + dígito)
+- [ ] Si usan Postgres de verdad: backup `scripts\backup_pg.py` (ver `backend/scripts/BACKUP-POSTGRES.md`)
 
 ---
 

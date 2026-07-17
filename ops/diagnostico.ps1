@@ -182,26 +182,139 @@ try {
   Warn "No se pudo leer Alegra"
 }
 
-# --- 10 Postgres tests ---
+# --- 10 Postgres servicio ---
 Write-Host ""
-Write-Host "--- 10 Postgres tests ---"
+Write-Host "--- 10 Postgres servicio ---"
 $svc = Get-Service postgresql-x64-17 -ErrorAction SilentlyContinue
-if ($svc -and $svc.Status -eq "Running") {
-  Ok "postgresql-x64-17 Running"
-} elseif ($svc) {
-  Warn ("postgresql-x64-17: " + $svc.Status)
-} else {
-  Warn "Postgres servicio no instalado (ok si no usas pytest local)"
+if (-not $svc) {
+  $svc = Get-Service -Name "postgresql*" -ErrorAction SilentlyContinue | Select-Object -First 1
 }
+if ($svc -and $svc.Status -eq "Running") {
+  Ok ($svc.Name + " Running")
+} elseif ($svc) {
+  Warn ($svc.Name + ": " + $svc.Status)
+} else {
+  Warn "Postgres servicio no instalado (ok si prod es SQLite y no usas pytest local)"
+}
+
+# --- 11 Motor BD (sin imprimir secretos) ---
+Write-Host ""
+Write-Host "--- 11 Motor DATABASE_URL ---"
+$dbEngine = "desconocido"
+try {
+  $dbLine = Get-Content $be -Encoding UTF8 | Where-Object { $_ -match "^DATABASE_URL=" } | Select-Object -First 1
+  if (-not $dbLine) {
+    Warn "DATABASE_URL ausente"
+  } else {
+    $dbVal = ($dbLine -split "=", 2)[1].Trim().Trim([char]34)
+    if ($dbVal -match "^sqlite") {
+      $dbEngine = "sqlite"
+      Ok "Motor: SQLite (LAN tipico)"
+      $sqlitePath = Join-Path $Root "backend\superozono.db"
+      if (Test-Path $sqlitePath) {
+        $sz = (Get-Item $sqlitePath).Length
+        Ok ("superozono.db presente (" + [math]::Round($sz / 1KB, 1) + " KB)")
+      } else {
+        Warn "No se encontro backend\superozono.db"
+      }
+    } elseif ($dbVal -match "^postgres") {
+      $dbEngine = "postgres"
+      Ok "Motor: PostgreSQL"
+      if ($dbVal -match "@([^/]+)/") {
+        Ok ("Host BD: " + $Matches[1])
+      }
+    } else {
+      Warn "Motor no reconocido (ni sqlite ni postgres)"
+    }
+  }
+} catch {
+  Warn "No se pudo leer DATABASE_URL"
+}
+
+$pgDump = $null
+if (Get-Command pg_dump -ErrorAction SilentlyContinue) {
+  $pgDump = (Get-Command pg_dump).Source
+} else {
+  $pgCand = Get-ChildItem "C:\Program Files\PostgreSQL\*\bin\pg_dump.exe" -ErrorAction SilentlyContinue |
+    Sort-Object FullName -Descending | Select-Object -First 1
+  if ($pgCand) { $pgDump = $pgCand.FullName }
+}
+if ($pgDump) {
+  Ok ("pg_dump: " + $pgDump)
+} else {
+  if ($dbEngine -eq "postgres") {
+    Warn "pg_dump no encontrado (necesario para backup_pg.py)"
+  } else {
+    Warn "pg_dump no en PATH (ok si solo usas SQLite)"
+  }
+}
+
+# --- 12 Backups recientes ---
+Write-Host ""
+Write-Host "--- 12 Backups ---"
+$backupDir = "C:\SuperOzono-Backups"
+if (-not (Test-Path $backupDir)) {
+  Warn "No existe C:\SuperOzono-Backups - configura backup diario"
+} else {
+  $encFiles = Get-ChildItem $backupDir -Filter "*.enc" -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime -Descending
+  if (-not $encFiles) {
+    Bad "Carpeta de backups sin archivos .enc"
+  } else {
+    $latest = $encFiles[0]
+    $ageHrs = [math]::Round(((Get-Date) - $latest.LastWriteTime).TotalHours, 1)
+    Ok ("Ultimo .enc: " + $latest.Name + " (hace " + $ageHrs + " h)")
+    if ($ageHrs -gt 48) {
+      Warn "Backup con mas de 48 h - revisa tarea SuperOzonoERP-BackupDB"
+    }
+    $sqliteEnc = @($encFiles | Where-Object { $_.Name -like "superozono_*.db.enc" }).Count
+    $pgEnc = @($encFiles | Where-Object { $_.Name -like "superozono_pg_*.dump.enc" }).Count
+    Ok ("Conteo: SQLite .db.enc=$sqliteEnc | Postgres .dump.enc=$pgEnc")
+  }
+
+  try {
+    $keyLine = Get-Content $be -Encoding UTF8 | Where-Object { $_ -match "^BACKUP_ENCRYPTION_KEY=" } | Select-Object -First 1
+    if ($keyLine) {
+      $kv = ($keyLine -split "=", 2)[1].Trim().Trim([char]34)
+      if ($kv -and $kv.Length -ge 20) {
+        Ok ("BACKUP_ENCRYPTION_KEY configurada (len=" + $kv.Length + ")")
+      } else {
+        Bad "BACKUP_ENCRYPTION_KEY vacia o corta"
+      }
+    } else {
+      Bad "BACKUP_ENCRYPTION_KEY ausente"
+    }
+  } catch {
+    Warn "No se pudo verificar BACKUP_ENCRYPTION_KEY"
+  }
+
+  $plainRisk = Join-Path $backupDir "RECORDATORIO-CLAVE-BACKUP.txt"
+  if (Test-Path $plainRisk) {
+    $txt = Get-Content $plainRisk -Raw -ErrorAction SilentlyContinue
+    if ($txt -and ($txt -match "BACKUP_ENCRYPTION_KEY\s*=")) {
+      Bad "RECORDATORIO-CLAVE-BACKUP.txt parece contener la clave - quitala"
+    } else {
+      Ok "RECORDATORIO sin valor de clave (ok)"
+    }
+  }
+}
+
+# --- 13 Seguridad recordatorio ---
+Write-Host ""
+Write-Host "--- 13 Seguridad (recordatorio) ---"
+Warn "No abrir puertos 8000/5173/5432 en el router a Internet"
+Warn "Guia: ops\SEGURIDAD-LAN.md"
 
 Write-Host ""
 if ($script:fail -eq 0) {
   Write-Host "RESULTADO: sin errores criticos" -ForegroundColor Green
   Write-Host "Smoke: ops\smoke-diario.bat"
+  Write-Host "Seguridad: ops\SEGURIDAD-LAN.md"
   if ($ip) { Write-Host ("URL: https://" + $ip + ":5173") }
   exit 0
 } else {
   Write-Host ("RESULTADO: " + $script:fail + " problema(s)") -ForegroundColor Red
   Write-Host "Tip: stop.bat -> powershell -File ops\sync-lan-ip.ps1 -> start.bat"
+  Write-Host "Seguridad: ops\SEGURIDAD-LAN.md"
   exit 1
 }
