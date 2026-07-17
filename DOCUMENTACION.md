@@ -815,4 +815,6 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 - ~~**BUG-004/005/006**~~ → ✅ cerrados en código (2026-07-10/15); `REPORTE_BUGS.md` sincronizado 2026-07-17.
 - **#27 E2E CI** → timeouts/retry y naming Superusuario (2026-07-17); job sigue informativo (`continue-on-error`).
 - ~~**Go-live / tests sin Contador (B+C)**~~ → ✅ **2026-07-17**: `ops/TESTES-LOCAL-POSTGRES.md`, `ops/run-tests.ps1`, `ops/CHECKLIST-GO-LIVE-DIARIO.md`, smoke ampliado, manual (roles/Habeas/import retenciones); tests de locks/password alineados a Postgres y política de claves.
-- **Pendientes vivos:** ver `PENDIENTES.md` (39ª rev) — Contador #1–3/#8; #4 datos; #7 entrega; #20 Alegra; cloud apply.
+- ~~**#20 checklist Alegra**~~ → ✅ **2026-07-17**: `ops/ACTIVAR-ALEGRA-DIAN.md`; `GET /alegra/status` devuelve pasos si no hay token (sin 400).
+- ~~**#21/#21b decisiones propuestas**~~ → ✅ doc `ops/DECISIONES-PRODUCTO-SIN-CONTADOR.md` (descartar Electron; no multi-bodega en v0.3) — pendiente confirmación del dueño.
+- **Pendientes vivos:** ver `PENDIENTES.md` (40ª rev) — Contador #1–3/#8; #4 datos; #7 entrega; token Alegra real; confirmación #21/#21b.
