@@ -819,4 +819,5 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 - ~~**#21 Electron**~~ → ✅ **DESCARTADO 2026-07-17** (`ops/DECISIONES-PRODUCTO-SIN-CONTADOR.md`).
 - ~~**#21b multi-bodega**~~ → ✅ **NO en v0.3** (mono-bodega).
 - ~~**#7 plan de entrega**~~ → ✅ `ops/ENTREGA-7-USUARIOS.md` + carpeta Escritorio; falta solo la ejecución humana (repartir tarjetas).
-- **Pendientes vivos:** ver `PENDIENTES.md` (41ª rev) — Contador #1–3/#8; #4 datos; #7 ejecutar entrega; token Alegra.
+- ~~**Smoke diario + Alegra en smoke**~~ → ✅ **2026-07-17**: `ops/smoke-diario.bat`, `registrar-smoke-diario.ps1`, `smoke-prod.py` chequea `/alegra/status` (informativo o `--strict-alegra`).
+- **Pendientes vivos:** ver `PENDIENTES.md` (42ª rev) — Contador #1–3/#8; #4 datos; #7 ejecutar; token Alegra real.

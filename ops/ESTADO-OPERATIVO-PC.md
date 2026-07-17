@@ -64,8 +64,10 @@ powershell -ExecutionPolicy Bypass -File ops\start-staging.ps1
 1. Doble clic **Super Ozono ERP** en el escritorio (`start.bat`).
 2. Para parar: `stop.bat` o cerrar ventanas Backend/Frontend.
 3. Tras `git pull`: `stop.bat` → `DESPLIEGUE.md` (deps + `alembic upgrade head`) → `start.bat`.
-4. Smoke go-live (health + login + me + empresa):  
-   `backend\venv\Scripts\python.exe ops\smoke-prod.py`
+4. Smoke diario (health + login + me + empresa + Alegra):  
+   `ops\smoke-diario.bat`  
+   o `backend\venv\Scripts\python.exe ops\smoke-prod.py`  
+   Tarea opcional: `ops\registrar-smoke-diario.ps1`
 
 ## Entrega a personas (#7 — aplazada)
 

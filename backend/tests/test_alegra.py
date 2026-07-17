@@ -50,10 +50,14 @@ async def _crear_producto(client, headers, **overrides):
 # ══════════════════════════════════════════════════════════
 
 @pytest.mark.asyncio
-async def test_sin_credenciales_da_400(client: AsyncClient, auth_headers: dict):
+async def test_sin_credenciales_status_no_configurado(client: AsyncClient, auth_headers: dict):
+    """Status es informativo: 200 + configurado=false (no 400)."""
     resp = await client.get(f"{BASE}/status", headers=auth_headers)
-    assert resp.status_code == 400
-    assert "ALEGRA_EMAIL" in resp.json()["detail"]
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body.get("configurado") is False
+    assert body.get("conectado") is False
+    assert "ALEGRA" in (body.get("mensaje") or "").upper() or "pasos" in body
 
 
 @pytest.mark.asyncio

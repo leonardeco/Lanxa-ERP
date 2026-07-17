@@ -1711,3 +1711,11 @@ Sin reunión Contador: se añadió el flujo plantilla→Excel→import para flag
 - ops/ENTREGA-OPERATIVA-v030.md (7 usuarios)
 - Copia a Desktop\Entrega-SuperOzono-v030\
 
+
+## Sesión — 17 de julio de 2026 — Alegra + smoke diario
+
+- smoke-prod.py: chequeo Alegra + --strict-alegra
+- smoke-diario.bat + registrar-smoke-diario.ps1 (tarea Windows opcional)
+- test_alegra status sin credenciales → 200 configurado=false
+- Checklist go-live y ACTIVAR-ALEGRA-DIAN actualizados
+
