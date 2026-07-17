@@ -35,7 +35,7 @@ Responder en el propio `MAPEO-PUC-PARA-CONTADOR.md` o en un correo/nota:
 2. **Compras:** ¿todo a inventario 1435, o separar gastos 51xx/52xx?
 3. **Caja vs Bancos** en abonos CxC y pagos CxP.
 4. **Retenciones:** ¿auxiliares 1355xx / 2365xx correctos?
-5. **UVT 2026** (ítem #4 del backlog) y clientes retenedores.
+5. **Clientes retenedores** (ítem #4 resto): marcar flags `retiene_*` en maestros. UVT default ya es **52374** (DIAN 2026).
 6. **Método de costeo** (ítem #3): promedio ponderado ¿OK con el kardex actual?
 7. **Costo de venta** (ítem #8): ¿confirmar asiento DB 6135 / CR 1435 al confirmar venta?
 

@@ -136,6 +136,9 @@ class Cliente(TenantScoped, Base):
     retiene_iva: Mapped[bool] = mapped_column(default=False)
     retiene_ica: Mapped[bool] = mapped_column(default=False)
     tarifa_reteica: Mapped[Decimal | None] = mapped_column(Numeric(6, 3))  # por mil (ej. 4.140)
+    # Habeas Data (Ley 1581) — sobre todo personas naturales
+    habeas_data_aceptado: Mapped[bool] = mapped_column(default=False)
+    habeas_data_fecha: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     activo: Mapped[bool] = mapped_column(default=True)
     alegra_id: Mapped[int | None] = mapped_column(index=True)
     notas: Mapped[str | None] = mapped_column(Text)

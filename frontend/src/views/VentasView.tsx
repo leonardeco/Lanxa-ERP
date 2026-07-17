@@ -12,8 +12,9 @@ import {
   type VentaDashboard,
   type VentaDetalleInput,
   type Cotizacion,
+  type EmpresaInfo,
 } from '../services/ventasApi';
-import { printFactura } from '../utils/printFactura';
+import { printFactura, type PrintFacturaOptions } from '../utils/printFactura';
 import { printCotizacion } from '../utils/printCotizacion';
 import Toast from '../components/Toast';
 import Modal from '../components/Modal';
@@ -613,6 +614,7 @@ function ClienteFormModal({ cliente, onSave, onClose }: {
     retiene_iva: cliente?.retiene_iva ?? false,
     retiene_ica: cliente?.retiene_ica ?? false,
     tarifa_reteica: cliente?.tarifa_reteica != null ? String(cliente.tarifa_reteica) : '',
+    habeas_data_aceptado: cliente?.habeas_data_aceptado ?? false,
     notas: cliente?.notas || '',
   });
   const [formInicial] = useState(() => JSON.stringify(form));
@@ -624,6 +626,7 @@ function ClienteFormModal({ cliente, onSave, onClose }: {
       cupo_credito: parseFloat(form.cupo_credito) || 0,
       dias_credito: parseInt(form.dias_credito) || 30,
       tarifa_reteica: form.retiene_ica && form.tarifa_reteica ? parseFloat(form.tarifa_reteica) : null,
+      habeas_data_aceptado: form.habeas_data_aceptado,
     });
   };
 
@@ -763,6 +766,23 @@ function ClienteFormModal({ cliente, onSave, onClose }: {
             Estos indicadores determinan qué retenciones se sugieren automáticamente al facturarle. Puedes ajustarlas manualmente en cada venta.
           </div>
         </div>
+
+        {(form.tipo_persona === 'Natural' || form.habeas_data_aceptado) && (
+          <div className="form-group" style={{ border: '1px solid var(--neutral-800)', borderRadius: 'var(--radius-md)', padding: 14 }}>
+            <label style={{ marginBottom: 8 }}>Habeas Data (Ley 1581 de 2012)</label>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', fontWeight: 400 }}>
+              <input type="checkbox" checked={form.habeas_data_aceptado} onChange={setCheck('habeas_data_aceptado')} style={{ marginTop: 3 }} />
+              <span style={{ fontSize: '0.85rem', lineHeight: 1.4 }}>
+                El titular autoriza el tratamiento de datos personales para fines comerciales y de facturación.
+                {cliente?.habeas_data_fecha && (
+                  <span style={{ display: 'block', color: 'var(--neutral-500)', fontSize: '0.75rem', marginTop: 4 }}>
+                    Registrado: {new Date(cliente.habeas_data_fecha).toLocaleString('es-CO')}
+                  </span>
+                )}
+              </span>
+            </label>
+          </div>
+        )}
 
         <div className="modal-actions">
           <button type="button" className="btn-secondary" onClick={onClose}>Cancelar</button>
@@ -1324,6 +1344,21 @@ function DevolucionModal({ venta, onClose, onDone }: {
   );
 }
 
+function printOptsFromEmpresa(empresa: EmpresaInfo | null): PrintFacturaOptions {
+  if (!empresa) return {};
+  return {
+    dian: {
+      resolucionNumero: empresa.dian_resolucion_numero || undefined,
+      resolucionFecha: empresa.dian_resolucion_fecha || undefined,
+      prefijo: empresa.dian_prefijo || undefined,
+      rangoDesde: empresa.dian_rango_desde || undefined,
+      rangoHasta: empresa.dian_rango_hasta || undefined,
+      vigenciaHasta: empresa.dian_vigencia_hasta || undefined,
+    },
+    habeasDataTexto: empresa.habeas_data_texto || undefined,
+  };
+}
+
 function FacturasTab() {
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1331,6 +1366,7 @@ function FacturasTab() {
   const [showDetalle, setShowDetalle] = useState<Venta | null>(null);
   const [showDevolucion, setShowDevolucion] = useState<Venta | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+  const [empresa, setEmpresa] = useState<EmpresaInfo | null>(null);
 
   const fetchVentas = useCallback(() => {
     setLoading(true);
@@ -1341,6 +1377,9 @@ function FacturasTab() {
   }, []);
 
   useEffect(() => { fetchVentas(); }, [fetchVentas]);
+  useEffect(() => {
+    ventasApi.getEmpresa().then(r => setEmpresa(r.data)).catch(() => {/* impresión usa defaults */});
+  }, []);
 
   const handleAnular = async (v: Venta) => {
     if (!confirm(`¿Anular venta ${v.numero}?`)) return;
@@ -1440,7 +1479,7 @@ function FacturasTab() {
                     <td>
                       <div className="action-btns">
                         <button className="btn-icon" title="Ver detalle" onClick={() => setShowDetalle(v)}>👁️</button>
-                        <button className="btn-icon" title="Imprimir / PDF" onClick={() => printFactura(v)}>🖨️</button>
+                        <button className="btn-icon" title="Imprimir / PDF" onClick={() => printFactura(v, printOptsFromEmpresa(empresa))}>🖨️</button>
                         {v.estado === 'Borrador' && (
                           <button className="btn-icon" title="Confirmar" onClick={() => handleConfirmar(v)}>✅</button>
                         )}
@@ -1477,7 +1516,7 @@ function FacturasTab() {
       {showDetalle && (
         <Modal title={`Detalle — ${showDetalle.numero}`} onClose={() => setShowDetalle(null)} wide>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-            <button className="btn btn-primary" style={{ fontSize: '0.85rem' }} onClick={() => printFactura(showDetalle)}>
+            <button className="btn btn-primary" style={{ fontSize: '0.85rem' }} onClick={() => printFactura(showDetalle, printOptsFromEmpresa(empresa))}>
               🖨️ Imprimir / Guardar PDF
             </button>
           </div>

@@ -1608,3 +1608,25 @@ Tras el commit de docs/ops #5, se actualizó el default de **UVT 2026** al valor
 - Contador: #1 PUC, #2 maestros, #3 costeo → #8, #24 redondeo, #4 flags retenedores.
 - #7 entrega usuarios (aplazado).
 
+
+
+## Sesión — 17 de julio de 2026 (continuación) — #22 DIAN print + #23 Habeas
+
+### Resumen
+
+Push de commits previos y avance de cumplimiento codeable: resolución DIAN en impresión y consentimiento Habeas Data en clientes. No es e-factura Alegra ni texto legal final.
+
+### Técnico
+
+- `config.py`: `DIAN_*`, `HABEAS_DATA_TEXTO`.
+- `GET /api/v1/ventas/empresa` (auth).
+- Cliente: `habeas_data_aceptado` + `habeas_data_fecha` (migración `c6d7e8f9a0b1`), UI checkbox persona natural.
+- `printFactura(venta, options)` con bloque DIAN y pie Habeas; 7 tests Vitest verdes.
+- Alembic head local: `c6d7e8f9a0b1`.
+
+### Pendiente residual
+
+- Poner resolución real en `.env` cuando exista.
+- Validar `HABEAS_DATA_TEXTO` con la empresa.
+- #20 token Alegra.
+

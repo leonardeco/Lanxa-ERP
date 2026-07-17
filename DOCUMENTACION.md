@@ -226,6 +226,15 @@ SEED_ADMIN_PASSWORD=Admin2026!          # cambiar en producción (hay warning si
 # Retenciones — parámetros tributarios
 UVT_VALOR=52374                          # UVT 2026 (DIAN Res. 000238/2025); override por año si cambia
 RETEFUENTE_BASE_UVT=27                   # tope en UVT para retefuente de compras generales
+# Resolución DIAN (#22) — rellenar cuando la DIAN autorice numeración
+DIAN_RESOLUCION_NUMERO=
+DIAN_RESOLUCION_FECHA=
+DIAN_PREFIJO=
+DIAN_RANGO_DESDE=
+DIAN_RANGO_HASTA=
+DIAN_VIGENCIA_HASTA=
+# Habeas Data (#23) — texto en pie de factura / política resumida
+HABEAS_DATA_TEXTO=...
 
 # Alegra (opcional — facturación electrónica)
 ALEGRA_EMAIL=
@@ -800,4 +809,5 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 - ~~**#5 resto clave backup**~~ → ✅ **2026-07-17**: offsite OneDrive verificado; `BACKUP_ENCRYPTION_KEY` solo en `backend\.env`; `RECORDATORIO-CLAVE-BACKUP.txt` sin valor en claro; docs ops/README/LEEME actualizados.
 - ~~**Docs desfasadas (README lotes/roles, ESTADO-OPERATIVO 4 vs 7 usuarios)**~~ → ✅ **2026-07-17**.
 - ~~**#4 UVT 2026 (valor base)**~~ → ✅ **2026-07-17**: `UVT_VALOR` default **52374** (DIAN Res. 000238 de 2025). Queda del Contador: flags `retiene_*` en clientes.
-- **Pendientes vivos:** ver `PENDIENTES.md` (35ª rev) — abierto sobre todo #1–3/#8/#24 (Contador), #4 flags retenedores, #7 (entrega, aplazado), features #18/#20/#21/#22/#23, cloud apply.
+- ~~**#22/#23 infra cumplimiento**~~ → ✅ **2026-07-17**: `DIAN_*` + `HABEAS_DATA_TEXTO` en config; `GET /api/v1/ventas/empresa`; bloque resolución + pie Habeas en `printFactura`; columnas `habeas_data_aceptado/fecha` en clientes (migración `c6d7e8f9a0b1`) + checkbox en UI. Falta resolución real y texto legal final.
+- **Pendientes vivos:** ver `PENDIENTES.md` (36ª rev) — Contador #1–3/#8/#24; #4 flags; #7 entrega; #20 Alegra; cloud apply.

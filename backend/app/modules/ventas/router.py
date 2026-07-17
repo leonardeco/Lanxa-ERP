@@ -24,12 +24,13 @@ from app.modules.ventas.models import (
 )
 from app.modules.ventas.schemas import (
     ProductoCreate, ProductoUpdate, ProductoResponse,
-    ClienteCreate, ClienteUpdate, ClienteResponse,
+    ClienteCreate, ClienteUpdate, ClienteResponse, EmpresaInfoResponse,
     VentaCreate, VentaResponse, VentaDetalleCreate, VentaDetalleResponse,
     CotizacionCreate, CotizacionRechazo, CotizacionResponse,
     VentaDashboardStats,
     DevolucionCreate, DevolucionResponse,
 )
+from app.core.time import bogota_now
 from app.modules.inventario.models import TipoMovimientoInventario, OrigenMovimiento
 from app.modules.inventario.service import registrar_movimiento
 from app.modules.inventario.lotes import revertir_por_lotes
@@ -382,6 +383,34 @@ async def get_cliente(cliente_id: int, _: CurrentUser, db: AsyncSession = Depend
     return cliente
 
 
+def _aplicar_habeas_data_fecha(cliente: Cliente, aceptado: bool | None) -> None:
+    """Si se marca aceptación, sella fecha local; si se desmarca, limpia."""
+    if aceptado is None:
+        return
+    if aceptado and not cliente.habeas_data_fecha:
+        cliente.habeas_data_fecha = bogota_now()
+    elif not aceptado:
+        cliente.habeas_data_fecha = None
+
+
+@router.get("/empresa", response_model=EmpresaInfoResponse)
+async def get_empresa_info(_current: CurrentUser):
+    """Datos de empresa + resolución DIAN (#22) y texto Habeas Data (#23) para UI/impresión."""
+    s = get_settings()
+    return EmpresaInfoResponse(
+        nit=s.EMPRESA_NIT,
+        razon_social=s.EMPRESA_RAZON_SOCIAL,
+        ciudad=s.EMPRESA_CIUDAD,
+        dian_resolucion_numero=s.DIAN_RESOLUCION_NUMERO or "",
+        dian_resolucion_fecha=s.DIAN_RESOLUCION_FECHA or "",
+        dian_prefijo=s.DIAN_PREFIJO or "",
+        dian_rango_desde=s.DIAN_RANGO_DESDE or "",
+        dian_rango_hasta=s.DIAN_RANGO_HASTA or "",
+        dian_vigencia_hasta=s.DIAN_VIGENCIA_HASTA or "",
+        habeas_data_texto=s.HABEAS_DATA_TEXTO or "",
+    )
+
+
 @router.post("/clientes", response_model=ClienteResponse, status_code=201)
 async def create_cliente(data: ClienteCreate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
     """Crear un nuevo cliente."""
@@ -391,7 +420,9 @@ async def create_cliente(data: ClienteCreate, current: AdminOrAdministradoraDep,
     if existing:
         raise HTTPException(status_code=400, detail=f"Ya existe un cliente con NIT/CC '{data.nit_cc}'")
 
-    cliente = Cliente(**data.model_dump())
+    payload = data.model_dump()
+    cliente = Cliente(**payload)
+    _aplicar_habeas_data_fecha(cliente, payload.get("habeas_data_aceptado"))
     db.add(cliente)
     await db.flush()
     # #14a: espejo en maestros contables `terceros` (NIT → Tercero tipo Cliente/Mixto)
@@ -416,6 +447,8 @@ async def update_cliente(
     cambios = diff_cambios(cliente, update_data)
     for field, value in update_data.items():
         setattr(cliente, field, value)
+    if "habeas_data_aceptado" in update_data:
+        _aplicar_habeas_data_fecha(cliente, update_data["habeas_data_aceptado"])
 
     # #14a: mantener Tercero alineado si cambian NIT o razón social
     await sync_tercero_from_cliente(db, cliente)
