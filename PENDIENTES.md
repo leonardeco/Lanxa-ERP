@@ -1,8 +1,8 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **17 de julio de 2026** (37ª revisión).
+Backlog vivo del proyecto. Actualizado: **17 de julio de 2026** (38ª revisión).
 
-**Resumen de la sesión 2026-07-17 (continuación):** #24 redondeo configurable (`RETENCION_REDONDEO`); UX #4 (filtro retenedores + CSV + columna Habeas); #27 E2E más tolerante (timeout/retry CI). Sigue bloqueado Contador: #1–3/#8 y marcar `retiene_*`. **#7 aplazada.**
+**Resumen:** Import CSV de retenciones (#4 helper: plantilla + importar, rol Contable); REPORTE_BUGS 004–006 cerrados; HeaderBar actualizado. Contador sigue pendiente para #1–3/#8 y datos de flags. **#7 aplazada.**
 
 **Fuente única de pendientes:** este archivo. Completados → `DOCUMENTACION.md` §13 + `BITACORA.md`.
 
@@ -17,7 +17,7 @@ Estado: suite API + Vitest + E2E (local/CI). Versión LAN **v0.3.0**.
 | 1 | **Validar el mapeo PUC** del motor contable | Contador | Paquete listo: [`MAPEO-PUC-PARA-CONTADOR.md`](./MAPEO-PUC-PARA-CONTADOR.md), `ops/INSTRUCCIONES-REUNION-CONTADOR.md`, Escritorio `Entrega-Contador-PUC\`. **Falta:** reunión + respuestas por escrito |
 | 2 | **Datos maestros reales**: PUC definitivo, inventario inicial, saldos de apertura | Contador + empresa | Importador de inventario listo. Asiento de apertura depende de #3 |
 | 3 | Definir **método de costeo** (promedio ponderado recomendado) | Contador | Prerrequisito del #8 |
-| 4 | Flags **`retiene_*`** en clientes retenedores | Contador | ✅ UVT 52374. ✅ UI: filtro “Solo retenedores” + export CSV. **Queda:** marcar en maestros los clientes reales |
+| 4 | Flags **`retiene_*`** en clientes retenedores | Contador + Superusuario | ✅ UVT + UI filtro/CSV + **plantilla/import CSV** (`/clientes/plantilla-retenciones`, importar). **Queda:** rellenar Sí/No con datos reales del Contador |
 | 8 | **Asiento de costo de venta** (DB 6135 / CR 1435 al confirmar venta) | Dev (tras #3) | Sin esto el P&L muestra ingresos, no margen |
 | 24 | Política de redondeo de retenciones | Contador elige; dev listo | ✅ **2026-07-17:** `RETENCION_REDONDEO=half_even\|half_up` + `core/money.py`. Default half_even (comportamiento previo) |
 

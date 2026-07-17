@@ -3,20 +3,21 @@ Super Ozono Global — API Routes (Ventas & Comercial)
 CRUD completo para Productos, Clientes y Documentos de Venta
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, extract, desc, and_
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from decimal import Decimal
 from datetime import date, timedelta
+from app.modules.ventas import import_retenciones
 
 from app.core.database import get_db
 from app.core.config import get_settings
 from app.core.money import redondear_cop
 from app.core.numbering import next_sequential_numero
 from app.core.tenancy import for_tenant, get_for_tenant, tenant_clause
-from app.api.deps import CurrentUser, AdminOrAdministradoraDep
+from app.api.deps import CurrentUser, AdminOrAdministradoraDep, ContableDep
 from app.modules.ventas.models import (
     Producto, Cliente, VentaDocumento, VentaDetalle,
     Cotizacion, CotizacionDetalle, EstadoCotizacion,
@@ -381,6 +382,49 @@ async def list_clientes(
         query = query.where(Cliente.activo == activo)
     result = await db.execute(query)
     return result.scalars().all()
+
+
+@router.get("/clientes/plantilla-retenciones")
+async def plantilla_retenciones_clientes(
+    _: ContableDep,
+    db: AsyncSession = Depends(get_db),
+):
+    """CSV de clientes con flags de retención — editar en Excel y reimportar (#4)."""
+    rows = (await db.execute(
+        for_tenant(select(Cliente).where(Cliente.activo == True).order_by(Cliente.razon_social), Cliente)  # noqa: E712
+    )).scalars().all()
+    csv_text = import_retenciones.generar_plantilla_retenciones_csv(list(rows))
+    return Response(
+        content=csv_text.encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": 'attachment; filename="plantilla-clientes-retenciones.csv"',
+        },
+    )
+
+
+@router.post("/clientes/importar-retenciones")
+async def importar_retenciones_clientes(
+    current: ContableDep,
+    archivo: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Importa flags retiene_* desde CSV (mismo formato que la plantilla / export UI)."""
+    if not archivo.filename or not archivo.filename.lower().endswith((".csv", ".txt")):
+        raise HTTPException(400, "Sube un archivo .csv (separador ;)")
+    contenido = await archivo.read()
+    if len(contenido) > 2_000_000:
+        raise HTTPException(400, "Archivo demasiado grande (máx. 2 MB)")
+    resultado = await import_retenciones.importar_retenciones_csv(db, contenido, current)
+    if resultado.errores and resultado.actualizados == 0 and resultado.filas_leidas == 0:
+        raise HTTPException(400, "; ".join(resultado.errores[:5]))
+    return {
+        "actualizados": resultado.actualizados,
+        "sin_cambio": resultado.sin_cambio,
+        "no_encontrados": resultado.no_encontrados[:50],
+        "errores": resultado.errores[:50],
+        "filas_leidas": resultado.filas_leidas,
+    }
 
 
 @router.get("/clientes/{cliente_id}", response_model=ClienteResponse)

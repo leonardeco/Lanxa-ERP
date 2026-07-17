@@ -16,9 +16,9 @@ export default function HeaderBar({ title, role }: HeaderBarProps) {
   }, [])
 
   const notifications = [
-    { id: 1, text: 'Fase 1 del ERP en progreso', type: 'info', time: 'Hoy' },
-    { id: 2, text: 'Base de datos PostgreSQL configurada', type: 'success', time: 'Reciente' },
-    { id: 3, text: 'Módulos Fase 2+ pendientes', type: 'warning', time: 'Pendiente' },
+    { id: 1, text: 'ERP LAN v0.3.0 operativo', type: 'success', time: 'Actual' },
+    { id: 2, text: 'Pendiente: validar PUC con el Contador', type: 'warning', time: 'Negocio' },
+    { id: 3, text: 'RRHH / FE DIAN: fase siguiente', type: 'info', time: 'Roadmap' },
   ]
 
   return (

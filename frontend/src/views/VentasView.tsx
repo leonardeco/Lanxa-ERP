@@ -485,6 +485,41 @@ function ClientesTab() {
     descargarCsv(`clientes-retenciones-${new Date().toISOString().slice(0, 10)}.csv`, encabezados, filas);
   };
 
+  const descargarPlantillaRetenciones = async () => {
+    try {
+      const res = await ventasApi.descargarPlantillaRetenciones();
+      const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'plantilla-clientes-retenciones.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setToast({ msg: 'No se pudo descargar la plantilla', type: 'error' });
+    }
+  };
+
+  const importarRetenciones = async (file: File | null) => {
+    if (!file) return;
+    try {
+      const { data } = await ventasApi.importarRetenciones(file);
+      const extra = [
+        data.no_encontrados?.length ? `${data.no_encontrados.length} NIT no hallados` : '',
+        data.errores?.length ? `${data.errores.length} filas con error` : '',
+      ].filter(Boolean).join('; ');
+      setToast({
+        msg: `Retenciones: ${data.actualizados} actualizados, ${data.sin_cambio} sin cambio`
+          + (extra ? ` (${extra})` : ''),
+        type: data.actualizados > 0 || !data.errores?.length ? 'success' : 'error',
+      });
+      fetchClientes();
+    } catch (err: any) {
+      const d = err?.response?.data?.detail;
+      setToast({ msg: typeof d === 'string' ? d : 'Error al importar CSV de retenciones', type: 'error' });
+    }
+  };
+
   const handleSaveCliente = async (data: Record<string, any>) => {
     try {
       if (editing) {
@@ -532,9 +567,25 @@ function ClientesTab() {
               <input type="checkbox" checked={soloRetenedores} onChange={e => setSoloRetenedores(e.target.checked)} />
               Solo retenedores
             </label>
-            <button type="button" className="btn-secondary" style={{ fontSize: '0.8rem' }} onClick={exportClientesCsv} title="CSV para revisar con el Contador (#4)">
+            <button type="button" className="btn-secondary" style={{ fontSize: '0.8rem' }} onClick={exportClientesCsv} title="CSV de la vista filtrada">
               ⬇ CSV
             </button>
+            <button type="button" className="btn-secondary" style={{ fontSize: '0.8rem' }} onClick={descargarPlantillaRetenciones} title="Plantilla para Contador: editar Sí/No y reimportar">
+              📋 Plantilla
+            </button>
+            <label className="btn-secondary" style={{ fontSize: '0.8rem', cursor: 'pointer', margin: 0 }} title="Importar CSV de retenciones (Sí/No por NIT)">
+              ⬆ Importar
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                style={{ display: 'none' }}
+                onChange={e => {
+                  const f = e.target.files?.[0] ?? null;
+                  e.target.value = '';
+                  void importarRetenciones(f);
+                }}
+              />
+            </label>
             <div className="table-count">{filtered.length} clientes</div>
             <button className="btn-primary-sm" onClick={() => { setEditing(null); setShowModal(true); }}>
               + Nuevo Cliente

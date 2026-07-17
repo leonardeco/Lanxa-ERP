@@ -179,6 +179,22 @@ export const ventasApi = {
   updateCliente: (id: number, data: Partial<Cliente>) =>
     api.put<Cliente>(`${BASE}/clientes/${id}`, data),
   deleteCliente: (id: number) => api.delete(`${BASE}/clientes/${id}`),
+  /** Plantilla CSV de retenciones (#4) — blob descarga */
+  descargarPlantillaRetenciones: () =>
+    api.get(`${BASE}/clientes/plantilla-retenciones`, { responseType: 'blob' }),
+  importarRetenciones: (file: File) => {
+    const form = new FormData();
+    form.append('archivo', file);
+    return api.post<{
+      actualizados: number;
+      sin_cambio: number;
+      no_encontrados: string[];
+      errores: string[];
+      filas_leidas: number;
+    }>(`${BASE}/clientes/importar-retenciones`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 
   // ── Ventas ──
   getVentas: (estado?: string) => {
