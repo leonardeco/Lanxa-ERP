@@ -12,7 +12,21 @@
 
 ## Antes de empezar (5 min)
 
-- [ ] ERP arrancado y smoke OK:
+**Hoja de un minuto:** `ops/HOY-ENTREGA-7.md`
+
+- [ ] Preflight automático (usuarios BD + paquete Escritorio + health):
+
+```bat
+ops\preflight-entrega-7.bat
+```
+
+o:
+
+```bat
+backend\venv\Scripts\python.exe ops\preflight-entrega-7.py
+```
+
+- [ ] ERP arrancado y smoke OK (si el preflight no bastó):
 
 ```bat
 backend\venv\Scripts\python.exe ops\smoke-prod.py
