@@ -30,19 +30,40 @@ def _check_credentials():
 
 @router.get("/status")
 async def alegra_status(_: CurrentUser):
-    """Verifica la conexion con Alegra y devuelve info de la cuenta."""
-    _check_credentials()
+    """Estado de integración Alegra (no falla con 400 si falta token: sirve de checklist)."""
+    if not settings.ALEGRA_EMAIL or not settings.ALEGRA_TOKEN:
+        return {
+            "conectado": False,
+            "configurado": False,
+            "mensaje": (
+                "Alegra no está configurado. Agrega ALEGRA_EMAIL y ALEGRA_TOKEN "
+                "en backend/.env (ver ops/ACTIVAR-ALEGRA-DIAN.md)."
+            ),
+            "pasos": [
+                "Crear o usar cuenta Alegra Colombia",
+                "Alegra → Configuración → API → copiar token",
+                "Poner ALEGRA_EMAIL y ALEGRA_TOKEN en backend/.env",
+                "Reiniciar el backend (stop.bat / start.bat)",
+                "Volver a consultar GET /api/v1/alegra/status",
+            ],
+        }
     try:
         data = await alegra_get("/company")
         return {
             "conectado": True,
+            "configurado": True,
             "empresa": data.get("name", ""),
             "nit": data.get("identification", ""),
             "plan": data.get("plan", {}).get("name", ""),
             "email": settings.ALEGRA_EMAIL,
         }
     except Exception as e:
-        return {"conectado": False, "error": str(e)}
+        return {
+            "conectado": False,
+            "configurado": True,
+            "error": str(e),
+            "mensaje": "Credenciales presentes pero Alegra no respondió. Revisa token y red.",
+        }
 
 
 # -- Impuestos disponibles en Alegra ---------------------------

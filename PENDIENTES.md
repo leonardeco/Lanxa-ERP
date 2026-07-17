@@ -1,8 +1,8 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **17 de julio de 2026** (38ª revisión).
+Backlog vivo del proyecto. Actualizado: **17 de julio de 2026** (40ª revisión).
 
-**Resumen:** Import CSV de retenciones (#4 helper: plantilla + importar, rol Contable); REPORTE_BUGS 004–006 cerrados; HeaderBar actualizado. Contador sigue pendiente para #1–3/#8 y datos de flags. **#7 aplazada.**
+**Resumen:** Sin Contador: B+C (tests Postgres + go-live) + **#20 checklist Alegra** (`ops/ACTIVAR-ALEGRA-DIAN.md`, status sin 400) + **#21/#21b propuestas** de no Electron / mono-bodega (`ops/DECISIONES-PRODUCTO-SIN-CONTADOR.md`). Contador #1–3/#8 y #7 siguen fuera.
 
 **Fuente única de pendientes:** este archivo. Completados → `DOCUMENTACION.md` §13 + `BITACORA.md`.
 
@@ -56,10 +56,10 @@ Estado: suite API + Vitest + E2E (local/CI). Versión LAN **v0.3.0**.
 | # | Feature | Notas |
 |---|---|---|
 | 18 | RRHH y nómina (Fase 2) | Requiere definiciones de negocio |
-| 20 | Alegra + facturación electrónica DIAN | Código mock listo; falta cuenta/token real |
-| 21 | Empaquetado Electron | App .exe — candidato a descartar si SaaS web |
+| 20 | Alegra + facturación electrónica DIAN | ✅ Checklist + `GET /alegra/status` amigable. **Falta:** token real en `.env` (ver `ops/ACTIVAR-ALEGRA-DIAN.md`) |
+| 21 | Empaquetado Electron | ⏸ **Propuesta DESCARTAR** (web/LAN + SaaS). Confirmar: `ops/DECISIONES-PRODUCTO-SIN-CONTADOR.md` |
 | 21a | Staging LAN | ✅ Docs+script listos (`ops/STAGING.md`) |
-| 21b | ¿Multi-bodega? | Pregunta de negocio |
+| 21b | ¿Multi-bodega? | ⏸ **Propuesta NO en v0.3** (mono-bodega). Confirmar en el mismo doc de decisiones |
 
 ---
 
@@ -97,5 +97,6 @@ DIAN FE, nómina electrónica, documento soporte, exógena; producción por fór
 | **Cuando digas** | #7 entregar accesos a los 7 usuarios |
 | **Calendario** | #7a drill restore 2026-10-15 |
 | **Cloud** | `terraform apply` / Docker Desktop (código listo) |
+| **Dev local** | Postgres tests: `ops/run-tests.ps1` · go-live: `ops/CHECKLIST-GO-LIVE-DIARIO.md` |
 
 **Regla:** al completar un ítem, moverlo a `DOCUMENTACION.md` §13 y registrar en `BITACORA.md`.

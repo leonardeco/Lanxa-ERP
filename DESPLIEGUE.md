@@ -1,8 +1,11 @@
 # Checklist de despliegue — PC Servidor
 
 Guía operativa para actualizar el ERP en el PC servidor (modo `start.bat` + SQLite).
-Tiempo estimado: 15-20 minutos. Hacerlo fuera del horario de uso (los 4 PCs cliente
+Tiempo estimado: 15-20 minutos. Hacerlo fuera del horario de uso (los PCs cliente
 pierden conexión durante la actualización).
+
+**Relacionado:** checklist diario `ops/CHECKLIST-GO-LIVE-DIARIO.md` · smoke
+`ops/smoke-prod.py` · tests Postgres `ops/TESTES-LOCAL-POSTGRES.md`
 
 ---
 

@@ -5,6 +5,7 @@ import os
 os.environ.setdefault("SEED_ADMIN_PASSWORD", "test-admin-pass-no-produccion")
 
 import pytest_asyncio  # noqa: E402
+from sqlalchemy import text  # noqa: E402
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker  # noqa: E402
 from sqlalchemy.pool import NullPool  # noqa: E402
 from httpx import AsyncClient, ASGITransport  # noqa: E402
@@ -47,7 +48,17 @@ assert engine.dialect.name == "postgresql", (
 TestingSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=engine, expire_on_commit=False)
 
 
+async def _session_as_rls_app(session) -> None:
+    """En Postgres, operar como rol sin BYPASSRLS para que FORCE RLS aplique."""
+    bind = session.get_bind()
+    if bind is not None and bind.dialect.name == "postgresql":
+        await session.execute(text("SET ROLE erp_rls_app"))
+
+
 async def override_get_db():
+    # HTTP/API: sesión como superuser de test (como CI). El login busca usuario
+    # por email *antes* de conocer el tenant; con SET ROLE + RLS el usuario de
+    # otro tenant quedaría invisible. RLS multi-tenant se cubre en db_session.
     async with TestingSessionLocal() as session:
         try:
             await apply_rls_tenant(session, DEFAULT_TENANT_ID)
@@ -79,6 +90,22 @@ async def setup_db(request):
         await conn.run_sync(Base.metadata.create_all)
         # Run 3: mismas políticas RLS que la migración (solo Postgres)
         await conn.run_sync(enable_postgres_rls_on_connection)
+        # Superuser (postgres) BYPASSRLS aunque haya FORCE; rol de app sin bypass
+        # para que los tests de aislamiento RLS sean reales en local/CI.
+        if engine.dialect.name == "postgresql":
+            await conn.execute(text("""
+                DO $$ BEGIN
+                    CREATE ROLE erp_rls_app NOINHERIT NOSUPERUSER NOBYPASSRLS;
+                EXCEPTION WHEN duplicate_object THEN NULL;
+                END $$;
+            """))
+            await conn.execute(text("GRANT USAGE ON SCHEMA public TO erp_rls_app"))
+            await conn.execute(text("GRANT ALL ON ALL TABLES IN SCHEMA public TO erp_rls_app"))
+            await conn.execute(text("GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO erp_rls_app"))
+            await conn.execute(text(
+                "ALTER DEFAULT PRIVILEGES IN SCHEMA public "
+                "GRANT ALL ON TABLES TO erp_rls_app"
+            ))
 
     # Tenant #1 (Run 2) + admin + tarifas de retención
     async with TestingSessionLocal() as db:
@@ -111,6 +138,17 @@ async def setup_db(request):
             tenant_id=DEFAULT_TENANT_ID,
         ))
         await db.commit()
+        # Seed con id=1 no avanza SERIAL → onboard fallaría con duplicate pkey
+        if engine.dialect.name == "postgresql":
+            await db.execute(text(
+                "SELECT setval(pg_get_serial_sequence('tenants', 'id'), "
+                "GREATEST(COALESCE((SELECT MAX(id) FROM tenants), 1), 1))"
+            ))
+            await db.execute(text(
+                "SELECT setval(pg_get_serial_sequence('usuarios', 'id'), "
+                "GREATEST(COALESCE((SELECT MAX(id) FROM usuarios), 1), 1))"
+            ))
+            await db.commit()
 
     yield
 
@@ -121,6 +159,7 @@ async def setup_db(request):
 @pytest_asyncio.fixture(scope="function")
 async def db_session():
     async with TestingSessionLocal() as session:
+        await _session_as_rls_app(session)
         await apply_rls_tenant(session, DEFAULT_TENANT_ID)
         yield session
 

@@ -1680,3 +1680,19 @@ Sin reunión Contador: se añadió el flujo plantilla→Excel→import para flag
 2. Editar Sí/No en Excel (columnas retiene_*)
 3. **Importar** el CSV
 
+
+
+## Sesión — 17 de julio de 2026 — B tests Postgres + C go-live
+
+### B — Tests locales PostgreSQL
+- Postgres 17 servicio `postgresql-x64-17`, BD `superozono_test`.
+- `ops/TESTES-LOCAL-POSTGRES.md` + `ops/run-tests.ps1`.
+- Ajustes de tests: marca en locks, OrigenMovimiento.AJUSTE_MANUAL, passwords con dígito, emails `.example.com`, Superusuario en mensajes, 422 en validación Pydantic.
+- conftest: rol `erp_rls_app` + SET ROLE solo en `db_session` (RLS real); secuencias tenants/usuarios alineadas tras seed; login HTTP sin SET ROLE.
+
+### C — Go-live / UX docs
+- `ops/CHECKLIST-GO-LIVE-DIARIO.md`
+- `ops/smoke-prod.py` ampliado (health, login, users/me, ventas/empresa)
+- MANUAL-DE-USUARIO: roles, Habeas, plantilla retenciones, mensajes login
+- ESTADO-OPERATIVO + DESPLIEGUE enlaces
+

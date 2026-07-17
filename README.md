@@ -43,7 +43,7 @@ Sistema de gestión empresarial (ERP) desarrollado a medida para **TECNOLOGÍA E
 | **RRHH & Nómina** | 🔄 Fase 2 | Empleados, contratos, liquidación mensual |
 | **Motor de asientos (partida doble)** | 🧪 Borrador contable | Asientos automáticos al confirmar venta/compra y abonar CxC/CxP, con reverso al anular. Mapeo PUC estándar (Decreto 2650) **pendiente de validar con el contador** |
 | **Reportes & BI** | ✅ Producción | Aging de cartera, compras/ventas por período, retenciones, **Estado de Resultados (P&L), Balance General y Libro Diario** — todos exportables a Excel |
-| **Electron** | 🔄 Fase 4 | Empaquetado como aplicación de escritorio (.exe) |
+| **Electron** | ⏸ Propuesta descartar | Uso por navegador LAN; ver `ops/DECISIONES-PRODUCTO-SIN-CONTADOR.md` |
 
 ---
 
@@ -654,7 +654,7 @@ El sistema tiene **5 roles** (estructura LAN típica: 7 cuentas). Detalle canón
 - [x] Alertas de vencimiento CxC/CxP en el Dashboard — vencidas y por vencer en 7 días (2026-07-02)
 
 ### Fase 4
-- [ ] Empaquetado Electron (app de escritorio .exe)
+- [ ] ~~Empaquetado Electron~~ — propuesta descartar (web/LAN; ver `ops/DECISIONES-PRODUCTO-SIN-CONTADOR.md`)
 - [ ] Auditoría completa (log de cambios por usuario)
 
 ---

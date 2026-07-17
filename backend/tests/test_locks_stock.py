@@ -17,6 +17,7 @@ async def _producto(db, *, stock: str = "10", sku: str = "LOCK-1") -> Producto:
     p = Producto(
         sku=sku,
         nombre="Producto lock test",
+        marca="Test",  # NOT NULL en productos (Postgres enforce)
         precio_venta=Decimal("1000"),
         precio_costo=Decimal("500"),
         stock_actual=Decimal(stock),
@@ -81,7 +82,7 @@ async def test_permitir_stock_negativo_explicito(db_session):
         db_session,
         producto_id=p.id,
         tipo=TipoMovimientoInventario.SALIDA,
-        origen=OrigenMovimiento.AJUSTE,
+        origen=OrigenMovimiento.AJUSTE_MANUAL,
         cantidad=Decimal("3"),
         motivo="ajuste forzado",
         permitir_stock_negativo=True,

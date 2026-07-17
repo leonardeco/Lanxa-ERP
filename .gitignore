@@ -13,6 +13,8 @@ frontend/test-results/
 frontend/playwright-report/
 backend/e2e.db
 backend/logs/
+backend/_smoke_test.db
+ops/_last-pytest.txt
 coverage.xml
 htmlcov/
 .pytest_cache/

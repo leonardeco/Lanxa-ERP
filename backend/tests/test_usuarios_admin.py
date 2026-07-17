@@ -110,13 +110,13 @@ async def test_reset_password_por_admin(client: AsyncClient, auth_headers: dict)
     )
     assert resp.status_code == 404
 
-    # Contraseña demasiado corta
+    # Contraseña demasiado corta (Pydantic 422 o API 400)
     resp = await client.put(
         f"/api/v1/usuarios/{user['id']}/reset-password",
         json={"new_password": "corta"},
         headers=auth_headers,
     )
-    assert resp.status_code == 400
+    assert resp.status_code in (400, 422)
 
     # Reset válido: la nueva contraseña sirve para loguearse, la vieja no
     resp = await client.put(
@@ -149,13 +149,13 @@ async def test_cambio_de_contrasena_propia(client: AsyncClient, auth_headers: di
     )
     assert resp.status_code == 400
 
-    # Nueva contraseña demasiado corta
+    # Nueva contraseña demasiado corta (Pydantic 422 o API 400)
     resp = await client.put(
         "/api/v1/usuarios/me/password",
         json={"current_password": "testpassword", "new_password": "corta"},
         headers=auth_headers,
     )
-    assert resp.status_code == 400
+    assert resp.status_code in (400, 422)
 
     # Cambio válido y re-login con la nueva
     resp = await client.put(

@@ -21,7 +21,7 @@ async def test_onboard_crea_tenant_y_admin(
             "codigo": "demo-co",
             "razon_social": "Demo Company SAS",
             "nit": "900111222",
-            "admin_email": "admin@demo-co.test",
+            "admin_email": "admin@demo-co.example.com",
             "admin_nombre": "Admin Demo",
             "admin_password": "DemoPass123!",
         },
@@ -29,14 +29,14 @@ async def test_onboard_crea_tenant_y_admin(
     assert r.status_code == 201, r.text
     body = r.json()
     assert body["tenant"]["codigo"] == "demo-co"
-    assert body["admin_email"] == "admin@demo-co.test"
+    assert body["admin_email"] == "admin@demo-co.example.com"
     tid = body["tenant"]["id"]
     assert tid != DEFAULT_TENANT_ID
 
     # Login del nuevo admin
     login = await client.post(
         "/api/login/access-token",
-        data={"username": "admin@demo-co.test", "password": "DemoPass123!"},
+        data={"username": "admin@demo-co.example.com", "password": "DemoPass123!"},
     )
     assert login.status_code == 200, login.text
     token = login.json()["access_token"]
@@ -44,22 +44,22 @@ async def test_onboard_crea_tenant_y_admin(
         "/api/users/me", headers={"Authorization": f"Bearer {token}"}
     )
     assert me.status_code == 200
-    assert me.json()["email"] == "admin@demo-co.test"
+    assert me.json()["email"] == "admin@demo-co.example.com"
     assert me.json()["rol"] == "Superusuario"
 
-    # No puede onboardear (no es plataforma)
+    # No puede onboardear (no es plataforma tenant #1)
     denied = await client.post(
         "/api/v1/tenants/onboard",
         headers={"Authorization": f"Bearer {token}"},
         json={
-            "codigo": "otra",
-            "razon_social": "Otra",
-            "admin_email": "a@otra.test",
-            "admin_nombre": "A",
-            "admin_password": "Password1!",
+            "codigo": "otra-co",
+            "razon_social": "Otra Compania",
+            "admin_email": "admin@otra-co.example.com",
+            "admin_nombre": "Admin Otra",
+            "admin_password": "DemoPass123!",
         },
     )
-    assert denied.status_code == 403
+    assert denied.status_code == 403, denied.text
 
 
 @pytest.mark.asyncio
@@ -67,13 +67,13 @@ async def test_onboard_codigo_duplicado(client: AsyncClient, auth_headers: dict)
     payload = {
         "codigo": "dup-co",
         "razon_social": "Dup",
-        "admin_email": "a1@dup.test",
+        "admin_email": "a1@dup.example.com",
         "admin_nombre": "A1",
         "admin_password": "Password1!",
     }
     r1 = await client.post("/api/v1/tenants/onboard", headers=auth_headers, json=payload)
     assert r1.status_code == 201, r1.text
-    payload["admin_email"] = "a2@dup.test"
+    payload["admin_email"] = "a2@dup.example.com"
     r2 = await client.post("/api/v1/tenants/onboard", headers=auth_headers, json=payload)
     assert r2.status_code == 400
 
