@@ -35,8 +35,14 @@ Los `.enc` **no se pueden restaurar** sin `BACKUP_ENCRYPTION_KEY` del `backend\.
 |---|---|---|
 | `SuperOzonoERP-BackupDB` | Diario 02:00 | SQLite → `*.db.enc` en `C:\SuperOzono-Backups` |
 | `SuperOzonoERP-BackupPG` | Diario 02:05 (opcional) | Postgres → `*.dump.enc` — ver `BACKUP-POSTGRES.md` |
+| *(recomendado)* `backup_auto.py` | En lugar de DB o PG fijos | Elige SQLite o Postgres según `DATABASE_URL` |
 | `SuperOzonoERP-BackupOffsite` | Diario 02:15 | Copia `.enc` a OneDrive (u otro `-Dest`) |
 | `SuperOzonoERP-PurgaAuditoria` | Día 1, 03:00 | Archiva/purga log de auditoría (también cifra) |
+
+```bat
+cd backend
+venv\Scripts\python.exe scripts\backup_auto.py
+```
 
 ## SQLite vs Postgres
 

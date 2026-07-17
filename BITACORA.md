@@ -1829,3 +1829,22 @@ PO / SM / DevOps / QA: activado skill full-dev-team.
 ### Humano
 - Repartir tarjetas y marcar checklist de claves.
 
+
+## Sesion — carril tecnico sin Contador/admin
+
+### Objetivo
+Pendientes codeables sin contadora ni entrega #7.
+
+### Hecho
+- start.bat: /D + certs relativos (fix espacios en path "MI PC")
+- backup_auto.py (SQLite/Postgres segun DATABASE_URL) verificado
+- gitignore creds/login locales
+- ops login tools (_login_chrome, abrir-login, start-detached, run-login)
+- preflight: compara version API vs frontend config.ts
+- config.test.ts (4 tests)
+- ops/BACKLOG-TECNICO-SIN-NEGOCIO.md
+
+### Evidencia
+- vitest config 4/4
+- backup_auto exit 0 (SQLite .db.enc)
+

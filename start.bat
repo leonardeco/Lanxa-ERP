@@ -52,7 +52,8 @@ popd
 
 :: ── 2) Backend ───────────────────────────────────────
 echo  [2/4] Arrancando backend (FastAPI, HTTPS :8000)...
-start "Backend — FastAPI :8000" cmd /k "cd /d "%~dp0backend" && venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --ssl-keyfile "%~dp0certs\server.key" --ssl-certfile "%~dp0certs\server.crt""
+:: /D + rutas relativas de certs: evita rotura por espacios en "MI PC"
+start "Backend-FastAPI" /D "%~dp0backend" cmd /k "venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --ssl-keyfile ..\certs\server.key --ssl-certfile ..\certs\server.crt"
 
 :: Esperar health (hasta ~40s)
 echo  [2b] Esperando backend...
@@ -87,7 +88,7 @@ if not exist "%~dp0frontend\node_modules\vite\bin\vite.js" (
     pause
     exit /b 1
 )
-start "Frontend — Vite :5173" cmd /k "cd /d "%~dp0frontend" && node node_modules\vite\bin\vite.js --host 0.0.0.0 --port 5173"
+start "Frontend-Vite" /D "%~dp0frontend" cmd /k "node node_modules\vite\bin\vite.js --host 0.0.0.0 --port 5173"
 timeout /t 5 /nobreak > nul
 
 :: ── 4) Navegador (misma host que VITE_API_URL) ───────
