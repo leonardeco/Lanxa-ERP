@@ -11,8 +11,44 @@ const EMPRESA = {
   email: 'info@superozonoglobal.com',
 };
 
-export function printFactura(venta: Venta) {
+/** Resolución de numeración DIAN (#22) — opcional hasta autorización real. */
+export interface DianResolucionPrint {
+  resolucionNumero?: string;
+  resolucionFecha?: string;
+  prefijo?: string;
+  rangoDesde?: string;
+  rangoHasta?: string;
+  vigenciaHasta?: string;
+}
+
+export interface PrintFacturaOptions {
+  dian?: DianResolucionPrint;
+  habeasDataTexto?: string;
+}
+
+function bloqueDian(dian?: DianResolucionPrint): string {
+  if (!dian?.resolucionNumero) {
+    return `<div class="dian-box dian-box-interno">Documento de venta interno del ERP (sin resolución DIAN configurada). No es factura electrónica.</div>`;
+  }
+  const rango =
+    dian.rangoDesde || dian.rangoHasta
+      ? `Rango: ${esc(dian.prefijo || '')}${esc(dian.rangoDesde || '…')} – ${esc(dian.prefijo || '')}${esc(dian.rangoHasta || '…')}`
+      : '';
+  return `<div class="dian-box">
+    Resolución DIAN Nº ${esc(dian.resolucionNumero)}
+    ${dian.resolucionFecha ? ` del ${esc(dian.resolucionFecha)}` : ''}
+    ${dian.prefijo ? ` · Prefijo ${esc(dian.prefijo)}` : ''}
+    ${rango ? ` · ${rango}` : ''}
+    ${dian.vigenciaHasta ? ` · Vigente hasta ${esc(dian.vigenciaHasta)}` : ''}
+  </div>`;
+}
+
+export function printFactura(venta: Venta, options: PrintFacturaOptions = {}) {
   const fechaFmt = new Date(venta.fecha + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' });
+  const dianHtml = bloqueDian(options.dian);
+  const habeas = options.habeasDataTexto?.trim()
+    ? `<div class="habeas">${esc(options.habeasDataTexto.trim())}</div>`
+    : '';
 
   const filasDetalle = venta.detalles.map(d => `
     <tr>
@@ -88,6 +124,9 @@ export function printFactura(venta: Venta) {
     .firmas { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 40px; }
     .firma-linea { border-top: 1px solid #888; padding-top: 4px; font-size: 9px; color: #888; text-align: center; }
     .footer { text-align: center; font-size: 9px; color: #aaa; border-top: 1px solid #eee; padding-top: 10px; margin-top: 10px; }
+    .dian-box { font-size: 9px; color: #333; background: #f3faf7; border: 1px solid #c5e4d8; border-radius: 4px; padding: 6px 10px; margin-bottom: 14px; line-height: 1.35; }
+    .dian-box-interno { background: #faf8f3; border-color: #e8dfc8; color: #666; }
+    .habeas { font-size: 8px; color: #777; margin-top: 8px; line-height: 1.35; text-align: justify; }
 
     @media print {
       body { padding: 0; }
@@ -114,6 +153,8 @@ export function printFactura(venta: Venta) {
       <div class="doc-estado">${esc(venta.estado)}</div>
     </div>
   </div>
+
+  ${dianHtml}
 
   <!-- Cliente -->
   <div class="seccion">
@@ -175,6 +216,7 @@ export function printFactura(venta: Venta) {
   <div class="footer">
     ${EMPRESA.nombre} · NIT ${EMPRESA.nit} · ${EMPRESA.ciudad}
     &nbsp;·&nbsp; Documento generado el ${new Date().toLocaleString('es-CO')}
+    ${habeas}
   </div>
 
 </div>

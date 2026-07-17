@@ -62,6 +62,28 @@ describe('printFactura', () => {
     expect(out).toContain('Documento de Venta');
     expect(out).toContain('SOG-V-0001');
     expect(out).toContain('TECNOLOGÍA E INNOVACIÓN SUPER OZONO S.A.S.');
+    expect(out).toContain('sin resolución DIAN configurada');
+  });
+
+  it('incluye bloque de resolución DIAN y aviso Habeas Data cuando se configuran', () => {
+    const { html } = mockPrintWindow();
+
+    printFactura(makeVenta(), {
+      dian: {
+        resolucionNumero: '18760000001',
+        resolucionFecha: '2026-01-15',
+        prefijo: 'SETT',
+        rangoDesde: '1',
+        rangoHasta: '5000',
+        vigenciaHasta: '2027-01-15',
+      },
+      habeasDataTexto: 'Autoriza tratamiento de datos personales Ley 1581.',
+    });
+    const out = html();
+    expect(out).toContain('Resolución DIAN Nº 18760000001');
+    expect(out).toContain('Prefijo SETT');
+    expect(out).toContain('Autoriza tratamiento de datos personales Ley 1581.');
+    expect(out).not.toContain('sin resolución DIAN configurada');
   });
 
   it('incluye cliente, línea de detalle y total formateado', () => {

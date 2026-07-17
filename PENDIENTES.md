@@ -1,8 +1,8 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **17 de julio de 2026** (35ª revisión).
+Backlog vivo del proyecto. Actualizado: **17 de julio de 2026** (36ª revisión).
 
-**Resumen de la sesión 2026-07-17:** Cierre ops **#5** + sync docs (34ª). Luego **#4 parcial:** `UVT_VALOR` default **52374** (DIAN Res. 000238/2025). Siguen con Contador: flags `retiene_*`, PUC #1, costeo #3→#8. **#7 entrega de contraseñas sigue aplazada.**
+**Resumen de la sesión 2026-07-17:** #5 + UVT 52374 + push. Luego **#22/#23 codeable:** resolución DIAN en `.env` + bloque en factura impresa; Habeas Data en cliente (campos + UI) y texto en pie de factura. **Falta:** resolución real DIAN, texto legal final, token Alegra. **#7 sigue aplazada.**
 
 **Fuente única de pendientes:** este archivo. Completados → `DOCUMENTACION.md` §13 + `BITACORA.md`.
 
@@ -67,8 +67,8 @@ Estado: suite API + Vitest + E2E (local/CI). Versión LAN **v0.3.0**.
 
 | # | Pendiente | Notas |
 |---|---|---|
-| 22 | Requisitos DIAN en factura impresa | Resolución de numeración autorizada |
-| 23 | Habeas Data (Ley 1581) | Clientes persona natural |
+| 22 | Requisitos DIAN en factura impresa | ✅ **Infra 2026-07-17:** vars `DIAN_*` + `GET /ventas/empresa` + bloque en `printFactura`. **Falta:** número real de resolución en `.env` |
+| 23 | Habeas Data (Ley 1581) | ✅ **Infra 2026-07-17:** `habeas_data_*` en cliente + UI + pie factura (`HABEAS_DATA_TEXTO`). **Falta:** validar texto legal con la empresa |
 
 ---
 
@@ -93,7 +93,7 @@ DIAN FE, nómina electrónica, documento soporte, exógena; producción por fór
 |---|---|
 | **Cuando quieras (1 min)** | Confirmar clave backup en gestor personal (residual #5); #33op rotar clave Superusuario |
 | **Cuando haya Contador** | #1 → #2/#3 → #8 + #24; #4 flags `retiene_*` en clientes |
-| **Cuando haya negocio/legal** | #20+#22, #18, #21, #21b, #23 |
+| **Cuando haya negocio/legal** | #20 Alegra token; completar #22 resolución en `.env`; validar texto #23; #18, #21, #21b |
 | **Cuando digas** | #7 entregar accesos a los 7 usuarios |
 | **Calendario** | #7a drill restore 2026-10-15 |
 | **Cloud** | `terraform apply` / Docker Desktop (código listo) |

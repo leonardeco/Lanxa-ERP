@@ -53,6 +53,24 @@ class Settings(BaseSettings):
     EMPRESA_RAZON_SOCIAL: str = "TECNOLOGIA E INNOVACION SUPER OZONO S.A.S."
     EMPRESA_CIUDAD: str = "Armenia, Quindio"
 
+    # Facturación electrónica / resolución DIAN (#22) — rellenar en .env cuando
+    # la DIAN autorice la numeración (o vía Alegra). Vacío = documento interno.
+    DIAN_RESOLUCION_NUMERO: str = ""
+    DIAN_RESOLUCION_FECHA: str = ""          # YYYY-MM-DD o texto libre corto
+    DIAN_PREFIJO: str = ""
+    DIAN_RANGO_DESDE: str = ""
+    DIAN_RANGO_HASTA: str = ""
+    DIAN_VIGENCIA_HASTA: str = ""           # YYYY-MM-DD
+
+    # Habeas Data Ley 1581 (#23) — texto corto en documentos / UI de consentimiento.
+    # Sustituir por el texto legal validado por la empresa (no es asesoría jurídica).
+    HABEAS_DATA_TEXTO: str = (
+        "El titular autoriza el tratamiento de sus datos personales conforme a la "
+        "Ley 1581 de 2012 y políticas de TECNOLOGÍA E INNOVACIÓN SUPER OZONO S.A.S. "
+        "para fines comerciales y de facturación. Puede ejercer sus derechos de "
+        "habeas data escribiendo a info@superozonoglobal.com."
+    )
+
     # CORS — orígenes permitidos separados por coma
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
 

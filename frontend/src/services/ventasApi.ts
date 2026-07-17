@@ -58,10 +58,25 @@ export interface Cliente {
   retiene_iva: boolean;
   retiene_ica: boolean;
   tarifa_reteica?: number | null;
+  habeas_data_aceptado?: boolean;
+  habeas_data_fecha?: string | null;
   activo: boolean;
   notas?: string;
   created_at: string;
   updated_at?: string;
+}
+
+export interface EmpresaInfo {
+  nit: string;
+  razon_social: string;
+  ciudad: string;
+  dian_resolucion_numero: string;
+  dian_resolucion_fecha: string;
+  dian_prefijo: string;
+  dian_rango_desde: string;
+  dian_rango_hasta: string;
+  dian_vigencia_hasta: string;
+  habeas_data_texto: string;
 }
 
 export interface VentaDetalle {
@@ -142,6 +157,7 @@ export interface VentaInput {
 
 export const ventasApi = {
   getDashboard: () => api.get<VentaDashboard>(`${BASE}/dashboard`),
+  getEmpresa: () => api.get<EmpresaInfo>(`${BASE}/empresa`),
 
   // ── Productos ──
   getProductos: (marca?: string) => {

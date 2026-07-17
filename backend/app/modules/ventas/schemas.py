@@ -97,6 +97,7 @@ class ClienteBase(BaseModel):
     retiene_iva: bool = False
     retiene_ica: bool = False
     tarifa_reteica: Optional[Decimal] = None  # por mil (ej. 4.140)
+    habeas_data_aceptado: bool = False
     activo: bool = True
     notas: Optional[str] = None
 
@@ -140,6 +141,7 @@ class ClienteUpdate(BaseModel):
     retiene_iva: Optional[bool] = None
     retiene_ica: Optional[bool] = None
     tarifa_reteica: Optional[Decimal] = None
+    habeas_data_aceptado: Optional[bool] = None
     activo: Optional[bool] = None
     notas: Optional[str] = None
 
@@ -151,10 +153,25 @@ class ClienteUpdate(BaseModel):
 
 class ClienteResponse(ClienteBase):
     id: int
+    habeas_data_fecha: Optional[datetime] = None
     created_at: datetime | None = None
     updated_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
+
+
+class EmpresaInfoResponse(BaseModel):
+    """Datos de empresa + resolución DIAN para impresión / UI (#22)."""
+    nit: str
+    razon_social: str
+    ciudad: str
+    dian_resolucion_numero: str = ""
+    dian_resolucion_fecha: str = ""
+    dian_prefijo: str = ""
+    dian_rango_desde: str = ""
+    dian_rango_hasta: str = ""
+    dian_vigencia_hasta: str = ""
+    habeas_data_texto: str = ""
 
 
 # ══════════════════════════════════════════════════════════
