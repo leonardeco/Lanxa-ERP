@@ -811,6 +811,7 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 - ~~**#4 UVT 2026 (valor base)**~~ → ✅ **2026-07-17**: `UVT_VALOR` default **52374** (DIAN Res. 000238 de 2025). Queda del Contador: flags `retiene_*` en clientes.
 - ~~**#22/#23 infra cumplimiento**~~ → ✅ **2026-07-17**: `DIAN_*` + `HABEAS_DATA_TEXTO` en config; `GET /api/v1/ventas/empresa`; bloque resolución + pie Habeas en `printFactura`; columnas `habeas_data_aceptado/fecha` en clientes (migración `c6d7e8f9a0b1`) + checkbox en UI. Falta resolución real y texto legal final.
 - ~~**#24 redondeo retenciones**~~ → ✅ **2026-07-17**: `RETENCION_REDONDEO` (`half_even` \| `half_up`) + `app/core/money.py` + tests `no_db`. Contador elige el modo en `.env`.
-- ~~**#4 UX retenedores**~~ → ✅ **2026-07-17**: filtro “Solo retenedores”, export CSV, columna Habeas en clientes. Queda marcar flags en datos reales.
+- ~~**#4 UX retenedores**~~ → ✅ **2026-07-17**: filtro “Solo retenedores”, export CSV, columna Habeas; **plantilla + import CSV** de flags (`import_retenciones.py`, ContableDep). Queda rellenar con datos reales del Contador.
+- ~~**BUG-004/005/006**~~ → ✅ cerrados en código (2026-07-10/15); `REPORTE_BUGS.md` sincronizado 2026-07-17.
 - **#27 E2E CI** → timeouts/retry y naming Superusuario (2026-07-17); job sigue informativo (`continue-on-error`).
 - **Pendientes vivos:** ver `PENDIENTES.md` (37ª rev) — Contador #1–3/#8; #4 datos; #7 entrega; #20 Alegra; cloud apply.

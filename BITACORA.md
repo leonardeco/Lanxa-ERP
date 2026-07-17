@@ -1655,3 +1655,28 @@ Todo lo codeable sin Contador: redondeo de retenciones configurable, herramienta
 - Contador: #1 PUC, #2 maestros, #3→#8, marcar retiene_*.
 - #7 entrega; #20 Alegra; cloud.
 
+
+
+## Sesión — 17 de julio de 2026 (continuación) — import retenciones #4
+
+### Resumen
+
+Sin reunión Contador: se añadió el flujo plantilla→Excel→import para flags de retención, se sincronizó REPORTE_BUGS y notificaciones del header.
+
+### Técnico
+
+- `ventas/import_retenciones.py` + endpoints:
+  - `GET /api/v1/ventas/clientes/plantilla-retenciones`
+  - `POST /api/v1/ventas/clientes/importar-retenciones`
+- UI Clientes: botones Plantilla e Importar (además de CSV filtrado).
+- Permiso: `ContableDep` (Superusuario, Directora, Contador, Aux. Contable).
+- Tests unitarios `test_import_retenciones.py` (4) + money (3).
+- REPORTE_BUGS: BUG-004/005/006 → corregidos.
+- HeaderBar: mensajes v0.3.0 / Contador / roadmap.
+
+### Uso
+
+1. Ventas → Clientes → **Plantilla**
+2. Editar Sí/No en Excel (columnas retiene_*)
+3. **Importar** el CSV
+

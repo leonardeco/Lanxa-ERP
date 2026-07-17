@@ -7,7 +7,7 @@
 
 ---
 
-> **Actualización 2026-07-02:** BUG-001/002/003/007 corregidos; BUG-004/005/006 siguen abiertos y están rastreados en `PENDIENTES.md`.
+> **Actualización 2026-07-17:** BUG-004/005 cerrados con `#12a` (`document_sequences` + `FOR UPDATE`). BUG-006 cerrado con servicios de dominio ventas (#13). Ver `PENDIENTES.md` / `DOCUMENTACION.md` §13.
 
 ## Resumen
 
@@ -16,9 +16,9 @@
 | BUG-001 | MEDIO | ✅ Corregido 2026-07-01 | `reteica` nunca se calcula en ventas (motor de retenciones híbrido) |
 | BUG-002 | ALTO | ✅ Corregido 2026-07-01 | N+1 queries en `list_ventas()` (`selectinload` + `_build_venta_response`) |
 | BUG-003 | MEDIO | ✅ Corregido 2026-07-02 | `datetime.utcnow()` deprecado (helper `utcnow()` en `core/time.py`) |
-| BUG-004 | MEDIO | Abierto* | Race en numeración de ventas — *mitigado: uvicorn single-worker; ver PENDIENTES.md #12 |
-| BUG-005 | MEDIO | Abierto* | Race en numeración de compras — *mismo caso que BUG-004 |
-| BUG-006 | BAJO | Abierto | Inconsistencia de commit/flush entre módulos — ver PENDIENTES.md #13 |
+| BUG-004 | MEDIO | ✅ Corregido 2026-07-15 | Race numeración ventas → `document_sequences` + locks (#12a) |
+| BUG-005 | MEDIO | ✅ Corregido 2026-07-15 | Race numeración compras → mismo mecanismo (#12a) |
+| BUG-006 | BAJO | ✅ Corregido 2026-07-10 | Servicios de dominio ventas (#13) |
 | BUG-007 | BAJO | ✅ Corregido 2026-07-02 | POST→PUT en updates de Alegra (`alegra_put`, con tests) |
 | BUG-C01 | ALTO | ✅ Corregido | `conftest.py` no hacía commit entre requests |
 | BUG-C02 | ALTO | ✅ Corregido | `conftest.py` sin `expire_on_commit=False` |
