@@ -1549,3 +1549,37 @@ Sesion larga de cierre operativo y backlog codeable. ERP LAN v0.3.0 en este PC (
 - Ops ligero: #5 clave backup al gestor; #33op opcional
 - #7 entrega usuarios (cuando digan)
 - Features: #18 nomina, #20 DIAN, #21 Electron, cloud apply
+
+
+## Sesión — 17 de julio de 2026 — Ops #5 + sync docs
+
+### Resumen
+
+Carril operativo: cierre del resto de **#5** (clave de cifrado de backups sin plaintext en la carpeta de backups) y sincronización de documentación desactualizada (README, estado operativo, deuda en DOCUMENTACION). Sin cambios de lógica de negocio ni contabilidad inventada.
+
+### Lo que se hizo
+
+1. **#5 — clave backup**
+   - Verificado: `BACKUP_ENCRYPTION_KEY` presente en `backend\.env` (longitud 44, Fernet).
+   - Verificado offsite: `OneDrive\SuperOzono-Backups-Offsite` con `.enc` recientes.
+   - `C:\SuperOzono-Backups\RECORDATORIO-CLAVE-BACKUP.txt` reescrito como **nota sin secreto** (antes tenía el valor en claro — riesgo si se copiaba al offsite).
+   - Actualizados `ops/HOY-GO-LIVE.md`, `backend/scripts/LEEME-BACKUPS-OFFSITE.md`, `ops/ESTADO-OPERATIVO-PC.md`.
+   - Residual opcional del Superusuario: confirmar la clave también en el gestor personal.
+
+2. **Docs alineadas con el código**
+   - README: Lote & Vencimiento → ✅ Producción; RBAC 5 roles (no 3); tabla de roles Superusuario/Directora/CEO/Contador/Auxiliar Contable; roadmap lotes marcado hecho; riesgo backups actualizado (offsite + clave).
+   - ESTADO-OPERATIVO: 7 usuarios activos, Alembic head `b1c2d3e4f5a6`, fecha 2026-07-17.
+   - DOCUMENTACION §13: #5 y sync docs; deuda técnica de locks/passlib marcada resuelta.
+   - PENDIENTES 34ª rev; nota UVT 2026 DIAN **52374** como referencia (no aplicada hasta Contador).
+
+### Verificación BD local
+
+- 7 usuarios activos (Superusuario, Directora, CEO, Contador, Auxiliar×3).
+- Alembic: `b1c2d3e4f5a6`.
+
+### Queda abierto (ver PENDIENTES.md)
+
+- Contador: #1–4, #8, #24
+- #7 entrega usuarios (cuando digan)
+- Features legales/negocio y cloud apply
+

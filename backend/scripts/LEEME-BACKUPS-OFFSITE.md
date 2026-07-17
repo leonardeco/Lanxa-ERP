@@ -25,6 +25,8 @@ Los `.enc` **no se pueden restaurar** sin `BACKUP_ENCRYPTION_KEY` del `backend\.
 
 - Guardar esa clave en un **gestor de contraseñas** (Bitwarden, 1Password, etc.).
 - **Nunca** copiar el `.env` completo a OneDrive/USB sin control.
+- **Nunca** dejar el valor de la clave en un `.txt` dentro de `C:\SuperOzono-Backups` (el offsite copiaría el secreto a OneDrive).
+- Si existe `RECORDATORIO-CLAVE-BACKUP.txt`, debe ser solo una nota **sin** el valor (estado desde 2026-07-17).
 - Sin la clave, los backups offsite no sirven.
 
 ## Tareas programadas

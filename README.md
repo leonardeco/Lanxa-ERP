@@ -29,7 +29,7 @@ Sistema de gestión empresarial (ERP) desarrollado a medida para **TECNOLOGÍA E
 
 | Módulo | Estado | Descripción |
 |--------|--------|-------------|
-| **Auth & Seguridad** | ✅ Producción | JWT + bcrypt, RBAC con 3 roles, sesión por token |
+| **Auth & Seguridad** | ✅ Producción | JWT + bcrypt, RBAC con 5 roles, sesión por token (access en memoria + refresh HttpOnly) |
 | **Dashboard** | ✅ Producción | Stats en tiempo real: contabilidad + ventas del mes + cartera |
 | **Contabilidad** | ✅ Producción | PUC (Decreto 2650), Centros de Costo, Períodos, Parámetros tributarios y de nómina |
 | **Ventas & Comercial** | ✅ Producción | Productos (catálogo multimarca), Clientes B2B, Documentos de venta con retenciones, impresión PDF |
@@ -37,7 +37,7 @@ Sistema de gestión empresarial (ERP) desarrollado a medida para **TECNOLOGÍA E
 | **Cartera CxC & CxP** | ✅ Producción | Abonos con comprobante numerado (RC-/CE-), **anulación de abonos con reverso contable**, aging automático, CxP automática al confirmar compras |
 | **Devoluciones** | ✅ Producción | Nota crédito NC- (ventas, con modal) y devolución a proveedor ND- (API): reverso parcial de inventario, cartera y contabilidad con tope acumulado por línea |
 | **Inventario** | ✅ Producción | Kardex de movimientos (Entrada/Salida/Ajuste), entradas automáticas al confirmar compra, salidas automáticas al confirmar venta, reversa al anular, dashboard de valorización, **importador de inventario inicial (.xlsx)** |
-| **Lote & Vencimiento** | 🚧 En progreso | Trazabilidad por lote con fecha de vencimiento (opt-in por producto), consumo **FEFO** (primero en vencer, primero en salir) y alertas de vencimiento. Capas 1-2 (modelo + servicio) listas; enganche en compras/ventas e interfaz en curso |
+| **Lote & Vencimiento** | ✅ Producción | Opt-in `controla_lote`, consumo **FEFO**, enganche compras/ventas/devoluciones/ajuste/importador, pestaña Lotes + alertas de vencimiento en dashboard |
 | **Usuarios** | ✅ Producción | CRUD de usuarios, gestión de roles, cambio de contraseña |
 | **Alegra** | ✅ Construido | Integración con API de Alegra para facturación electrónica DIAN Colombia |
 | **RRHH & Nómina** | 🔄 Fase 2 | Empleados, contratos, liquidación mensual |
@@ -606,27 +606,29 @@ Estado real de las prácticas de seguridad del proyecto — qué está implement
 
 | Ítem | Riesgo | Recomendación |
 |---|---|---|
-| **Backups guardados en el mismo PC** | `C:/SuperOzono-Backups` está en el mismo disco que la BD real — si el PC servidor falla por completo (disco, robo, incendio), se pierden la BD, los backups y la clave de cifrado (`BACKUP_ENCRYPTION_KEY` en `backend/.env`) al mismo tiempo | Copiar periódicamente la carpeta de backups (y la clave, en un gestor de contraseñas) a un destino fuera de este PC: red local, NAS o nube |
+| **Clave de cifrado de backups** | Sin `BACKUP_ENCRYPTION_KEY` los `.enc` no se restauran | Fuente: `backend/.env`. Guardar también en gestor de contraseñas. Offsite diario: OneDrive `SuperOzono-Backups-Offsite` (ver `backend/scripts/LEEME-BACKUPS-OFFSITE.md`) |
 | **IDs secuenciales** | Todas las tablas usan `Integer autoincrement` — los IDs son adivinables/enumerables | Aceptable en LAN cerrada; si se expone la API públicamente, migrar a UUID o reforzar autorización por objeto |
 
 ---
 
 ## Roles y permisos
 
-El sistema tiene 3 roles, diseñados para una red LAN de 5 PCs:
+El sistema tiene **5 roles** (estructura LAN típica: 7 cuentas). Detalle canónico en `DOCUMENTACION.md` §7:
 
-| Rol | Descripción | Módulos accesibles |
+| Rol | Descripción | Módulos (resumen) |
 |-----|-------------|-------------------|
-| **Admin** | PC servidor — acceso total | Todo el sistema |
-| **Administradora** | PC administrativo | Dashboard, Contabilidad, Ventas, Compras, Cartera |
-| **Auxiliar** | 3 PCs operativos | Dashboard, Ventas, Compras, Cartera |
+| **Superusuario** | Dueño técnico del sistema | Todo + Usuarios + Alegra + onboard tenant |
+| **Directora** | Operación y dirección administrativa | Contabilidad, ventas, compras, cartera, inventario, reportes (puede anular) |
+| **CEO** | Visión ejecutiva | Dashboard, reportes y consulta de operación |
+| **Contador** | Área contable | Contabilidad, cartera, reportes, ventas/compras (sin anular) |
+| **Auxiliar Contable** | Operación contable | Contabilidad, ventas, compras, cartera, reportes (sin anular) |
 
 ---
 
 ## Roadmap
 
 ### Fase 1 — Completada
-- [x] Auth JWT + RBAC (3 roles)
+- [x] Auth JWT + RBAC (5 roles)
 - [x] Módulo Contabilidad (PUC, períodos, parámetros tributarios y nómina)
 - [x] Módulo Ventas (productos, clientes, facturas, impresión PDF)
 - [x] Módulo Compras & Proveedores (CRUD, documentos, impresión PDF)
@@ -638,6 +640,7 @@ El sistema tiene 3 roles, diseñados para una red LAN de 5 PCs:
 ### Fase 2
 - [x] Inventario — entradas automáticas al confirmar compra, salidas al confirmar venta, reversa al anular (2026-06-17)
 - [x] Comprobante de pago numerado al registrar abono en CxC/CxP (2026-06-17)
+- [x] Lote & vencimiento (FEFO, UI, enganche stock) (2026-07-10)
 - [ ] Módulo RRHH (empleados, contratos)
 - [ ] Liquidación de nómina mensual
 - [ ] Activación Alegra con facturación electrónica DIAN
