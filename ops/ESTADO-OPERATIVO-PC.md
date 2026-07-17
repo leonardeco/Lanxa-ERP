@@ -1,23 +1,23 @@
-# Estado operativo — este PC servidor
+﻿# Estado operativo â€” este PC servidor
 
 **Verificado:** 2026-07-17  
-**Código:** `main` (v0.3.0 + cumplimiento DIAN/Habeas infra + tests Postgres local)
+**CÃ³digo:** `main` (v0.3.0 + cumplimiento DIAN/Habeas infra + tests Postgres local)
 
-## Ahora mismo (producción LAN)
+## Ahora mismo (producciÃ³n LAN)
 
 | Componente | Estado | Detalle |
 |---|---|---|
-| Backend | **ON** (si `start.bat` activo) | `https://192.168.1.48:8000` / health `v0.3.0` |
-| Frontend | **ON** (si `start.bat` activo) | `https://192.168.1.48:5173` |
+| Backend | **ON** (si `start.bat` activo) | `https://192.168.1.131:8000` / health `v0.3.0` |
+| Frontend | **ON** (si `start.bat` activo) | `https://192.168.1.131:5173` |
 | Login Superusuario | **OK** | `admin@superozonoglobal.com` |
-| BD SQLite | **OK** | `backend\superozono.db` — Alembic head `c6d7e8f9a0b1` (Habeas) |
-| Usuarios | **7 activos** | Superusuario, Directora, CEO, Contador, Auxiliar×3 |
-| IP LAN | `192.168.1.48` | Alineada con `frontend\.env` y cert SAN |
-| CA confiable (este PC) | **OK** | instalada en almacén Root del usuario |
-| Acceso escritorio | **OK** | `Super Ozono ERP.lnk` → `start.bat` |
+| BD SQLite | **OK** | `backend\superozono.db` â€” Alembic head `c6d7e8f9a0b1` (Habeas) |
+| Usuarios | **7 activos** | Superusuario, Directora, CEO, Contador, AuxiliarÃ—3 |
+| IP LAN | `192.168.1.131` | Alineada con `frontend\.env` y cert SAN |
+| CA confiable (este PC) | **OK** | instalada en almacÃ©n Root del usuario |
+| Acceso escritorio | **OK** | `Super Ozono ERP.lnk` â†’ `start.bat` |
 | Postgres (solo tests) | **Running** | servicio `postgresql-x64-17`, BD `superozono_test` |
-| Checklist diario | — | `ops\CHECKLIST-GO-LIVE-DIARIO.md` |
-| Tests locales | — | `ops\TESTES-LOCAL-POSTGRES.md` + `ops\run-tests.ps1` |
+| Checklist diario | â€” | `ops\CHECKLIST-GO-LIVE-DIARIO.md` |
+| Tests locales | â€” | `ops\TESTES-LOCAL-POSTGRES.md` + `ops\run-tests.ps1` |
 
 ## Backups (#5)
 
@@ -29,18 +29,18 @@
 | RECORDATORIO | Solo nota sin secreto (2026-07-17) |
 | Tarea `SuperOzonoERP-BackupDB` | Ready (diario 2:00) |
 | Tarea `SuperOzonoERP-BackupOffsite` | Ready (diario 2:15) |
-| Tarea purga auditoría | Ready |
-| Recordatorio drill restore | Ready — **próximo drill: 2026-10-15** |
+| Tarea purga auditorÃ­a | Ready |
+| Recordatorio drill restore | Ready â€” **prÃ³ximo drill: 2026-10-15** |
 
-**Acción residual del Superusuario:** confirmar una vez que la clave también está en el gestor de contraseñas personal (Bitwarden / 1Password). Fuente: `backend\.env` — nunca WhatsApp/correo.
+**AcciÃ³n residual del Superusuario:** confirmar una vez que la clave tambiÃ©n estÃ¡ en el gestor de contraseÃ±as personal (Bitwarden / 1Password). Fuente: `backend\.env` â€” nunca WhatsApp/correo.
 
 ## Staging (listo, no corre 24/7)
 
 | Artefacto | Ruta |
 |---|---|
-| Guía | `ops\STAGING.md` |
+| GuÃ­a | `ops\STAGING.md` |
 | Setup | `ops\setup-staging.ps1` (ya ejecutado: BD + `.env.staging`) |
-| Arranque | `ops\start-staging.ps1` → API **8010**, UI **5180** |
+| Arranque | `ops\start-staging.ps1` â†’ API **8010**, UI **5180** |
 | BD staging | `backend\superozono_staging.db` (copia de prod) |
 | Smoke prod | `ops\smoke-prod.py` |
 
@@ -56,29 +56,30 @@ powershell -ExecutionPolicy Bypass -File ops\start-staging.ps1
 | Campo | Valor |
 |---|---|
 | Expira | **2028-10-17** |
-| SAN | `192.168.1.48`, `localhost`, `127.0.0.1` |
+| SAN | `192.168.1.131`, `localhost`, `127.0.0.1` |
 | CA clientes | `certs\superozono-ca.crt` (en carpeta Entrega del escritorio) |
 
-## Cómo arrancar / parar (día a día)
+## CÃ³mo arrancar / parar (dÃ­a a dÃ­a)
 
 1. Doble clic **Super Ozono ERP** en el escritorio (`start.bat`).
 2. Para parar: `stop.bat` o cerrar ventanas Backend/Frontend.
-3. Tras `git pull`: `stop.bat` → `DESPLIEGUE.md` (deps + `alembic upgrade head`) → `start.bat`.
+3. Tras `git pull`: `stop.bat` â†’ `DESPLIEGUE.md` (deps + `alembic upgrade head`) â†’ `start.bat`.
 4. Smoke diario (health + login + me + empresa + Alegra):  
    `ops\smoke-diario.bat`  
    o `backend\venv\Scripts\python.exe ops\smoke-prod.py`  
    Tarea opcional: `ops\registrar-smoke-diario.ps1`
 
-## Entrega a personas (#7 — aplazada)
+## Entrega a personas (#7 â€” aplazada)
 
-No se puede “automatizar” que cada usuario cambie su clave:
+No se puede â€œautomatizarâ€ que cada usuario cambie su clave:
 
 1. Carpeta escritorio: `Entrega-SuperOzono-v030\`  
    (manual + CA + credenciales temporales, 7 tarjetas).
-2. Entregar a cada uno y marcar “Cambió clave” en `ops\ENTREGA-OPERATIVA-v030.md`.
+2. Entregar a cada uno y marcar â€œCambiÃ³ claveâ€ en `ops\ENTREGA-OPERATIVA-v030.md`.
 3. Cuando los 7 cambien: borrar `CREDENCIALES-TEMPORALES*` y copias en `C:\SuperOzono-Backups\CREDENCIALES-*-NO-SUBIR.txt`.
 
 ## Lo que NO es de este PC
 
-- Validación contable (#1–4, #8, #24) — Contador.
-- AWS / Docker apply — sin Docker Desktop ni cuenta AWS en este equipo.
+- ValidaciÃ³n contable (#1â€“4, #8, #24) â€” Contador.
+- AWS / Docker apply â€” sin Docker Desktop ni cuenta AWS en este equipo.
+
