@@ -80,7 +80,7 @@ class Settings(BaseSettings):
     ALEGRA_EMAIL: str = ""
     ALEGRA_TOKEN: str = ""
 
-    # Backups (solo SQLite)
+    # Backups cifrados Fernet: SQLite (backup_db.py) y/o Postgres (backup_pg.py)
     BACKUP_DIR: str = "C:/SuperOzono-Backups"
     BACKUP_ENCRYPTION_KEY: str = ""
     BACKUP_RETENTION_DAYS: int = 30

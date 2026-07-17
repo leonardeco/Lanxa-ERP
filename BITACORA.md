@@ -1774,3 +1774,21 @@ Cierre documental de la jornada. ERP LAN **operativo** en IP **192.168.1.131**. 
 - #20 token Alegra; #22 resolución; #23 texto legal.
 - Cloud apply opcional.
 
+
+## Sesion — 17 de julio de 2026 (cont.) — Seguridad LAN + backup Postgres
+
+### Resumen
+
+Carril seguridad/ops sin Contador: **A** backup Postgres cifrado, **B** guia SEGURIDAD-LAN, **C** diagnostico ampliado, **G** verificacion.
+
+### Entregado
+
+- `backend/scripts/backup_pg.py` + `restore_pg.py` + `BACKUP-POSTGRES.md` + `registrar-backup-pg.ps1`
+- `ops/SEGURIDAD-LAN.md` (LAN, Wi-Fi, secretos, backups, VPN)
+- `ops/diagnostico.ps1` secciones 11-13 (motor BD, backups recientes, recordatorios)
+- Checklist go-live y LEEME-BACKUPS-OFFSITE actualizados
+
+### Nota
+
+Produccion LAN sigue en **SQLite** (`backup_db.py`). Scripts Postgres listos para tests/migracion.
+
