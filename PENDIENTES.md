@@ -1,8 +1,8 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **17 de julio de 2026** (41ª revisión).
+Backlog vivo del proyecto. Actualizado: **17 de julio de 2026** (42ª revisión).
 
-**Resumen:** **#21 Electron DESCARTADO** y **#21b multi-bodega fuera de v0.3** (confirmado). **#7** plan de entrega listo: `ops/ENTREGA-7-USUARIOS.md` + carpeta Escritorio (falta ejecución humana). Contador #1–3/#8 sigue aparte.
+**Resumen:** Smoke diario + Alegra: `ops/smoke-diario.bat`, tarea opcional `registrar-smoke-diario.ps1`, status Alegra en smoke. #7 listo para ejecutar; #21/#21b cerrados. Contador #1–3/#8 aparte.
 
 **Fuente única de pendientes:** este archivo. Completados → `DOCUMENTACION.md` §13 + `BITACORA.md`.
 
@@ -56,7 +56,7 @@ Estado: suite API + Vitest + E2E (local/CI). Versión LAN **v0.3.0**.
 | # | Feature | Notas |
 |---|---|---|
 | 18 | RRHH y nómina (Fase 2) | Requiere definiciones de negocio |
-| 20 | Alegra + facturación electrónica DIAN | ✅ Checklist + `GET /alegra/status` amigable. **Falta:** token real en `.env` (ver `ops/ACTIVAR-ALEGRA-DIAN.md`) |
+| 20 | Alegra + facturación electrónica DIAN | ✅ Checklist + status + **smoke diario**. **Falta:** token real en `.env` (`ops/ACTIVAR-ALEGRA-DIAN.md`) |
 | 21 | Empaquetado Electron | ✅ **DESCARTADO 2026-07-17** — uso web/LAN; ver `ops/DECISIONES-PRODUCTO-SIN-CONTADOR.md` |
 | 21a | Staging LAN | ✅ Docs+script listos (`ops/STAGING.md`) |
 | 21b | ¿Multi-bodega? | ✅ **NO en v0.3** (mono-bodega) — mismo doc de decisiones |

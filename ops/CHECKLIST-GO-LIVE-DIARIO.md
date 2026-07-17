@@ -11,18 +11,46 @@ Más detalle: `ops/ESTADO-OPERATIVO-PC.md`
 ## Cada mañana (2–5 min)
 
 - [ ] Arrancar ERP: acceso escritorio **Super Ozono ERP** o `start.bat`
-- [ ] Smoke rápido (desde la raíz del repo):
+- [ ] Smoke diario (doble clic o consola):
+
+```bat
+ops\smoke-diario.bat
+```
+
+o:
 
 ```bat
 backend\venv\Scripts\python.exe ops\smoke-prod.py
 ```
 
-Esperado: `health: OK` y `login: OK`.
+Esperado:
+```
+health: OK
+login: OK
+users/me: OK
+ventas/empresa: OK
+alegra: no configurado ...   (normal hasta poner token)
+SMOKE: todo OK
+```
+
+Cuando tengas Alegra en `.env` y quieras exigir conexión:
+
+```bat
+backend\venv\Scripts\python.exe ops\smoke-prod.py --strict-alegra
+```
 
 - [ ] Abrir el navegador, login Superusuario (o tu usuario)
 - [ ] Dashboard: ¿cargan números? ¿alertas de cartera legibles?
 
 Si el smoke falla: `stop.bat` → esperar 5 s → `start.bat` → reintentar.
+
+### Tarea programada (opcional)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ops\registrar-smoke-diario.ps1
+```
+
+Log: `%USERPROFILE%\SuperOzono-Smoke-Logs\smoke-latest.txt`
 
 ---
 

@@ -11,21 +11,31 @@
 | Resolución DIAN en factura impresa | ✅ Bloque listo; vars `DIAN_*` vacías |
 | Envío e-factura real | ⬜ Solo con token + numeración autorizada |
 
-Comprobar sin secretos:
+Comprobar (ERP en marcha con `start.bat`):
 
 ```bat
-backend\venv\Scripts\python.exe -c "import urllib.request,ssl,json; ctx=ssl._create_unverified_context(); print('usa el ERP logueado o curl con token')"
+ops\smoke-diario.bat
 ```
 
-O, con el ERP en marcha y un JWT de Superusuario:
+Línea Alegra esperada **sin token**:
 
-```http
-GET https://127.0.0.1:8000/api/v1/alegra/status
-Authorization: Bearer <access_token>
+```text
+alegra: no configurado (falta ALEGRA_EMAIL/TOKEN en .env)
 ```
 
-- Sin token en `.env` → `configurado: false` + lista de pasos (no es error de red).
-- Con token válido → `conectado: true` + nombre de empresa Alegra.
+Con token válido y red:
+
+```text
+alegra: OK conectado (Nombre de la empresa en Alegra)
+```
+
+Forzar fallo del smoke si Alegra no conecta:
+
+```bat
+backend\venv\Scripts\python.exe ops\smoke-prod.py --strict-alegra
+```
+
+También: `GET /api/v1/alegra/status` con JWT (Superusuario).
 
 ## Pasos (orden)
 
