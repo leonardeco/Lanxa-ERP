@@ -3,8 +3,8 @@
 **Empresa:** TECNOLOGIA E INNOVACION SUPER OZONO S.A.S.
 **NIT:** 901841798-5
 **Ciudad:** Armenia, Quindío
-**Versión ERP (LAN):** 0.3.0 · **Docs:** 0.7.1
-**Última actualización:** 2026-07-15
+**Versión ERP (LAN):** 0.3.0 · **Docs:** 0.7.2
+**Última actualización:** 2026-07-18
 
 ---
 
@@ -770,6 +770,8 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | 54 | Migración **python-jose → PyJWT 2.13.0** (HS256) — elimina la dep transitiva `ecdsa` y con ella la CVE PYSEC-2026-1325 (antes ignorada en CI con justificación). `security.py`/`deps.py` (`import jwt`, `JWTError`→`PyJWTError`); `pip-audit` corre sin `--ignore-vuln`; test nuevo de token expirado→401. 277 tests verdes, mypy limpio, 0 CVEs. También se cerraron 3 PRs de Dependabot (#13/#14 fusionados, #15 typescript 6→7 bloqueado por peer dep) | ✅ Completado 2026-07-11 |
 | 55 | **Tests de los utilitarios de impresión** — 24 tests Vitest para `printFactura`/`printCompra`/`printCotizacion`/`printComprobante`: verifican el HTML generado, el escapado XSS de campos de usuario (`esc`), las filas condicionales de retención/descuento, las ramas CxC (Recibo de Caja) vs CxP (Comprobante de Egreso), el estado Pagado/Parcial y la rama de popup bloqueado. Helper compartido `src/test/printWindow.ts` mockea `window.open`. Frontend: 37→61 tests de componente/util | ✅ Completado 2026-07-11 |
 | 56 | **#30 Access token a memoria** — el access token deja de guardarse en `localStorage` y vive solo en memoria (variable de módulo en `frontend/src/services/api.ts` con accesores `getAccessToken`/`setAccessToken`; `AuthContext` arranca sin token y renueva en silencio). Reduce la superficie de XSS: un script inyectado ya no puede leerlo de un almacén persistente; la sesión entre recargas la sostiene el refresh token en cookie HttpOnly. 5 tests Vitest (`api.test.ts`). Frontend: 61→66 tests | ✅ Completado 2026-07-11 |
+| 57 | Ops LAN 2026-07-18: IP **192.168.1.131**, UI v0.3.0 (`config.ts` APP_VERSION + probe login + StatusBar health), `diagnostico.ps1` ampliado, `SEGURIDAD-LAN.md`, `PRODUCTION-READINESS-LAN.md`, backup Postgres cifrado (`backup_pg`/`restore_pg`), `backup_auto.py`, `start.bat` con certs relativos (path con espacios), preflight #7 + `HOY-ENTREGA-7.md`, login auto ops Playwright | ✅ Completado 2026-07-18 |
+| 58 | Carril técnico sin Contador documentado en `ops/BACKLOG-TECNICO-SIN-NEGOCIO.md`; tests Vitest `config.test.ts`; gitignore creds de login local | ✅ Completado 2026-07-18 |
 
 ### Deuda técnica / mejoras pendientes
 
