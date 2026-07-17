@@ -22,8 +22,11 @@ _MODES = {
 }
 
 
-def redondear_cop(valor: Decimal | float | int | str, modo: RedondeoMode = "half_even") -> Decimal:
-    """Redondea a 2 decimales con la política indicada."""
+def redondear_cop(
+    valor: Decimal | float | int | str,
+    modo: str = "half_even",
+) -> Decimal:
+    """Redondea a 2 decimales con la política indicada (`half_even` | `half_up`)."""
     d = valor if isinstance(valor, Decimal) else Decimal(str(valor))
-    rounding = _MODES.get(modo, ROUND_HALF_EVEN)
-    return d.quantize(_QUANT, rounding=rounding)
+    key: RedondeoMode = "half_up" if str(modo).strip().lower() == "half_up" else "half_even"
+    return d.quantize(_QUANT, rounding=_MODES[key])
