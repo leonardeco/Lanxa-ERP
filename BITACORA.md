@@ -1583,3 +1583,28 @@ Carril operativo: cierre del resto de **#5** (clave de cifrado de backups sin pl
 - #7 entrega usuarios (cuando digan)
 - Features legales/negocio y cloud apply
 
+
+
+## Sesión — 17 de julio de 2026 (continuación) — UVT 2026 + commits
+
+### Resumen
+
+Tras el commit de docs/ops #5, se actualizó el default de **UVT 2026** al valor oficial DIAN y se dejó el resto de #4 (flags `retiene_*`) al Contador.
+
+### Commits
+
+- `8cee614` docs(ops): cerrar #5 clave backup y sincronizar README/roles
+- (este) feat(config): UVT_VALOR 52374 DIAN 2026
+
+### Técnico
+
+- `config.py`: `UVT_VALOR = 52374` (antes 49799 UVT 2025). Comentario con Res. 000238/2025.
+- Umbral retefuente: 27 × 52374 = **1.414.098** COP.
+- Docs: DOCUMENTACION, PENDIENTES 35ª.
+- Suite API no corrió en este host (Postgres test no levantado); valor verificado por import de Settings.
+
+### Abierto
+
+- Contador: #1 PUC, #2 maestros, #3 costeo → #8, #24 redondeo, #4 flags retenedores.
+- #7 entrega usuarios (aplazado).
+

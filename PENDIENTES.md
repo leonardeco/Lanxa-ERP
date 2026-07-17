@@ -1,8 +1,8 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **17 de julio de 2026** (34ª revisión).
+Backlog vivo del proyecto. Actualizado: **17 de julio de 2026** (35ª revisión).
 
-**Resumen de la sesión 2026-07-17:** Cierre ops **#5** (clave de backup sin plaintext en carpeta de backups; offsite OneDrive verificado) + **sincronización de docs** (README: lotes ✅, 5 roles; `ESTADO-OPERATIVO-PC.md` con 7 usuarios y Alembic `b1c2d3e4f5a6`). No se inventó contabilidad (#1–4/#8). **#7 entrega de contraseñas sigue aplazada.**
+**Resumen de la sesión 2026-07-17:** Cierre ops **#5** + sync docs (34ª). Luego **#4 parcial:** `UVT_VALOR` default **52374** (DIAN Res. 000238/2025). Siguen con Contador: flags `retiene_*`, PUC #1, costeo #3→#8. **#7 entrega de contraseñas sigue aplazada.**
 
 **Fuente única de pendientes:** este archivo. Completados → `DOCUMENTACION.md` §13 + `BITACORA.md`.
 
@@ -17,7 +17,7 @@ Estado: suite API + Vitest + E2E (local/CI). Versión LAN **v0.3.0**.
 | 1 | **Validar el mapeo PUC** del motor contable | Contador | Paquete listo: [`MAPEO-PUC-PARA-CONTADOR.md`](./MAPEO-PUC-PARA-CONTADOR.md), `ops/INSTRUCCIONES-REUNION-CONTADOR.md`, Escritorio `Entrega-Contador-PUC\`. **Falta:** reunión + respuestas por escrito |
 | 2 | **Datos maestros reales**: PUC definitivo, inventario inicial, saldos de apertura | Contador + empresa | Importador de inventario listo. Asiento de apertura depende de #3 |
 | 3 | Definir **método de costeo** (promedio ponderado recomendado) | Contador | Prerrequisito del #8 |
-| 4 | Confirmar **`UVT_VALOR` 2026** y flags `retiene_*` en clientes | Contador | Placeholder en código: **49799** (UVT 2025). Referencia DIAN 2026: **52374** (Res. 000238 de 2025) — **no aplicar en `.env` hasta confirmación del Contador** |
+| 4 | Flags **`retiene_*`** en clientes retenedores (+ revisar UVT en `.env` si se sobreescribe) | Contador | ✅ Default código **52374** (DIAN 2026). **Queda:** marcar en maestros qué clientes retienen fuente/IVA/ICA |
 | 8 | **Asiento de costo de venta** (DB 6135 / CR 1435 al confirmar venta) | Dev (tras #3) | Sin esto el P&L muestra ingresos, no margen |
 | 24 | Política de redondeo de retenciones | Contador | Hoy `round()` half-even de Python |
 
@@ -92,7 +92,7 @@ DIAN FE, nómina electrónica, documento soporte, exógena; producción por fór
 | Prioridad | Ítems |
 |---|---|
 | **Cuando quieras (1 min)** | Confirmar clave backup en gestor personal (residual #5); #33op rotar clave Superusuario |
-| **Cuando haya Contador** | #1 → #2/#3/#4 → #8 + #24 |
+| **Cuando haya Contador** | #1 → #2/#3 → #8 + #24; #4 flags `retiene_*` en clientes |
 | **Cuando haya negocio/legal** | #20+#22, #18, #21, #21b, #23 |
 | **Cuando digas** | #7 entregar accesos a los 7 usuarios |
 | **Calendario** | #7a drill restore 2026-10-15 |
