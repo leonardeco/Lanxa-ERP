@@ -38,7 +38,7 @@ ERP interno para la gestión contable y comercial de Super Ozono Global. Diseña
 | Contador | **Contador** | Área contable, cartera, reportes, ventas/compras |
 | Auxiliares (×3) | **Auxiliar Contable** | Contabilidad operativa + ventas/compras/cartera |
 
-**URL LAN actual (PC servidor):** `https://192.168.1.48:5173` · API `https://192.168.1.48:8000`  
+**URL LAN actual (PC servidor):** `https://192.168.1.131:5173` · API `https://192.168.1.131:8000`  
 **Arranque:** acceso escritorio *Super Ozono ERP* (`start.bat`) / `stop.bat`.  
 Detalle ops: `ops/ESTADO-OPERATIVO-PC.md`.
 

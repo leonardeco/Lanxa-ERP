@@ -2,7 +2,7 @@
 
 **Empresa:** TECNOLOGÍA E INNOVACIÓN SUPER OZONO S.A.S.  
 **ERP:** Super Ozono v0.3.0 (LAN)  
-**URL:** https://192.168.1.48:5173  
+**URL:** https://192.168.1.131:5173  
 **Usuario Contador:** `contador@superozonoglobal.com` (clave temporal en entrega)
 
 ---

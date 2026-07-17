@@ -2,8 +2,8 @@
 
 **Sin Contador.** Operación del día a día en el PC servidor.
 
-URL típica: `https://192.168.1.48:5173`  
-API: `https://192.168.1.48:8000`  
+URL típica: `https://192.168.1.131:5173`  
+API: `https://192.168.1.131:8000`  
 Más detalle: `ops/ESTADO-OPERATIVO-PC.md`
 
 ---

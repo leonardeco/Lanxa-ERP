@@ -4,8 +4,9 @@
 **plan de ejecución** cuando decidas repartir accesos.
 
 **Paquete físico:** Escritorio → `Entrega-SuperOzono-v030\`  
-**URL app:** `https://192.168.1.48:5173`  
-**Servidor:** acceso directo **Super Ozono ERP** (`start.bat`)
+**URL app:** `https://192.168.1.131:5173` (si cambia la IP: `start.bat` o `ops\sync-lan-ip.ps1`)  
+**Servidor:** acceso directo **Super Ozono ERP** (`start.bat`)  
+**Seguridad clientes:** `ops\SEGURIDAD-LAN.md` + CA `superozono-ca.crt` en la carpeta de entrega
 
 ---
 
@@ -50,7 +51,7 @@ Credenciales temporales: solo en las tarjetas / archivos de la carpeta de entreg
 1. **Entregar en mano** (o sobre cerrado):
    - Tarjeta `0N-….txt`
    - `MANUAL-DE-USUARIO.md` (o resumen impreso)
-   - URL: `https://192.168.1.48:5173`
+   - URL: `https://192.168.1.131:5173`
 2. **En su PC** (si es la primera vez con HTTPS local):
 
 ```bat
