@@ -160,6 +160,8 @@ async def test_list_ventas_diarias_no_ve_otro_tenant(
 
     r = await client.get("/api/v1/ventas-diarias/", headers=auth_headers)
     assert r.status_code == 200, r.text
-    guias = {v["guia"] for v in r.json()}
-    assert "PE-SECRET" not in guias  # ninguna fila del tenant 2 debe aparecer
     assert all(v["cliente_id"] != cliente.id for v in r.json())
+    detalle_producto_ids = {
+        d["producto_id"] for v in r.json() for d in v["detalles"]
+    }
+    assert producto.id not in detalle_producto_ids  # ninguna linea del tenant 2 debe aparecer
