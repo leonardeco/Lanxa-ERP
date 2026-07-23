@@ -16,7 +16,9 @@ import openpyxl  # noqa: E402
 from sqlalchemy import select  # noqa: E402
 
 from app.core.database import async_session  # noqa: E402
-from app.core.tenancy import set_tenant_id, apply_rls_tenant, reset_tenant_id  # noqa: E402
+from app.core.tenancy import (  # noqa: E402
+    set_tenant_id, apply_rls_tenant, reset_tenant_id, tenant_clause,
+)
 from app.modules.ventas.models import Producto, Cliente  # noqa: E402
 from app.modules.ventas_diarias.models import (  # noqa: E402
     VentaDiaria, VentaDiariaDetalle, PagoSuelto, EstadoVentaDiaria,
@@ -100,7 +102,9 @@ async def _obtener_o_crear_producto(db, nombre: str, cache: dict[str, int]) -> i
     if nombre_norm in cache:
         return cache[nombre_norm]
     sku = "PE-" + nombre_norm.upper().replace(" ", "-")[:20]
-    existente = await db.scalar(select(Producto).where(Producto.sku == sku))
+    existente = await db.scalar(
+        select(Producto).where(Producto.sku == sku, tenant_clause(Producto))
+    )
     if existente:
         cache[nombre_norm] = existente.id
         return existente.id
@@ -119,7 +123,9 @@ async def _obtener_o_crear_cliente(
         documento = f"SIN-DOC-{contador[0]}"
     if documento in cache:
         return cache[documento]
-    existente = await db.scalar(select(Cliente).where(Cliente.nit_cc == documento))
+    existente = await db.scalar(
+        select(Cliente).where(Cliente.nit_cc == documento, tenant_clause(Cliente))
+    )
     if existente:
         cache[documento] = existente.id
         return existente.id
@@ -145,6 +151,7 @@ async def importar(xlsx_path: str, tenant_id: int) -> None:
         contador_sin_doc = [0]
         total_ventas = 0
         total_pagos_sueltos = 0
+        total_filas_sin_producto_sin_abono = 0
 
         for nombre_hoja in HOJAS_MESES:
             if nombre_hoja not in wb.sheetnames:
@@ -181,6 +188,8 @@ async def importar(xlsx_path: str, tenant_id: int) -> None:
                             notas="Importado de Excel — sin vinculo confirmado a una venta.",
                         ))
                         total_pagos_sueltos += 1
+                    else:
+                        total_filas_sin_producto_sin_abono += 1
                     continue
 
                 cliente_id = await _obtener_o_crear_cliente(
@@ -232,6 +241,8 @@ async def importar(xlsx_path: str, tenant_id: int) -> None:
         reset_tenant_id()
 
     print(f"Importacion completa: {total_ventas} ventas diarias, {total_pagos_sueltos} pagos sueltos.")
+    if total_filas_sin_producto_sin_abono:
+        print(f"AVISO: {total_filas_sin_producto_sin_abono} filas sin producto y sin monto fueron omitidas (probablemente filas en blanco/de cierre).")
     print("Revisar 'PESOS C' / 'VALOR FLETE' y los pagos sueltos con la auxiliar de Peru antes de usarlos en reportes.")
 
 
