@@ -1909,3 +1909,158 @@ Jornada de cierre operativo y técnico **sin Contador**: IP LAN `.131`, UX v0.3.
 - App: `https://192.168.1.131:5173`
 - API: `https://192.168.1.131:8000`
 
+## Sesión — 21 de julio de 2026 — Gerencial, docs y preparación Contador
+
+### Resumen
+
+Jornada **sin cambios de código de negocio**: documentación gerencial del avance real del ERP, comparación de esfuerzo real vs mercado, presentación para administración/dirección, verificación del backlog vivo, preparación de la reunión con Contadora (acta imprimible de 7 decisiones) y resumen de jornada para el área administrativa. Se identificaron dos insumos a pedir a la empresa: Excel de datos maestros/precios e inventario, y capturas del ERP actual que usan las auxiliares.
+
+### Objetivo
+
+- Dejar evidencia clara de **qué se lleva hecho** y **en cuánto tiempo** (para gerencia).
+- Dejar material listo para la **validación contable** (#1 / #3 / #8 / #4).
+- Actualizar la fuente de verdad de pendientes (46ª revisión).
+
+### Hecho
+
+1. **Informe gerencial (Word)** — Escritorio `Linea-de-Tiempo-Desarrollo-SuperOzono-ERP.docx`
+   - Línea de tiempo real (15-jun → 18-jul 2026), módulos entregados, estado LAN v0.3.0.
+   - Capacidad: **1 desarrollador**.
+   - Sección **tiempo real vs mercado**: ~5 semanas reales vs 5–8 meses (equipo lean) / 10–14 meses (1 senior a ritmo normal); ~9–14 persona-meses de mercado.
+   - Decisiones recomendadas a la dirección (30 días).
+
+2. **Presentación gerencial (PowerPoint)** — Escritorio `SuperOzono-ERP-Informe-Gerencial-Avance.pptx`
+   - 12 diapositivas: mensaje clave, timeline, módulos, estado operativo, mercado, pendientes, decisiones.
+
+3. **Verificación de PENDIENTES**
+   - Confirmado: LAN operativa; deuda técnica codeable mayormente cerrada.
+   - Abierto crítico: Contador (#1→#3→#8), datos (#2/#4), humano (#7), negocio FE (#20/#22/#23).
+
+4. **Preparación reunión Contadora**
+   - Guion: `ops/INSTRUCCIONES-REUNION-CONTADOR.md` + `MAPEO-PUC-PARA-CONTADOR.md`.
+   - **Acta de validación** (Word + PDF, 1 página): 7 decisiones en blanco + firmas.
+   - Escritorio: `Acta-Validacion-Contador-PUC-SuperOzono.pdf` / `.docx` (copia en `Entrega-Contador-PUC/`).
+
+5. **Resumen para área administrativa (PDF)**
+   - Escritorio: `Resumen-Jornada-Administrativa-SuperOzono.pdf` (lenguaje no técnico).
+
+6. **Insumos solicitados a administración (registrados en backlog)**
+   - **#34** Excel: inventario, productos, precios, clientes/proveedores, PUC, saldos.
+   - **#35** Carpeta de screenshots (o video) del ERP actual de auxiliares — referencia UX (sin clonar 1:1).
+
+7. **Docs de proyecto actualizados**
+   - `PENDIENTES.md` → 46ª revisión (2026-07-21).
+   - `DOCUMENTACION.md` §13 #59–#61 + docs 0.7.3.
+   - Esta entrada en `BITACORA.md`.
+
+### No hecho (fuera de alcance / bloqueado)
+
+- Reunión Contador (pendiente humano).
+- Repartir tarjetas #7.
+- Implementar #8 (requiere #3).
+- Carga de maestros reales (requiere Excel #34).
+- Token Alegra / resolución DIAN reales.
+
+### Evidencia
+
+- Archivos en Escritorio (informe, PPTX, acta PDF/Word, resumen admin PDF).
+- `PENDIENTES.md` 46ª rev. con #34/#35 y nota de acta en #1.
+- Generadores locales en `docs/generate-timeline-doc.js`, `docs/generate-gerencial-pptx.js`, `docs/generate-acta-contador*`.
+
+### Abierto al cierre
+
+| Prioridad | Ítem |
+|---|---|
+| Contador | #1 firmar acta · #3 costeo · #8 OK asiento · #4 retenedores |
+| Admin | #34 Excel datos · #35 screenshots ERP actual |
+| Humano | #7 repartir accesos |
+| Negocio | #20/#22/#23 FE legal; #18 nómina |
+| Ops | smoke diario; drill #7a 2026-10-15 |
+
+### URL LAN
+
+- App: `https://192.168.1.131:5173`
+- API: `https://192.168.1.131:8000`
+
+---
+
+## Sesión — 2026-07-23
+
+### Resumen
+
+Carril **Perú (Run 6)**: alta de Perú como tenant separado del ERP (activando
+la infraestructura de tenancy ya construida en Runs 2–5, sin nube — misma
+LAN/SQLite), módulo nuevo `Ventas Diarias` calcado del flujo real de
+contraentrega (Perú vende por guía de transportadora, no factura con IVA
+como Colombia), e importación del histórico de
+`SUPEROZONO PERU DIARIAS.xlsx` (Enero–Julio 2026). Trabajo hecho en un
+worktree/rama separada (`run6-peru-ventas-diarias`), **todavía no mergeado
+a `main`**.
+
+### Lo que se hizo
+
+- Diseño (brainstorming) + plan de implementación escritos y comiteados:
+  `docs/hydraia/plans/2026-07-23-run6-peru-tenant-ventas-diarias.md` y
+  `...-plan.md`.
+- Ejecutado con subagentes (implementador + revisor por tarea):
+  - **Tarea 1:** modelos `VentaDiaria`/`VentaDiariaDetalle`/`PagoSuelto` +
+    migración Alembic.
+  - **Tarea 2:** schemas Pydantic.
+  - **Tarea 3:** endpoints API (CRUD, resumen mensual, pagos sueltos) +
+    registro en la app.
+  - **Tarea 4:** tests CRUD y resumen mensual.
+  - **Tarea 5:** test de aislamiento por tenant (agregado a
+    `test_tenant_http_isolation.py`, compartido con el resto del proyecto).
+  - **Tarea 7:** script de importación del histórico Excel de Perú — 3
+    rondas de investigación real de calidad de datos (variantes de
+    encabezado "V. VENTA"/"RECAUDO" sin sufijo en Febrero/Marzo, detección
+    de filas de pago suelto) hasta cuadrar exactamente el conteo esperado:
+    **894 ventas + 50 pagos sueltos = 944**.
+  - **Tarea 8:** frontend (vista "Ventas Diarias (Perú)", servicio API,
+    entrada de menú).
+- Se encontró y documentó (sin tocarlo, fuera de alcance de este Run) un
+  **bug preexistente no relacionado**: la migración Alembic
+  `c4d5e6f7a8b9_rol_contador.py` falla al aplicarse desde cero contra
+  Postgres (`batch_alter_table` incompatible con FKs de `usuarios`) — no
+  afecta el despliegue LAN/SQLite actual, pero rompería un
+  `alembic upgrade head` limpio en Postgres/CI si se necesita alguna vez.
+- Llegó el Excel de Ecuador (`CUENTAS ECUADOR.xlsx`, Escritorio) — revisado
+  en modo lectura: estructura muy distinta a la de Perú (gastos, caja
+  menor, inventario diario por producto, pagos por campaña, devoluciones
+  con conciliación financiera). **No tiene una hoja de ventas equivalente**
+  a la de Perú. Queda deliberadamente fuera de este Run — necesita su
+  propio brainstorming/diseño.
+
+### Pendiente / bloqueado
+
+- **Tarea 6** (alta real del tenant Perú en producción): **pausada** —
+  requiere la contraseña real del Superusuario
+  (`admin@superozonoglobal.com`), que no se pudo recuperar en esta sesión.
+  El backend de producción que se había levantado para esto se detuvo sin
+  hacer cambios.
+- **Tarea 9** (verificación E2E en navegador real): **interrumpida** a
+  pedido del usuario mientras corría; se había levantado una instancia
+  local **desechable** (SQLite temporal, nunca tocó `superozono.db`) y
+  llegado a "aislamiento confirmado visualmente" justo antes de detenerla.
+  Queda por retomar y formalizar.
+- **Revisión final de la rama completa** y decisión de merge/PR: pendiente
+  de que las Tareas 6 y 9 se retomen y cierren.
+- Preguntas abiertas para la auxiliar de Perú (agregadas al design doc):
+  significado real de "VALOR FLETE", si "V. VENTA"/"RECAUDO" (sin sufijo)
+  son lo mismo que "VENTA"/"RECAUDO 1" en los demás meses, y si el criterio
+  de fila-sin-producto-con-abono es el correcto para detectar pagos
+  sueltos en todos los meses.
+
+### Commit(s) de esta sesión
+
+En `main`: diseño + plan + `.gitignore` (`.worktrees/`).
+En la rama `run6-peru-ventas-diarias` (13 commits, no mergeados): modelos +
+migración, schemas, router, tests CRUD, test de aislamiento, importador
+Excel (3 rondas de fix), frontend. Ver `git log run6-peru-ventas-diarias`.
+
+### Estado al cierre
+
+Rama `run6-peru-ventas-diarias`: Tareas 1–5, 7–8 completas y revisadas
+(spec + calidad, con rondas de fix reales incluidas). Tareas 6 y 9
+pendientes de retomar. Nada mergeado a `main` todavía.
+
