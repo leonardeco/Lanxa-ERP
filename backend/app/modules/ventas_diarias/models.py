@@ -56,7 +56,7 @@ class VentaDiariaDetalle(TenantScoped, Base):
     __tablename__ = "ventas_diarias_detalles"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    venta_diaria_id: Mapped[int] = mapped_column(ForeignKey("ventas_diarias.id"))
+    venta_diaria_id: Mapped[int] = mapped_column(ForeignKey("ventas_diarias.id"), index=True)
     producto_id: Mapped[int] = mapped_column(ForeignKey("productos.id"))
     cantidad: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("1.00"))
     venta: Mapped[Decimal | None] = mapped_column(Numeric(18, 2))
