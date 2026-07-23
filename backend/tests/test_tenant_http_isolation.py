@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -18,6 +19,7 @@ from app.core.tenancy import (
 )
 from app.modules.usuarios.models import Usuario
 from app.modules.ventas.models import Producto
+from app.modules.ventas_diarias.models import VentaDiaria, VentaDiariaDetalle
 
 
 @pytest.mark.asyncio
@@ -121,3 +123,43 @@ async def test_list_usuarios_solo_mismo_tenant(
     emails = {u["email"] for u in r.json()}
     assert "admin@test.com" in emails
     assert "admin@otra.com" not in emails
+
+
+@pytest.mark.asyncio
+async def test_list_ventas_diarias_no_ve_otro_tenant(
+    client: AsyncClient, auth_headers: dict, db_session
+):
+    """Auxiliar del tenant 1 no ve ventas diarias del tenant 2."""
+    from app.modules.ventas.models import Cliente
+
+    db_session.add(Tenant(id=2, codigo="peru-test", razon_social="Peru Test", activo=True))
+    await db_session.flush()
+
+    set_tenant_id(2)
+    await apply_rls_tenant(db_session, 2)
+    producto = Producto(
+        sku="PE-SECRET", nombre="Secreto", marca="X",
+        precio_venta=Decimal("1"), stock_actual=Decimal("0"), tenant_id=2,
+    )
+    cliente = Cliente(nit_cc="99999999", razon_social="Cliente Secreto", tenant_id=2)
+    db_session.add_all([producto, cliente])
+    await db_session.flush()
+    venta = VentaDiaria(
+        fecha=date(2026, 1, 1), cliente_id=cliente.id, tenant_id=2,
+    )
+    db_session.add(venta)
+    await db_session.flush()
+    db_session.add(VentaDiariaDetalle(
+        venta_diaria_id=venta.id, producto_id=producto.id,
+        cantidad=Decimal("1"), venta=Decimal("100"), saldo=Decimal("100"),
+        tenant_id=2,
+    ))
+    await db_session.commit()
+    reset_tenant_id()
+    await apply_rls_tenant(db_session, DEFAULT_TENANT_ID)
+
+    r = await client.get("/api/v1/ventas-diarias/", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    guias = {v["guia"] for v in r.json()}
+    assert "PE-SECRET" not in guias  # ninguna fila del tenant 2 debe aparecer
+    assert all(v["cliente_id"] != cliente.id for v in r.json())
