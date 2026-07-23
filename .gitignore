@@ -66,4 +66,5 @@ frontend/smoke-screens/
 frontend/_login_chrome.cjs
 ops/smoke-screens/_login_cred.json
 **/_login_cred.json
+.worktrees/
 
