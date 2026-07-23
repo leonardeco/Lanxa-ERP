@@ -73,12 +73,14 @@ def _encontrar_header(ws) -> tuple[int, dict[str, int]]:
                     mapa["producto"] = idx
                 elif n.startswith("CANT"):
                     mapa["cantidad"] = idx
-                elif n == "VENTA":
+                elif n in ("VENTA", "V. VENTA", "V VENTA"):
                     mapa["venta"] = idx
                 elif n.startswith("RECAUDO 1"):
                     mapa["abono_1"] = idx
                 elif n.startswith("RECAUDO 2"):
                     mapa["abono_2"] = idx
+                elif n.startswith("RECAUDO"):
+                    mapa["abono_1"] = idx
                 elif n == "SALDO":
                     mapa["saldo"] = idx
                 elif n == "ESTADO":
@@ -163,8 +165,15 @@ async def importar(xlsx_path: str, tenant_id: int) -> None:
                 producto_nombre = row[col.get("producto", -1)] if "producto" in col else None
 
                 # Fila de "pago suelto": sin producto ni guia, cliente suele
-                # empezar con "PAGO " — se importa como PagoSuelto, no como venta.
-                if not producto_nombre and cliente_nombre and "PAGO" in _norm(cliente_nombre):
+                # empezar con "PAGO " o la columna ESTADO dice literalmente
+                # "PAGO" (algunos meses usan CLIENTE="YAPE"/nombre de persona
+                # en vez del prefijo "PAGO ") — se importa como PagoSuelto,
+                # no como venta.
+                estado_fila_raw = _norm(row[col["estado"]]) if "estado" in col else ""
+                es_pago_suelto = (
+                    cliente_nombre and "PAGO" in _norm(cliente_nombre)
+                ) or estado_fila_raw == "PAGO"
+                if not producto_nombre and es_pago_suelto:
                     abono = _to_decimal(row[col["abono_1"]]) if "abono_1" in col else None
                     if abono:
                         db.add(PagoSuelto(
