@@ -164,30 +164,24 @@ async def importar(xlsx_path: str, tenant_id: int) -> None:
                 cliente_nombre = row[col.get("cliente", -1)] if "cliente" in col else None
                 producto_nombre = row[col.get("producto", -1)] if "producto" in col else None
 
-                # Fila de "pago suelto": sin producto ni guia, cliente suele
-                # empezar con "PAGO " o la columna ESTADO dice literalmente
-                # "PAGO" (algunos meses usan CLIENTE="YAPE"/nombre de persona
-                # en vez del prefijo "PAGO ") — se importa como PagoSuelto,
-                # no como venta.
-                estado_fila_raw = _norm(row[col["estado"]]) if "estado" in col else ""
-                es_pago_suelto = (
-                    cliente_nombre and "PAGO" in _norm(cliente_nombre)
-                ) or estado_fila_raw == "PAGO"
-                if not producto_nombre and es_pago_suelto:
+                # Fila de "pago suelto": la propiedad estructural que define a
+                # estas filas en todos los meses es no tener producto (una
+                # venta real siempre tiene producto; un pago suelto nunca).
+                # Se importa como PagoSuelto solo si ademas trae un monto de
+                # abono real; sin producto y sin monto es una fila vacia / de
+                # total y se omite sin crear ningun registro.
+                if not producto_nombre:
                     abono = _to_decimal(row[col["abono_1"]]) if "abono_1" in col else None
                     if abono:
                         db.add(PagoSuelto(
                             fecha=fecha,
-                            cliente_texto=str(cliente_nombre).strip(),
+                            cliente_texto=str(cliente_nombre or "").strip() or "(sin nombre)",
                             monto=abono,
                             revisado=False,
                             notas="Importado de Excel — sin vinculo confirmado a una venta.",
                         ))
                         total_pagos_sueltos += 1
                     continue
-
-                if not producto_nombre:
-                    continue  # fila vacia / de total, sin producto real
 
                 cliente_id = await _obtener_o_crear_cliente(
                     db,
