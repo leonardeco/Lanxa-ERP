@@ -3,8 +3,8 @@
 **Empresa:** TECNOLOGIA E INNOVACION SUPER OZONO S.A.S.
 **NIT:** 901841798-5
 **Ciudad:** Armenia, Quindío
-**Versión ERP (LAN):** 0.3.0 · **Docs:** 0.7.2
-**Última actualización:** 2026-07-18
+**Versión ERP (LAN):** 0.3.0 · **Docs:** 0.7.3
+**Última actualización:** 2026-07-21
 
 ---
 
@@ -772,6 +772,9 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | 56 | **#30 Access token a memoria** — el access token deja de guardarse en `localStorage` y vive solo en memoria (variable de módulo en `frontend/src/services/api.ts` con accesores `getAccessToken`/`setAccessToken`; `AuthContext` arranca sin token y renueva en silencio). Reduce la superficie de XSS: un script inyectado ya no puede leerlo de un almacén persistente; la sesión entre recargas la sostiene el refresh token en cookie HttpOnly. 5 tests Vitest (`api.test.ts`). Frontend: 61→66 tests | ✅ Completado 2026-07-11 |
 | 57 | Ops LAN 2026-07-18: IP **192.168.1.131**, UI v0.3.0 (`config.ts` APP_VERSION + probe login + StatusBar health), `diagnostico.ps1` ampliado, `SEGURIDAD-LAN.md`, `PRODUCTION-READINESS-LAN.md`, backup Postgres cifrado (`backup_pg`/`restore_pg`), `backup_auto.py`, `start.bat` con certs relativos (path con espacios), preflight #7 + `HOY-ENTREGA-7.md`, login auto ops Playwright | ✅ Completado 2026-07-18 |
 | 58 | Carril técnico sin Contador documentado en `ops/BACKLOG-TECNICO-SIN-NEGOCIO.md`; tests Vitest `config.test.ts`; gitignore creds de login local | ✅ Completado 2026-07-18 |
+| 59 | **Informe gerencial de avance** (Word): línea de tiempo real 15-jun→18-jul, módulos, 1 desarrollador, comparación **tiempo real vs mercado** (~5 sem reales vs 5–14 meses / ~9–14 p-m de mercado), estado LAN, bloqueos Contador/negocio, recomendaciones 30 días. Escritorio: `Linea-de-Tiempo-Desarrollo-SuperOzono-ERP.docx` | ✅ Completado 2026-07-21 |
+| 60 | **Presentación gerencial** (PowerPoint, 12 slides) + **resumen de jornada administrativa** (PDF). Escritorio: `SuperOzono-ERP-Informe-Gerencial-Avance.pptx`, `Resumen-Jornada-Administrativa-SuperOzono.pdf` | ✅ Completado 2026-07-21 |
+| 61 | **Acta de validación Contador** (Word+PDF, 1 página): 7 decisiones (#1 PUC, compras, caja/bancos, retenciones, retenedores, costeo #3, costo venta #8) + firmas. Escritorio + `Entrega-Contador-PUC\`. Backlog: ítems **#34** Excel datos empresa y **#35** screenshots ERP actual (referencia UX auxiliares) registrados en `PENDIENTES.md` 46ª rev. | ✅ Completado 2026-07-21 |
 
 ### Deuda técnica / mejoras pendientes
 
@@ -823,4 +826,5 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 - ~~**#7 plan de entrega**~~ → ✅ `ops/ENTREGA-7-USUARIOS.md` + carpeta Escritorio; falta solo la ejecución humana (repartir tarjetas).
 - ~~**Smoke diario + Alegra en smoke**~~ → ✅ **2026-07-17**: `ops/smoke-diario.bat`, `registrar-smoke-diario.ps1`, `smoke-prod.py` chequea `/alegra/status` (informativo o `--strict-alegra`). Tarea Windows **SuperOzonoERP-SmokeDiario** 08:00.
 - ~~**Fix arranque LAN (encoding .env + IP)**~~ → ✅ **2026-07-17**: `backend\.env` reescrito UTF-8; IP **`192.168.1.131`**; `ops/sync-lan-ip.ps1` + `start.bat` valida config, espera health `:8000`, regenera cert. Smoke + login UI Superusuario verificados (usuario dentro del ERP).
-- **Pendientes vivos:** ver `PENDIENTES.md` (43ª rev) — Contador #1–3/#8; #4 datos; #7 ejecutar entrega; token Alegra; resolución DIAN / texto Habeas.
+- ~~**Informe gerencial + PPTX + acta Contador + resumen admin**~~ → ✅ **2026-07-21** (DOCUMENTACION §13 #59–#61). Material en Escritorio; generadores locales en `docs/generate-*`.
+- **Pendientes vivos:** ver `PENDIENTES.md` (**46ª rev, 2026-07-21**) — Contador #1–3/#8 (acta lista para firmar); #2/#4 datos; **#34 Excel empresa** y **#35 screenshots ERP actual** (solicitados a admin); #7 ejecutar entrega; token Alegra; resolución DIAN / texto Habeas.
