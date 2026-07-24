@@ -7,7 +7,7 @@ from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.tenancy import for_tenant
+from app.core.tenancy import for_tenant, tenant_clause
 from app.api.deps import CurrentUser
 from app.modules.contabilidad.models import (
     CuentaPorCobrar, CuentaPorPagar,
@@ -139,6 +139,7 @@ async def compras_periodo(
         .where(
             CompraDocumento.fecha.between(fecha_desde, fecha_hasta),
             CompraDocumento.estado != "Anulada",
+            tenant_clause(CompraDocumento),
         )
     )
     total, cantidad = r.one()
@@ -152,6 +153,7 @@ async def compras_periodo(
         .where(
             CompraDocumento.fecha.between(fecha_desde, fecha_hasta),
             CompraDocumento.estado != "Anulada",
+            tenant_clause(CompraDocumento),
         )
         .group_by(CompraDocumento.proveedor_razon_social)
         .order_by(desc("total"))
@@ -184,6 +186,7 @@ async def ventas_periodo(
         .where(
             VentaDocumento.fecha.between(fecha_desde, fecha_hasta),
             VentaDocumento.estado != EstadoVenta.ANULADA,
+            tenant_clause(VentaDocumento),
         )
     )
     total, cantidad = r.one()
@@ -198,6 +201,7 @@ async def ventas_periodo(
         .where(
             VentaDocumento.fecha.between(fecha_desde, fecha_hasta),
             VentaDocumento.estado != EstadoVenta.ANULADA,
+            tenant_clause(VentaDocumento),
         )
         .group_by(Cliente.razon_social)
         .order_by(desc("total"))
@@ -218,6 +222,7 @@ async def ventas_periodo(
         .where(
             VentaDocumento.fecha.between(fecha_desde, fecha_hasta),
             VentaDocumento.estado != EstadoVenta.ANULADA,
+            tenant_clause(VentaDocumento),
         )
         .group_by(Producto.marca)
         .order_by(desc("total"))
@@ -258,6 +263,7 @@ async def retenciones_periodo(
         ).where(
             CompraDocumento.fecha.between(fecha_desde, fecha_hasta),
             CompraDocumento.estado != "Anulada",
+            tenant_clause(CompraDocumento),
         )
     )
     c_rf, c_ri, c_rc = rc.one()
@@ -270,6 +276,7 @@ async def retenciones_periodo(
         ).where(
             VentaDocumento.fecha.between(fecha_desde, fecha_hasta),
             VentaDocumento.estado != EstadoVenta.ANULADA,
+            tenant_clause(VentaDocumento),
         )
     )
     v_rf, v_ri, v_rc = rv.one()
@@ -317,7 +324,10 @@ async def _saldos_por_clase(
         )
         .join(MovimientoAsiento, MovimientoAsiento.cuenta_id == PlanCuentas.id)
         .join(AsientoContable, AsientoContable.id == MovimientoAsiento.asiento_id)
-        .where(PlanCuentas.clase.in_(clases), AsientoContable.anulado.is_(False))
+        .where(
+            PlanCuentas.clase.in_(clases), AsientoContable.anulado.is_(False),
+            tenant_clause(PlanCuentas),
+        )
         .group_by(PlanCuentas.id)
         .order_by(PlanCuentas.codigo_puc)
     )
@@ -343,7 +353,7 @@ async def _saldos_por_clase(
                 func.coalesce(func.sum(SaldoInicial.credito), 0),
             )
             .join(SaldoInicial, SaldoInicial.cuenta_id == PlanCuentas.id)
-            .where(PlanCuentas.clase.in_(clases))
+            .where(PlanCuentas.clase.in_(clases), tenant_clause(PlanCuentas))
             .group_by(PlanCuentas.id)
         )
         for codigo, nombre, clase, debitos, creditos in (await db.execute(q_ini)).all():
