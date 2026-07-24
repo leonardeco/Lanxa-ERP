@@ -12,6 +12,7 @@ from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.tenancy import for_tenant
 from app.api.deps import AdminOrAdministradoraDep
 from app.modules.auditoria.models import RegistroAuditoria
 from app.modules.auditoria.schemas import RegistroAuditoriaResponse
@@ -32,11 +33,12 @@ async def list_auditoria(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar el log de auditoría (más recientes primero)."""
-    q = (
+    q = for_tenant(
         select(RegistroAuditoria)
         .order_by(desc(RegistroAuditoria.fecha), desc(RegistroAuditoria.id))
         .limit(limit)
-        .offset(offset)
+        .offset(offset),
+        RegistroAuditoria,
     )
     if entidad:
         q = q.where(RegistroAuditoria.entidad == entidad)
