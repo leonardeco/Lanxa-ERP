@@ -279,7 +279,8 @@ async def asiento_venta_confirmada(db: AsyncSession, venta, usuario_id: int | No
     # Import local para no acoplar el módulo a nivel de import circular
     from app.modules.ventas.models import Cliente
 
-    cliente = await db.get(Cliente, venta.cliente_id)
+    from app.core.tenancy import get_for_tenant
+    cliente = await get_for_tenant(db, Cliente, venta.cliente_id)
     tercero_id = await _get_or_create_tercero(
         db,
         cliente.nit_cc if cliente else None,
@@ -385,7 +386,8 @@ async def asiento_devolucion_venta(
     """
     from app.modules.ventas.models import Cliente
 
-    cliente = await db.get(Cliente, venta.cliente_id)
+    from app.core.tenancy import get_for_tenant
+    cliente = await get_for_tenant(db, Cliente, venta.cliente_id)
     tercero_id = await _get_or_create_tercero(
         db,
         cliente.nit_cc if cliente else None,
