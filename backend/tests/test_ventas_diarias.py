@@ -114,3 +114,23 @@ async def test_resumen_mensual_suma_ventas_y_saldos(client: AsyncClient, auth_he
 async def test_get_venta_diaria_inexistente_404(client: AsyncClient, auth_headers: dict):
     r = await client.get("/api/v1/ventas-diarias/999999", headers=auth_headers)
     assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_crear_venta_diaria_estado_invalido_da_422(client: AsyncClient, auth_headers: dict):
+    """Un estado fuera de EstadoVentaDiaria debe rechazarse limpio (422),
+    no reventar en un 500 al construir el ORM con EstadoVentaDiaria(...)."""
+    producto_id = await _crear_producto(client, auth_headers, "PE-BADSTATE")
+    cliente_id = await _crear_cliente(client, auth_headers, "11111111")
+
+    r = await client.post(
+        "/api/v1/ventas-diarias/",
+        headers=auth_headers,
+        json={
+            "fecha": "2026-01-05",
+            "cliente_id": cliente_id,
+            "estado": "Enviado",  # no es un valor valido de EstadoVentaDiaria
+            "detalles": [{"producto_id": producto_id, "cantidad": 1, "venta": 100}],
+        },
+    )
+    assert r.status_code == 422

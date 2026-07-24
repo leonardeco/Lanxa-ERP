@@ -94,7 +94,7 @@ async def create_venta_diaria(
         guia=data.guia,
         codigo_guia=data.codigo_guia,
         cliente_id=data.cliente_id,
-        estado=EstadoVentaDiaria(data.estado),
+        estado=data.estado,
         forma_pago=data.forma_pago,
         notas=data.notas,
     )
