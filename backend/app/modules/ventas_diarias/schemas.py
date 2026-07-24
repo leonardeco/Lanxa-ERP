@@ -6,6 +6,8 @@ from typing import Optional, List
 from datetime import date, datetime
 from decimal import Decimal
 
+from app.modules.ventas_diarias.models import EstadoVentaDiaria
+
 
 class VentaDiariaDetalleCreate(BaseModel):
     producto_id: int
@@ -37,7 +39,7 @@ class VentaDiariaCreate(BaseModel):
     guia: Optional[str] = Field(default=None, max_length=50)
     codigo_guia: Optional[str] = Field(default=None, max_length=20)
     cliente_id: int
-    estado: str = "Pendiente"
+    estado: EstadoVentaDiaria = EstadoVentaDiaria.PENDIENTE
     forma_pago: Optional[str] = Field(default=None, max_length=100)
     notas: Optional[str] = None
     detalles: List[VentaDiariaDetalleCreate] = Field(min_length=1)
