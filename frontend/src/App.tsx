@@ -17,6 +17,7 @@ const PeriodosView = lazy(() => import('./views/PeriodosView'))
 const TributariosView = lazy(() => import('./views/TributariosView'))
 const NominaView = lazy(() => import('./views/NominaView'))
 const VentasView = lazy(() => import('./views/VentasView'))
+const VentasDiariasView = lazy(() => import('./views/VentasDiariasView'))
 const UsuariosView = lazy(() => import('./views/UsuariosView'))
 const CarteraView = lazy(() => import('./views/CarteraView'))
 const ComprasView = lazy(() => import('./views/ComprasView'))
@@ -33,6 +34,7 @@ export type ViewId =
   | 'cartera'
   | 'nomina'
   | 'ventas'
+  | 'ventas-diarias'
   | 'compras'
   | 'inventario'
   | 'rrhh'
@@ -54,6 +56,7 @@ const VIEW_TITLES: Record<ViewId, string> = {
   tributarios: 'Parámetros Tributarios',
   nomina: 'Parámetros de Nómina',
   ventas: 'Ventas & Comercial',
+  'ventas-diarias': 'Ventas Diarias (Perú)',
   compras: 'Compras & Proveedores',
   cartera: 'Cartera — CxC & CxP',
   inventario: 'Inventario & Logística',
@@ -67,22 +70,22 @@ const VIEW_TITLES: Record<ViewId, string> = {
 const ROLE_VIEWS: Record<RolUsuario, ViewId[]> = {
   Superusuario: [
     'dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios', 'nomina',
-    'ventas', 'compras', 'cartera', 'inventario', 'rrhh', 'plataformas', 'reportes', 'usuarios',
+    'ventas', 'ventas-diarias', 'compras', 'cartera', 'inventario', 'rrhh', 'plataformas', 'reportes', 'usuarios',
   ],
   // Dirección operativa (antes Administradora)
   Directora: [
     'dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios', 'nomina',
-    'ventas', 'compras', 'cartera', 'inventario', 'reportes',
+    'ventas', 'ventas-diarias', 'compras', 'cartera', 'inventario', 'reportes',
   ],
   // CEO: dashboards, reportes y consulta de operación
-  CEO: ['dashboard', 'reportes', 'ventas', 'compras', 'cartera', 'inventario'],
+  CEO: ['dashboard', 'reportes', 'ventas', 'ventas-diarias', 'compras', 'cartera', 'inventario'],
   Contador: [
     'dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios',
-    'cartera', 'reportes', 'ventas', 'compras',
+    'cartera', 'reportes', 'ventas', 'ventas-diarias', 'compras',
   ],
   'Auxiliar Contable': [
     'dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios',
-    'ventas', 'compras', 'cartera', 'reportes',
+    'ventas', 'ventas-diarias', 'compras', 'cartera', 'reportes',
   ],
 }
 
@@ -149,6 +152,8 @@ function App() {
         return <NominaView />
       case 'ventas':
         return <VentasView />
+      case 'ventas-diarias':
+        return <VentasDiariasView />
       case 'compras':
         return <ComprasView />
       case 'cartera':

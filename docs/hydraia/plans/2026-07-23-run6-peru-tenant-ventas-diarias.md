@@ -134,3 +134,15 @@ módulo de Ventas de Colombia:
   como 296500, 2200903, 601000? No parece ser costo de flete en soles.
 - ¿Las filas "PAGO <nombre>" deben quedar vinculadas a una venta específica
   o son abonos generales de cartera del cliente?
+- **(Encontrado al correr el importador contra el Excel real, 2026-07-23):**
+  Febrero y Marzo usan el encabezado "V. VENTA" en vez de "VENTA" — el
+  importador ahora lo trata como el mismo campo (monto de venta). ¿Es
+  correcto asumir que son lo mismo, o "V. VENTA" significa otra cosa en
+  esos meses?
+- Febrero trae una sola columna "RECAUDO" (sin "1"/"2") — el importador la
+  mapea a `abono_1`. ¿Confirma la auxiliar que es el mismo concepto que
+  "RECAUDO 1" en los demás meses?
+- Algunas filas de pago suelto en Febrero tienen `CLIENTE` = "YAPE" (app de
+  pagos peruana) o un nombre real, no "PAGO <nombre>" — el importador las
+  detecta ahora por `ESTADO == "PAGO"` en vez de por el texto del cliente.
+  ¿Es ese el criterio correcto para todos los meses?
