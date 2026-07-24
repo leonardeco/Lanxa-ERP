@@ -142,7 +142,9 @@ async def read_users_me(current_user: CurrentUser) -> UsuarioResponse:
 
 
 async def _es_ultimo_superusuario_activo(session, user: Usuario) -> bool:
-    """True si `user` es Superusuario activo y no queda ningún otro activo."""
+    """True si `user` es Superusuario activo y no queda ningún otro activo
+    EN SU MISMO TENANT (el guard es por empresa, no global — cada tenant
+    necesita su propio Superusuario)."""
     if user.rol != ROL_SUPERUSUARIO or not user.is_active:
         return False
     otros = await session.scalar(
@@ -150,6 +152,7 @@ async def _es_ultimo_superusuario_activo(session, user: Usuario) -> bool:
             Usuario.rol == ROL_SUPERUSUARIO,
             Usuario.is_active.is_(True),
             Usuario.id != user.id,
+            Usuario.tenant_id == user.tenant_id,
         )
     )
     return (otros or 0) == 0
@@ -198,7 +201,9 @@ async def create_usuario(body: UsuarioCreate, session: SessionDep, admin: Superu
 
 @router.put("/v1/usuarios/{user_id}", response_model=UsuarioResponse)
 async def update_usuario(user_id: int, body: UsuarioUpdate, session: SessionDep, admin: SuperuserDep):
-    user = await session.get(Usuario, user_id)
+    from app.core.tenancy import get_for_tenant
+
+    user = await get_for_tenant(session, Usuario, user_id)
     if not user:
         raise HTTPException(404, "Usuario no encontrado")
     if body.rol is not None and body.rol not in ROLES_VALIDOS:
@@ -229,7 +234,9 @@ async def update_usuario(user_id: int, body: UsuarioUpdate, session: SessionDep,
 
 @router.patch("/v1/usuarios/{user_id}/toggle", response_model=UsuarioResponse)
 async def toggle_usuario(user_id: int, session: SessionDep, current_user: CurrentUser, _: SuperuserDep):
-    user = await session.get(Usuario, user_id)
+    from app.core.tenancy import get_for_tenant
+
+    user = await get_for_tenant(session, Usuario, user_id)
     if not user:
         raise HTTPException(404, "Usuario no encontrado")
     if user.id == current_user.id:
@@ -250,7 +257,9 @@ async def reset_usuario_password(
     request: Request, user_id: int, body: UsuarioPasswordReset, session: SessionDep, admin: SuperuserDep
 ):
     """Resetea la contraseña de un usuario sin acceso. Solo Admin."""
-    user = await session.get(Usuario, user_id)
+    from app.core.tenancy import get_for_tenant
+
+    user = await get_for_tenant(session, Usuario, user_id)
     if not user:
         raise HTTPException(404, "Usuario no encontrado")
     # Política validada en el schema UsuarioPasswordReset
@@ -267,7 +276,9 @@ async def revocar_sesiones_usuario(user_id: int, session: SessionDep, admin: Sup
     """Cierra las sesiones remotas de un usuario borrando sus refresh tokens.
     El access token vigente expira solo (máx. 15 min); sin refresh token no
     puede renovarse, así que la sesión muere sin necesidad de desactivarlo."""
-    user = await session.get(Usuario, user_id)
+    from app.core.tenancy import get_for_tenant
+
+    user = await get_for_tenant(session, Usuario, user_id)
     if not user:
         raise HTTPException(404, "Usuario no encontrado")
     result = await session.execute(

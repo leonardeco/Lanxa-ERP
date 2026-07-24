@@ -18,7 +18,7 @@ from app.core.tenancy import (
     reset_tenant_id,
 )
 from app.modules.usuarios.models import Usuario
-from app.modules.ventas.models import Producto
+from app.modules.ventas.models import Cliente, Producto, VentaDetalle, VentaDocumento
 from app.modules.ventas_diarias.models import VentaDiaria, VentaDiariaDetalle
 
 
@@ -130,8 +130,6 @@ async def test_list_ventas_diarias_no_ve_otro_tenant(
     client: AsyncClient, auth_headers: dict, db_session
 ):
     """Auxiliar del tenant 1 no ve ventas diarias del tenant 2."""
-    from app.modules.ventas.models import Cliente
-
     db_session.add(Tenant(id=2, codigo="peru-test", razon_social="Peru Test", activo=True))
     await db_session.flush()
 
@@ -165,3 +163,47 @@ async def test_list_ventas_diarias_no_ve_otro_tenant(
         d["producto_id"] for v in r.json() for d in v["detalles"]
     }
     assert producto.id not in detalle_producto_ids  # ninguna linea del tenant 2 debe aparecer
+
+
+@pytest.mark.asyncio
+async def test_dashboard_ventas_no_cuenta_otro_tenant(
+    client: AsyncClient, auth_headers: dict, db_session
+):
+    """El dashboard de Ventas (conteos y ventas por marca) no debe incluir
+    datos de otro tenant — ni siquiera como agregados/conteos."""
+    db_session.add(Tenant(id=2, codigo="dash-test", razon_social="Dash Test", activo=True))
+    await db_session.flush()
+
+    set_tenant_id(2)
+    await apply_rls_tenant(db_session, 2)
+    producto = Producto(
+        sku="T2-DASH", nombre="Producto tenant 2", marca="MarcaSecretaT2",
+        precio_venta=Decimal("500000"), precio_costo=Decimal("1"),
+        stock_actual=Decimal("10"), tenant_id=2,
+    )
+    cliente = Cliente(nit_cc="88888888", razon_social="Cliente tenant 2", tenant_id=2)
+    db_session.add_all([producto, cliente])
+    await db_session.flush()
+    venta = VentaDocumento(
+        numero="T2-V-0001", cliente_id=cliente.id, total=Decimal("500000.00"),
+        tenant_id=2,
+    )
+    db_session.add(venta)
+    await db_session.flush()
+    db_session.add(VentaDetalle(
+        venta_id=venta.id, producto_id=producto.id,
+        precio_unitario=Decimal("500000"), total_linea=Decimal("500000.00"),
+        tenant_id=2,
+    ))
+    await db_session.commit()
+    reset_tenant_id()
+    await apply_rls_tenant(db_session, DEFAULT_TENANT_ID)
+
+    r = await client.get("/api/v1/ventas/dashboard", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["cantidad_ventas_mes"] == 0
+    assert float(data["ventas_mes_actual"]) == 0.0
+    assert data["total_clientes_activos"] == 0
+    assert data["total_productos_activos"] == 0
+    assert all(row["marca"] != "MarcaSecretaT2" for row in data["ventas_por_marca"])

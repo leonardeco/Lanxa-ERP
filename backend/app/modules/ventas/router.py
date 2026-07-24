@@ -190,6 +190,7 @@ async def get_ventas_dashboard(_: CurrentUser, db: AsyncSession = Depends(get_db
             extract("month", VentaDocumento.fecha) == mes_actual,
             extract("year", VentaDocumento.fecha) == anio_actual,
             VentaDocumento.estado != EstadoVenta.ANULADA,
+            tenant_clause(VentaDocumento),
         )
     )
 
@@ -202,6 +203,7 @@ async def get_ventas_dashboard(_: CurrentUser, db: AsyncSession = Depends(get_db
             extract("month", VentaDocumento.fecha) == mes_anterior,
             extract("year", VentaDocumento.fecha) == anio_anterior,
             VentaDocumento.estado != EstadoVenta.ANULADA,
+            tenant_clause(VentaDocumento),
         )
     )
 
@@ -212,21 +214,26 @@ async def get_ventas_dashboard(_: CurrentUser, db: AsyncSession = Depends(get_db
             extract("month", VentaDocumento.fecha) == mes_actual,
             extract("year", VentaDocumento.fecha) == anio_actual,
             VentaDocumento.estado != EstadoVenta.ANULADA,
+            tenant_clause(VentaDocumento),
         )
     )
 
     # Clientes y productos activos
     clientes_activos = await db.scalar(
-        select(func.count(Cliente.id)).where(Cliente.activo == True)  # noqa: E712
+        select(func.count(Cliente.id)).where(Cliente.activo == True, tenant_clause(Cliente))  # noqa: E712
     )
     productos_activos = await db.scalar(
-        select(func.count(Producto.id)).where(Producto.activo == True)  # noqa: E712
+        select(func.count(Producto.id)).where(Producto.activo == True, tenant_clause(Producto))  # noqa: E712
     )
 
     # Productos con stock bajo
     stock_bajo = await db.scalar(
         select(func.count(Producto.id))
-        .where(Producto.activo == True, Producto.stock_actual <= Producto.stock_minimo)  # noqa: E712
+        .where(
+            Producto.activo == True,  # noqa: E712
+            Producto.stock_actual <= Producto.stock_minimo,
+            tenant_clause(Producto),
+        )
     )
 
     # Ticket promedio
@@ -249,7 +256,7 @@ async def get_ventas_dashboard(_: CurrentUser, db: AsyncSession = Depends(get_db
             ),
             isouter=True,
         )
-        .where(Producto.activo == True)  # noqa: E712
+        .where(Producto.activo == True, tenant_clause(Producto))  # noqa: E712
         .group_by(Producto.marca)
         .order_by(desc("total"))
         .limit(10)
