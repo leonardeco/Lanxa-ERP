@@ -15,6 +15,7 @@ from decimal import Decimal
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 
 from app.core.tenancy import (
     DEFAULT_TENANT_ID,
@@ -23,6 +24,7 @@ from app.core.tenancy import (
     reset_tenant_id,
     set_tenant_id,
 )
+from app.modules.contabilidad.models import ParametroTributario
 from app.modules.ventas.models import (
     Cliente,
     Cotizacion,
@@ -219,6 +221,63 @@ async def _crear_venta_otro_tenant(db_session, *, estado: EstadoVenta) -> int:
     venta_id = venta.id
     await _al_tenant_default(db_session)
     return venta_id
+
+
+@pytest.mark.asyncio
+async def test_sugerir_retenciones_no_usa_tarifa_de_otro_tenant(
+    client: AsyncClient, auth_headers: dict, db_session
+):
+    """_sugerir_retenciones leia ParametroTributario sin filtrar por tenant:
+    la tarifa de ReteIVA de OTRO tenant se aplicaba a las ventas propias.
+
+    ParametroTributario.concepto es unique=True GLOBAL (gap de esquema ya
+    documentado) asi que no puede haber dos filas "ReteIVA" simultaneas para
+    tenants distintos con INSERT normal — se borra primero la fila que el
+    conftest siembra para el tenant 1 y se recrea solo para el tenant 2, para
+    poder probar el aislamiento sin chocar con esa restriccion."""
+    borrar = await db_session.scalar(
+        select(ParametroTributario).where(ParametroTributario.concepto == "ReteIVA")
+    )
+    if borrar:
+        await db_session.delete(borrar)
+        await db_session.flush()
+
+    await _en_tenant2(db_session)
+    db_session.add(ParametroTributario(
+        concepto="ReteIVA", tarifa_valor=Decimal("0.99000"), activo=True, tenant_id=2,
+    ))
+    await db_session.commit()
+    await _al_tenant_default(db_session)
+
+    cliente_r = await client.post(
+        "/api/v1/ventas/clientes",
+        json={"nit_cc": "T1-RETE", "razon_social": "Cliente Retencion", "retiene_iva": True},
+        headers=auth_headers,
+    )
+    assert cliente_r.status_code == 201, cliente_r.text
+    producto_r = await client.post(
+        "/api/v1/ventas/productos",
+        json={"sku": "T1-RETE-P", "nombre": "Propio", "marca": "X", "precio_venta": "1000000", "stock_actual": 1},
+        headers=auth_headers,
+    )
+    assert producto_r.status_code == 201, producto_r.text
+
+    r = await client.post(
+        "/api/v1/ventas/",
+        json={
+            "fecha": "2026-01-01",
+            "cliente_id": cliente_r.json()["id"],
+            "detalles": [{
+                "producto_id": producto_r.json()["id"], "cantidad": 1,
+                "precio_unitario": "1000000.00", "iva_porcentaje": "19.00",
+            }],
+        },
+        headers=auth_headers,
+    )
+    assert r.status_code == 201, r.text
+    # tenant 1 no tiene su propio ParametroTributario ReteIVA -> reteiva debe
+    # quedar en 0, nunca calculado con la tarifa (0.99) del tenant 2.
+    assert float(r.json()["reteiva"]) == 0.0
 
 
 @pytest.mark.asyncio

@@ -30,6 +30,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.tenancy import get_for_tenant, tenant_clause
 from app.modules.contabilidad.models import (
     AsientoContable, MovimientoAsiento, PlanCuentas, PeriodoContable,
     Tercero, TipoTercero, EstadoPeriodo,
@@ -60,7 +61,9 @@ CERO = Decimal("0.00")
 
 
 async def _get_or_create_cuenta(db: AsyncSession, codigo: str) -> PlanCuentas:
-    cuenta = await db.scalar(select(PlanCuentas).where(PlanCuentas.codigo_puc == codigo))
+    cuenta = await db.scalar(
+        select(PlanCuentas).where(PlanCuentas.codigo_puc == codigo, tenant_clause(PlanCuentas))
+    )
     if cuenta:
         return cuenta
     nombre, clase, naturaleza = CUENTAS_MOTOR[codigo]
@@ -139,7 +142,8 @@ async def validar_periodo_abierto(db: AsyncSession, fecha) -> None:
     """
     periodo = await db.scalar(
         select(PeriodoContable).where(
-            PeriodoContable.anio == fecha.year, PeriodoContable.mes == fecha.month
+            PeriodoContable.anio == fecha.year, PeriodoContable.mes == fecha.month,
+            tenant_clause(PeriodoContable),
         )
     )
     if periodo and periodo.estado == EstadoPeriodo.CERRADO:
@@ -153,7 +157,8 @@ async def validar_periodo_abierto(db: AsyncSession, fecha) -> None:
 async def _periodo_para(db: AsyncSession, fecha) -> int | None:
     periodo = await db.scalar(
         select(PeriodoContable).where(
-            PeriodoContable.anio == fecha.year, PeriodoContable.mes == fecha.month
+            PeriodoContable.anio == fecha.year, PeriodoContable.mes == fecha.month,
+            tenant_clause(PeriodoContable),
         )
     )
     return periodo.id if periodo else None
@@ -231,6 +236,7 @@ async def reversar_asientos(
             AsientoContable.documento_ref == documento_ref,
             AsientoContable.reversado.is_(False),
             AsientoContable.descripcion.notlike("REVERSO%"),
+            tenant_clause(AsientoContable),
         )
     )).scalars().all()
 
@@ -240,7 +246,9 @@ async def reversar_asientos(
         # cerró, la anulación exige reabrir el período (decisión del contador)
         await validar_periodo_abierto(db, original.fecha)
         movimientos = (await db.execute(
-            select(MovimientoAsiento).where(MovimientoAsiento.asiento_id == original.id)
+            select(MovimientoAsiento).where(
+                MovimientoAsiento.asiento_id == original.id, tenant_clause(MovimientoAsiento)
+            )
         )).scalars().all()
 
         reverso = AsientoContable(
@@ -279,7 +287,6 @@ async def asiento_venta_confirmada(db: AsyncSession, venta, usuario_id: int | No
     # Import local para no acoplar el módulo a nivel de import circular
     from app.modules.ventas.models import Cliente
 
-    from app.core.tenancy import get_for_tenant
     cliente = await get_for_tenant(db, Cliente, venta.cliente_id)
     tercero_id = await _get_or_create_tercero(
         db,
@@ -386,7 +393,6 @@ async def asiento_devolucion_venta(
     """
     from app.modules.ventas.models import Cliente
 
-    from app.core.tenancy import get_for_tenant
     cliente = await get_for_tenant(db, Cliente, venta.cliente_id)
     tercero_id = await _get_or_create_tercero(
         db,

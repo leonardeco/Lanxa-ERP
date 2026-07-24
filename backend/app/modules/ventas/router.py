@@ -60,6 +60,7 @@ async def _sugerir_retenciones(db: AsyncSession, cliente, base_gravable: Decimal
         select(ParametroTributario).where(
             ParametroTributario.concepto.in_([_CONCEPTO_RETEFUENTE, _CONCEPTO_RETEIVA]),
             ParametroTributario.activo == True,  # noqa: E712
+            tenant_clause(ParametroTributario),
         )
     )).scalars().all()
     rates = {r.concepto: (r.tarifa_valor or Decimal("0")) for r in rows}
