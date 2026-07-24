@@ -144,7 +144,8 @@ async def test_periodo_toggle_otro_tenant_404(client: AsyncClient, auth_headers:
         "tenant_id — mismo problema en PlanCuentas.codigo_puc, "
         "CentroCosto.codigo, Tercero.nit_cc, ParametroTributario.concepto, "
         "ParametroNomina.concepto, CuentaPorCobrar.numero_factura, "
-        "CuentaPorPagar.numero_documento, Pago.numero_comprobante. "
+        "CuentaPorPagar.numero_documento, Pago.numero_comprobante, "
+        "Cotizacion.numero, DevolucionVenta.numero. "
         "Ver BITACORA.md 2026-07-24 — tarea de seguimiento separada, "
         "no forma parte de este fix de aislamiento a nivel de queries."
     ),
