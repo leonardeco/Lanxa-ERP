@@ -5,6 +5,16 @@ reset de contraseña por Admin y cambio de contraseña propia.
 import pytest
 from httpx import AsyncClient
 
+from app.core.security import get_password_hash
+from app.core.tenancy import (
+    DEFAULT_TENANT_ID,
+    Tenant,
+    apply_rls_tenant,
+    reset_tenant_id,
+    set_tenant_id,
+)
+from app.modules.usuarios.models import Usuario
+
 
 NUEVO_USUARIO = {
     "email": "aux1@test.com",
@@ -221,4 +231,68 @@ async def test_revocar_sesiones_mata_el_refresh_token(client: AsyncClient, auth_
 @pytest.mark.asyncio
 async def test_revocar_sesiones_usuario_inexistente_404(client: AsyncClient, auth_headers: dict):
     resp = await client.post("/api/v1/usuarios/99999/revocar-sesiones", headers=auth_headers)
+    assert resp.status_code == 404
+
+
+# ══════════════════════════════════════════════════════════
+# Aislamiento cross-tenant: un Superusuario de un tenant no debe poder
+# gestionar usuarios de OTRO tenant conociendo/adivinando su id
+# (encontrado 2026-07-24 durante la verificación E2E de Run 6).
+# ══════════════════════════════════════════════════════════
+
+async def _crear_usuario_otro_tenant(db_session) -> int:
+    """Crea un usuario en el tenant 2 y devuelve su id. Restaura el
+    contexto de tenant al default al terminar."""
+    db_session.add(Tenant(id=2, codigo="otro-tenant", razon_social="Otro Tenant", activo=True))
+    await db_session.flush()
+    set_tenant_id(2)
+    await apply_rls_tenant(db_session, 2)
+    otro = Usuario(
+        email="admin@otrotenant.com",
+        nombre_completo="Admin Otro Tenant",
+        rol="Superusuario",
+        hashed_password=get_password_hash("password123"),
+        tenant_id=2,
+        is_active=True,
+    )
+    db_session.add(otro)
+    await db_session.commit()
+    await db_session.refresh(otro)
+    other_id = otro.id
+    reset_tenant_id()
+    await apply_rls_tenant(db_session, DEFAULT_TENANT_ID)
+    return other_id
+
+
+@pytest.mark.asyncio
+async def test_update_usuario_otro_tenant_404(client: AsyncClient, auth_headers: dict, db_session):
+    other_id = await _crear_usuario_otro_tenant(db_session)
+    resp = await client.put(
+        f"/api/v1/usuarios/{other_id}", json={"rol": "Auxiliar Contable"}, headers=auth_headers
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_toggle_usuario_otro_tenant_404(client: AsyncClient, auth_headers: dict, db_session):
+    other_id = await _crear_usuario_otro_tenant(db_session)
+    resp = await client.patch(f"/api/v1/usuarios/{other_id}/toggle", headers=auth_headers)
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_reset_password_usuario_otro_tenant_404(client: AsyncClient, auth_headers: dict, db_session):
+    other_id = await _crear_usuario_otro_tenant(db_session)
+    resp = await client.put(
+        f"/api/v1/usuarios/{other_id}/reset-password",
+        json={"new_password": "otraclave123"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_revocar_sesiones_usuario_otro_tenant_404(client: AsyncClient, auth_headers: dict, db_session):
+    other_id = await _crear_usuario_otro_tenant(db_session)
+    resp = await client.post(f"/api/v1/usuarios/{other_id}/revocar-sesiones", headers=auth_headers)
     assert resp.status_code == 404
