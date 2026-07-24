@@ -357,7 +357,7 @@ async def update_producto(
 @router.delete("/productos/{producto_id}")
 async def delete_producto(producto_id: int, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
     """Desactivar un producto (soft delete)."""
-    producto = await db.get(Producto, producto_id)
+    producto = await get_for_tenant(db, Producto, producto_id)
     if not producto:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
 
@@ -499,7 +499,7 @@ async def update_cliente(
     cliente_id: int, data: ClienteUpdate, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)
 ):
     """Actualizar un cliente existente."""
-    cliente = await db.get(Cliente, cliente_id)
+    cliente = await get_for_tenant(db, Cliente, cliente_id)
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
 
@@ -524,7 +524,7 @@ async def update_cliente(
 @router.delete("/clientes/{cliente_id}")
 async def delete_cliente(cliente_id: int, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
     """Desactivar un cliente (soft delete)."""
-    cliente = await db.get(Cliente, cliente_id)
+    cliente = await get_for_tenant(db, Cliente, cliente_id)
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
 
@@ -558,7 +558,7 @@ async def _aplicar_detalles_y_totales(
     descuento_total = Decimal("0.00")
     iva_total = Decimal("0.00")
     for det_data in data.detalles:
-        producto = await db.get(Producto, det_data.producto_id)
+        producto = await get_for_tenant(db, Producto, det_data.producto_id)
         if not producto:
             raise HTTPException(
                 status_code=404, detail=f"Producto ID {det_data.producto_id} no encontrado")
@@ -641,7 +641,10 @@ def _build_cotizacion_response(cot: Cotizacion) -> CotizacionResponse:
 
 async def _get_cotizacion_or_404(db: AsyncSession, cotizacion_id: int) -> Cotizacion:
     cot = await db.scalar(
-        select(Cotizacion).options(*_COTIZACION_EAGER).where(Cotizacion.id == cotizacion_id)
+        for_tenant(
+            select(Cotizacion).options(*_COTIZACION_EAGER).where(Cotizacion.id == cotizacion_id),
+            Cotizacion,
+        )
     )
     if not cot:
         raise HTTPException(status_code=404, detail="Cotización no encontrada")
@@ -657,12 +660,13 @@ async def list_cotizaciones(
     db: AsyncSession = Depends(get_db),
 ):
     """Listar cotizaciones (paginado, más recientes primero)."""
-    query = (
+    query = for_tenant(
         select(Cotizacion)
         .options(*_COTIZACION_EAGER)
         .order_by(desc(Cotizacion.fecha), desc(Cotizacion.id))
         .limit(limit)
-        .offset(offset)
+        .offset(offset),
+        Cotizacion,
     )
     if estado:
         query = query.where(Cotizacion.estado == estado)
@@ -680,7 +684,7 @@ async def create_cotizacion(
     data: CotizacionCreate, current: CurrentUser, db: AsyncSession = Depends(get_db)
 ):
     """Crear una cotización en Borrador. No toca inventario ni contabilidad."""
-    cliente = await db.get(Cliente, data.cliente_id)
+    cliente = await get_for_tenant(db, Cliente, data.cliente_id)
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
 
@@ -717,7 +721,7 @@ async def update_cotizacion(
         raise HTTPException(
             status_code=409, detail="Solo se pueden editar cotizaciones en Borrador")
 
-    cliente = await db.get(Cliente, data.cliente_id)
+    cliente = await get_for_tenant(db, Cliente, data.cliente_id)
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
 
@@ -906,7 +910,7 @@ async def create_venta(data: VentaCreate, _: CurrentUser, db: AsyncSession = Dep
         raise HTTPException(status_code=400, detail="La venta debe tener al menos una línea de detalle")
 
     # Verificar cliente
-    cliente = await db.get(Cliente, data.cliente_id)
+    cliente = await get_for_tenant(db, Cliente, data.cliente_id)
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
 
@@ -935,7 +939,7 @@ async def create_venta(data: VentaCreate, _: CurrentUser, db: AsyncSession = Dep
 
     for det_data in data.detalles:
         # Verificar producto
-        producto = await db.get(Producto, det_data.producto_id)
+        producto = await get_for_tenant(db, Producto, det_data.producto_id)
         if not producto:
             raise HTTPException(status_code=404, detail=f"Producto ID {det_data.producto_id} no encontrado")
 
@@ -991,7 +995,7 @@ async def create_venta(data: VentaCreate, _: CurrentUser, db: AsyncSession = Dep
 @router.post("/{venta_id}/confirmar", response_model=VentaResponse)
 async def confirmar_venta(venta_id: int, current: CurrentUser, db: AsyncSession = Depends(get_db)):
     """Confirmar un documento de venta (pasa de Borrador a Confirmada)."""
-    venta = await db.get(VentaDocumento, venta_id)
+    venta = await get_for_tenant(db, VentaDocumento, venta_id)
     if not venta:
         raise HTTPException(status_code=404, detail="Venta no encontrada")
     if venta.estado != EstadoVenta.BORRADOR:
@@ -1008,7 +1012,7 @@ async def confirmar_venta(venta_id: int, current: CurrentUser, db: AsyncSession 
 @router.post("/{venta_id}/anular")
 async def anular_venta(venta_id: int, current: AdminOrAdministradoraDep, db: AsyncSession = Depends(get_db)):
     """Anular un documento de venta."""
-    venta = await db.get(VentaDocumento, venta_id)
+    venta = await get_for_tenant(db, VentaDocumento, venta_id)
     if not venta:
         raise HTTPException(status_code=404, detail="Venta no encontrada")
     if venta.estado == EstadoVenta.ANULADA:
@@ -1031,7 +1035,7 @@ async def list_devoluciones_venta(venta_id: int, _: CurrentUser, db: AsyncSessio
     rows = (await db.execute(
         select(DevolucionVenta)
         .options(selectinload(DevolucionVenta.detalles))
-        .where(DevolucionVenta.venta_id == venta_id)
+        .where(DevolucionVenta.venta_id == venta_id, tenant_clause(DevolucionVenta))
         .order_by(DevolucionVenta.id)
     )).scalars().all()
     return rows
@@ -1050,9 +1054,12 @@ async def crear_devolucion_venta(
     (DB 417501 Devoluciones + 240801 IVA / CR 130505 Clientes).
     """
     venta = await db.scalar(
-        select(VentaDocumento)
-        .options(selectinload(VentaDocumento.detalles))
-        .where(VentaDocumento.id == venta_id)
+        for_tenant(
+            select(VentaDocumento)
+            .options(selectinload(VentaDocumento.detalles))
+            .where(VentaDocumento.id == venta_id),
+            VentaDocumento,
+        )
     )
     if not venta:
         raise HTTPException(404, "Venta no encontrada")
@@ -1066,7 +1073,7 @@ async def crear_devolucion_venta(
     previas = (await db.execute(
         select(DevolucionVentaDetalle.venta_detalle_id, func.sum(DevolucionVentaDetalle.cantidad))
         .join(DevolucionVenta, DevolucionVenta.id == DevolucionVentaDetalle.devolucion_id)
-        .where(DevolucionVenta.venta_id == venta_id)
+        .where(DevolucionVenta.venta_id == venta_id, tenant_clause(DevolucionVenta))
         .group_by(DevolucionVentaDetalle.venta_detalle_id)
     )).all()
     for det_id, cant in previas:
@@ -1118,7 +1125,7 @@ async def crear_devolucion_venta(
         ))
 
         # La mercancía devuelta reingresa al inventario
-        prod = await db.get(Producto, det.producto_id)
+        prod = await get_for_tenant(db, Producto, det.producto_id)
         if prod and prod.controla_lote:
             # Reingresa a los mismos lotes de los que salió por FEFO
             await revertir_por_lotes(
@@ -1153,7 +1160,9 @@ async def crear_devolucion_venta(
     # que queda tras la devolución, la CxC queda Pagada y el saldo a favor
     # se gestiona manualmente (limitación documentada).
     cxc = await db.scalar(
-        select(CuentaPorCobrar).where(CuentaPorCobrar.numero_factura == venta.numero)
+        select(CuentaPorCobrar).where(
+            CuentaPorCobrar.numero_factura == venta.numero, tenant_clause(CuentaPorCobrar)
+        )
     )
     if cxc and cxc.estado != EstadoDocumento.ANULADO:
         cxc.valor_factura = max(cxc.valor_factura - devolucion.total, Decimal("0"))
