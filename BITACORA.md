@@ -2064,3 +2064,152 @@ Rama `run6-peru-ventas-diarias`: Tareas 1–5, 7–8 completas y revisadas
 (spec + calidad, con rondas de fix reales incluidas). Tareas 6 y 9
 pendientes de retomar. Nada mergeado a `main` todavía.
 
+---
+
+## Sesión — 24 de julio 2026
+
+### Resumen
+
+Se retomó y cerró la **Tarea 6** (alta real del tenant Perú en producción),
+que había quedado bloqueada por falta de la contraseña del Superusuario.
+Se reseteó esa credencial, se dio de alta el tenant, y se dejó lista la
+cuenta de la auxiliar de Perú.
+
+### Lo que se hizo
+
+1. **Reset de contraseña del Superusuario** (`admin@superozonoglobal.com`)
+   directamente sobre `backend/superozono.db` (producción), con backup
+   previo del archivo (borrado tras confirmar el login). Verificado con
+   login real contra el servidor (`https://127.0.0.1:8000/api/login/access-token`,
+   200 OK).
+2. **Tarea 6 completada** vía `POST /api/v1/tenants/onboard`:
+   - Tenant creado: `id=2`, `codigo="peru"`, `razon_social="Super Ozono Perú"`.
+   - Usuario admin inicial: `auxiliar.peru@superozonoglobal.com` (`id=8`),
+     creado como Superusuario del tenant por el propio endpoint de
+     onboarding, luego bajado a rol `Auxiliar Contable` vía
+     `PUT /api/v1/usuarios/8`.
+   - Login de la auxiliar verificado (200 OK, token con `tenant_id=2`).
+3. **Hallazgo de seguridad (no corregido esta sesión):** los endpoints
+   `PUT /api/v1/usuarios/{id}`, `PATCH .../toggle`, `PUT .../reset-password`
+   y `POST .../revocar-sesiones` (`usuarios/router.py`) hacen
+   `session.get(Usuario, user_id)` por PK sin filtro de tenant, y el guard
+   `_es_ultimo_superusuario_activo` cuenta Superusuarios de **todos** los
+   tenants, no solo el del usuario afectado. En la práctica esto significa
+   que el Superusuario de cualquier tenant puede editar, resetear
+   contraseña, desactivar o revocar sesiones de usuarios de **otro**
+   tenant si conoce/adivina su `user_id` — mismo patrón de gap ya conocido
+   en `ventas/router.py` (`list_cotizaciones`/`get_cotizacion`, ver
+   BITACORA anterior / memoria de infra). No bloqueó esta tarea (de hecho
+   permitió bajar el rol de la auxiliar de Perú sin quedar su tenant sin
+   Superusuario), pero es un gap real de aislamiento a corregir antes de
+   confiar en el sistema con más de un tenant activo.
+
+4. **Tarea 9 completada** — verificación E2E en navegador real, contra una
+   instancia **desechable** (SQLite temporal `e2e_throwaway.db`, backend
+   `:8001` sin TLS, frontend Vite `:5174` con `E2E=1`), nunca tocó
+   `superozono.db` real. Se usó el navegador real (Claude in Chrome) en
+   vez de Playwright (evita instalar/desinstalar la dependencia; mismo
+   resultado de verificación manual que pedía el plan):
+   - Tenant Perú (id=2) + admin recreados en la instancia desechable, con
+     un producto y cliente de prueba (el onboarding no siembra catálogo).
+   - Login auxiliar de Perú → creó una venta diaria de prueba ($100,
+     guía `GUIA-E2E-001`) → apareció correctamente en la tabla y el
+     resumen del mes.
+   - Login Superusuario de Colombia → módulo "Ventas Diarias (Perú)"
+     vacío (no ve la venta de Perú) → módulo "Clientes" de Colombia
+     muestra únicamente sus 6 clientes reales (no aparece "Cliente Test
+     Peru"). **Aislamiento confirmado en ambas direcciones** a nivel de
+     registros (`VentaDiaria`, `Cliente`, `Producto`).
+   - **Hallazgo adicional (no corregido):** el dashboard/KPI del módulo
+     Ventas (`Ventas & Comercial → Dashboard`) sí muestra conteos
+     agregados sin filtrar por tenant — la auxiliar de Perú vio "6
+     Clientes Activos", "15 Productos Activos" y el desglose "Ventas por
+     Marca" con las marcas reales de Colombia, aunque las listas
+     detalladas (Clientes, Productos) sí están bien aisladas. Gap más
+     acotado que el de usuarios (Tarea 6), pero de la misma familia —
+     falta aplicar `for_tenant`/`get_for_tenant` en el endpoint de
+     dashboard de `ventas/router.py`.
+   - Instancia desechable apagada y `e2e_throwaway.db` borrado al
+     terminar.
+
+5. **Corregidos los dos gaps de aislamiento cross-tenant** encontrados en
+   las Tareas 6 y 9, con TDD (test rojo confirmado antes del fix, verde
+   después, suite completa 337/337 sin regresiones):
+   - `usuarios/router.py`: `update_usuario`, `toggle_usuario`,
+     `reset_usuario_password`, `revocar_sesiones_usuario` pasaron de
+     `session.get(Usuario, user_id)` a `get_for_tenant(...)` (404 si el
+     usuario es de otro tenant). `_es_ultimo_superusuario_activo` ahora
+     cuenta Superusuarios solo del mismo tenant que el usuario afectado,
+     no globalmente. 4 tests nuevos en `test_usuarios_admin.py`.
+   - `ventas/router.py`: el endpoint `/dashboard` (ventas del mes, mes
+     anterior, cantidad de ventas, clientes activos, productos activos,
+     stock bajo, ventas por marca) ahora filtra todas sus queries por
+     `tenant_clause`. 1 test nuevo en `test_tenant_http_isolation.py`.
+
+6. **Revisión final de toda la rama** (subagente revisor, diff completo
+   `main..run6-peru-ventas-diarias`, 13 commits). Veredicto: listo para
+   mergear. Hallazgos:
+   - El código que agrega esta rama (módulo `ventas_diarias`, script de
+     importación, frontend, y los dos fixes de aislamiento) está limpio,
+     bien probado (tests de integración reales, no mocks) y sigue el
+     plan sin desviaciones injustificadas.
+   - **🔴 CRÍTICO — no es de esta rama, requiere seguimiento inmediato:**
+     el mismo patrón de bug que corregimos (`session.get`/`db.get` sin
+     filtrar por tenant) sigue existiendo, sin corregir, en módulos que
+     esta rama no tocó:
+     - `ventas/router.py`: `delete_producto` (línea ~360),
+       `confirmar_venta` (~994), `anular_venta` (~1011).
+     - `alegra/router.py`: `sync_cliente` (~87), `sync_producto` (~116)
+       — más grave que los demás: podría empujar datos de un tenant a la
+       cuenta de Alegra de otro tenant.
+     - `inventario/router.py`: `crear_ajuste` (~221).
+     - `compras/router.py`: 3 puntos similares (~380, ~479, ~615).
+     Antes de esta rama, Perú no era un tenant activo — era un riesgo
+     teórico. Ahora que Perú está en producción de verdad, es un riesgo
+     real. **Decisión tomada:** no bloquear el merge de Run 6 por esto,
+     pero queda como tarea de seguimiento inmediato (próxima rama):
+     auditar y corregir esos 8+ puntos con el mismo patrón usado aquí
+     (`get_for_tenant`/`tenant_clause`), con tests de aislamiento por
+     cada uno.
+   - Puntos Importantes dentro del alcance de esta rama — **corregidos
+     con TDD (commit `d79b08d`), suite completa 342/342 verde**:
+     - `VentaDiariaCreate.estado` era `str` sin validar: un valor
+       inválido reventaba en 500 (`EstadoVentaDiaria(data.estado)` sin
+       capturar `ValueError`). Cambiado a tipar el campo como
+       `EstadoVentaDiaria` — Pydantic ahora devuelve 422 limpio.
+     - Faltaban tests de aislamiento para `resumen_mensual` y
+       `pagos-sueltos`, y para `cliente_id`/`producto_id` de otro tenant
+       al crear una venta diaria — el código YA estaba bien (usa
+       `for_tenant`/`get_for_tenant`), solo faltaba la prueba. Se
+       agregaron 4 tests nuevos en `test_tenant_http_isolation.py` + 1
+       en `test_ventas_diarias.py`.
+   - Puntos Menores anotados pero no corregidos (bajo impacto): DRY
+     trivial en `VentasDiariasView.tsx`, `resumen_mensual` podría filtrar
+     también por tenant en `VentaDiaria` además de `VentaDiariaDetalle`
+     (defensa en profundidad, ya es seguro en la práctica), el script de
+     importación no tiene guard contra re-ejecución accidental sobre la
+     BD real (mitigado por el procedimiento documentado de correr contra
+     una copia primero).
+
+### Pendiente
+
+- **Tarea de seguimiento inmediato (nueva rama, no Run 6):** auditar y
+  corregir el gap de aislamiento cross-tenant en `ventas/router.py`
+  (`delete_producto`, `confirmar_venta`, `anular_venta`),
+  `alegra/router.py` (`sync_cliente`, `sync_producto`),
+  `inventario/router.py` (`crear_ajuste`) y `compras/router.py` (3
+  puntos) — mismo patrón y mismo fix (`get_for_tenant`/`tenant_clause`)
+  que ya se aplicó en `usuarios/router.py` y `ventas/router.py`
+  (dashboard) en esta sesión. Prioridad alta: Perú ya es un tenant activo
+  en producción.
+- Merge/PR de `run6-peru-ventas-diarias` a `main`: sin bloqueantes
+  conocidos, pendiente de que el usuario decida cuándo hacerlo.
+
+### Estado al cierre
+
+Tareas 6 y 9: **completas**. Revisión final de la rama: **hecha, sin
+bloqueantes** (el único hallazgo Crítico es pre-existente y fuera del
+alcance de esta rama, ya documentado como seguimiento). Rama
+`run6-peru-ventas-diarias`: **lista para mergear**, sigue sin mergear a
+la espera de que el usuario lo confirme.
+
