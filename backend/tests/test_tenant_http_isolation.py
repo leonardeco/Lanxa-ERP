@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -17,7 +18,8 @@ from app.core.tenancy import (
     reset_tenant_id,
 )
 from app.modules.usuarios.models import Usuario
-from app.modules.ventas.models import Producto
+from app.modules.ventas.models import Cliente, Producto, VentaDetalle, VentaDocumento
+from app.modules.ventas_diarias.models import PagoSuelto, VentaDiaria, VentaDiariaDetalle
 
 
 @pytest.mark.asyncio
@@ -121,3 +123,201 @@ async def test_list_usuarios_solo_mismo_tenant(
     emails = {u["email"] for u in r.json()}
     assert "admin@test.com" in emails
     assert "admin@otra.com" not in emails
+
+
+@pytest.mark.asyncio
+async def test_list_ventas_diarias_no_ve_otro_tenant(
+    client: AsyncClient, auth_headers: dict, db_session
+):
+    """Auxiliar del tenant 1 no ve ventas diarias del tenant 2."""
+    db_session.add(Tenant(id=2, codigo="peru-test", razon_social="Peru Test", activo=True))
+    await db_session.flush()
+
+    set_tenant_id(2)
+    await apply_rls_tenant(db_session, 2)
+    producto = Producto(
+        sku="PE-SECRET", nombre="Secreto", marca="X",
+        precio_venta=Decimal("1"), stock_actual=Decimal("0"), tenant_id=2,
+    )
+    cliente = Cliente(nit_cc="99999999", razon_social="Cliente Secreto", tenant_id=2)
+    db_session.add_all([producto, cliente])
+    await db_session.flush()
+    venta = VentaDiaria(
+        fecha=date(2026, 1, 1), cliente_id=cliente.id, tenant_id=2,
+    )
+    db_session.add(venta)
+    await db_session.flush()
+    db_session.add(VentaDiariaDetalle(
+        venta_diaria_id=venta.id, producto_id=producto.id,
+        cantidad=Decimal("1"), venta=Decimal("100"), saldo=Decimal("100"),
+        tenant_id=2,
+    ))
+    await db_session.commit()
+    reset_tenant_id()
+    await apply_rls_tenant(db_session, DEFAULT_TENANT_ID)
+
+    r = await client.get("/api/v1/ventas-diarias/", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    assert all(v["cliente_id"] != cliente.id for v in r.json())
+    detalle_producto_ids = {
+        d["producto_id"] for v in r.json() for d in v["detalles"]
+    }
+    assert producto.id not in detalle_producto_ids  # ninguna linea del tenant 2 debe aparecer
+
+
+@pytest.mark.asyncio
+async def test_dashboard_ventas_no_cuenta_otro_tenant(
+    client: AsyncClient, auth_headers: dict, db_session
+):
+    """El dashboard de Ventas (conteos y ventas por marca) no debe incluir
+    datos de otro tenant — ni siquiera como agregados/conteos."""
+    db_session.add(Tenant(id=2, codigo="dash-test", razon_social="Dash Test", activo=True))
+    await db_session.flush()
+
+    set_tenant_id(2)
+    await apply_rls_tenant(db_session, 2)
+    producto = Producto(
+        sku="T2-DASH", nombre="Producto tenant 2", marca="MarcaSecretaT2",
+        precio_venta=Decimal("500000"), precio_costo=Decimal("1"),
+        stock_actual=Decimal("10"), tenant_id=2,
+    )
+    cliente = Cliente(nit_cc="88888888", razon_social="Cliente tenant 2", tenant_id=2)
+    db_session.add_all([producto, cliente])
+    await db_session.flush()
+    venta = VentaDocumento(
+        numero="T2-V-0001", cliente_id=cliente.id, total=Decimal("500000.00"),
+        tenant_id=2,
+    )
+    db_session.add(venta)
+    await db_session.flush()
+    db_session.add(VentaDetalle(
+        venta_id=venta.id, producto_id=producto.id,
+        precio_unitario=Decimal("500000"), total_linea=Decimal("500000.00"),
+        tenant_id=2,
+    ))
+    await db_session.commit()
+    reset_tenant_id()
+    await apply_rls_tenant(db_session, DEFAULT_TENANT_ID)
+
+    r = await client.get("/api/v1/ventas/dashboard", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["cantidad_ventas_mes"] == 0
+    assert float(data["ventas_mes_actual"]) == 0.0
+    assert data["total_clientes_activos"] == 0
+    assert data["total_productos_activos"] == 0
+    assert all(row["marca"] != "MarcaSecretaT2" for row in data["ventas_por_marca"])
+
+
+async def _crear_venta_diaria_otro_tenant(db_session, *, anio: int, mes: int, dia: int) -> tuple[int, int]:
+    """Crea Producto+Cliente+VentaDiaria+VentaDiariaDetalle en el tenant 2.
+    Devuelve (cliente_id, producto_id) del tenant 2."""
+    db_session.add(Tenant(id=2, codigo="vd-test", razon_social="VD Test", activo=True))
+    await db_session.flush()
+
+    set_tenant_id(2)
+    await apply_rls_tenant(db_session, 2)
+    producto = Producto(
+        sku="T2-VD", nombre="Producto tenant 2", marca="X",
+        precio_venta=Decimal("1"), stock_actual=Decimal("0"), tenant_id=2,
+    )
+    cliente = Cliente(nit_cc="77777777", razon_social="Cliente tenant 2", tenant_id=2)
+    db_session.add_all([producto, cliente])
+    await db_session.flush()
+    venta = VentaDiaria(
+        fecha=date(anio, mes, dia), cliente_id=cliente.id, tenant_id=2,
+    )
+    db_session.add(venta)
+    await db_session.flush()
+    db_session.add(VentaDiariaDetalle(
+        venta_diaria_id=venta.id, producto_id=producto.id,
+        cantidad=Decimal("1"), venta=Decimal("999"), saldo=Decimal("999"),
+        tenant_id=2,
+    ))
+    await db_session.commit()
+    cliente_id, producto_id = cliente.id, producto.id
+    reset_tenant_id()
+    await apply_rls_tenant(db_session, DEFAULT_TENANT_ID)
+    return cliente_id, producto_id
+
+
+@pytest.mark.asyncio
+async def test_resumen_mensual_no_cuenta_otro_tenant(
+    client: AsyncClient, auth_headers: dict, db_session
+):
+    await _crear_venta_diaria_otro_tenant(db_session, anio=2026, mes=5, dia=10)
+
+    r = await client.get("/api/v1/ventas-diarias/resumen/2026/5", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert float(body["total_venta"]) == 0.0
+    assert float(body["total_saldo"]) == 0.0
+
+
+@pytest.mark.asyncio
+async def test_crear_venta_diaria_cliente_otro_tenant_404(
+    client: AsyncClient, auth_headers: dict, db_session
+):
+    cliente_id, _producto_id = await _crear_venta_diaria_otro_tenant(db_session, anio=2026, mes=6, dia=1)
+    producto_propio_r = await client.post(
+        "/api/v1/ventas/productos",
+        headers=auth_headers,
+        json={"sku": "T1-VD-OWN", "nombre": "Propio", "marca": "Test", "precio_venta": "100", "stock_actual": 10},
+    )
+    assert producto_propio_r.status_code == 201, producto_propio_r.text
+
+    r = await client.post(
+        "/api/v1/ventas-diarias/",
+        headers=auth_headers,
+        json={
+            "fecha": "2026-06-01",
+            "cliente_id": cliente_id,  # pertenece al tenant 2
+            "estado": "Pendiente",
+            "detalles": [{"producto_id": producto_propio_r.json()["id"], "cantidad": 1, "venta": 100}],
+        },
+    )
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_crear_venta_diaria_producto_otro_tenant_404(
+    client: AsyncClient, auth_headers: dict, db_session
+):
+    _cliente_id, producto_id = await _crear_venta_diaria_otro_tenant(db_session, anio=2026, mes=6, dia=2)
+    cliente_propio_r = await client.post(
+        "/api/v1/ventas/clientes",
+        headers=auth_headers,
+        json={"nit_cc": "T1-VD-OWN", "razon_social": "Propio", "tipo_persona": "Natural"},
+    )
+    assert cliente_propio_r.status_code == 201, cliente_propio_r.text
+
+    r = await client.post(
+        "/api/v1/ventas-diarias/",
+        headers=auth_headers,
+        json={
+            "fecha": "2026-06-02",
+            "cliente_id": cliente_propio_r.json()["id"],
+            "estado": "Pendiente",
+            "detalles": [{"producto_id": producto_id, "cantidad": 1, "venta": 100}],  # pertenece al tenant 2
+        },
+    )
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_pagos_sueltos_no_ve_otro_tenant(client: AsyncClient, auth_headers: dict, db_session):
+    db_session.add(Tenant(id=2, codigo="pago-test", razon_social="Pago Test", activo=True))
+    await db_session.flush()
+    set_tenant_id(2)
+    await apply_rls_tenant(db_session, 2)
+    db_session.add(PagoSuelto(
+        fecha=date(2026, 1, 1), cliente_texto="Secreto tenant 2",
+        monto=Decimal("500"), tenant_id=2,
+    ))
+    await db_session.commit()
+    reset_tenant_id()
+    await apply_rls_tenant(db_session, DEFAULT_TENANT_ID)
+
+    r = await client.get("/api/v1/ventas-diarias/pagos-sueltos/", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    assert all(p["cliente_texto"] != "Secreto tenant 2" for p in r.json())
