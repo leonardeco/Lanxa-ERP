@@ -13,7 +13,7 @@ from decimal import Decimal
 from app.core.database import get_db
 from app.core.config import get_settings
 from app.core.numbering import next_sequential_numero
-from app.core.tenancy import for_tenant, tenant_clause
+from app.core.tenancy import for_tenant, get_for_tenant, tenant_clause
 from app.api.deps import CurrentUser, ContableDep
 from app.modules.contabilidad.models import (
     PlanCuentas, CentroCosto, PeriodoContable, Tercero,
@@ -49,12 +49,12 @@ settings = get_settings()
 @router.get("/dashboard", response_model=DashboardStats)
 async def get_dashboard_stats(_: ContableDep, db: AsyncSession = Depends(get_db)):
     """Estadísticas generales del módulo contable."""
-    cuentas = await db.scalar(select(func.count(PlanCuentas.id)))
-    centros = await db.scalar(select(func.count(CentroCosto.id)))
-    periodos = await db.scalar(select(func.count(PeriodoContable.id)))
-    terceros = await db.scalar(select(func.count(Tercero.id)))
-    tributarios = await db.scalar(select(func.count(ParametroTributario.id)))
-    nomina = await db.scalar(select(func.count(ParametroNomina.id)))
+    cuentas = await db.scalar(select(func.count(PlanCuentas.id)).where(tenant_clause(PlanCuentas)))
+    centros = await db.scalar(select(func.count(CentroCosto.id)).where(tenant_clause(CentroCosto)))
+    periodos = await db.scalar(select(func.count(PeriodoContable.id)).where(tenant_clause(PeriodoContable)))
+    terceros = await db.scalar(select(func.count(Tercero.id)).where(tenant_clause(Tercero)))
+    tributarios = await db.scalar(select(func.count(ParametroTributario.id)).where(tenant_clause(ParametroTributario)))
+    nomina = await db.scalar(select(func.count(ParametroNomina.id)).where(tenant_clause(ParametroNomina)))
 
     return DashboardStats(
         total_cuentas_puc=cuentas or 0,
@@ -116,7 +116,7 @@ async def create_cuenta_puc(
 async def update_cuenta_puc(
     cuenta_id: int, body: PlanCuentasUpdate, current: ContableDep, db: AsyncSession = Depends(get_db)
 ):
-    cuenta = await db.get(PlanCuentas, cuenta_id)
+    cuenta = await get_for_tenant(db, PlanCuentas, cuenta_id)
     if not cuenta:
         raise HTTPException(404, "Cuenta PUC no encontrada")
     update_data = body.model_dump(exclude_none=True)
@@ -133,7 +133,7 @@ async def update_cuenta_puc(
 
 @router.patch("/puc/{cuenta_id}/toggle", response_model=PlanCuentasResponse)
 async def toggle_cuenta_puc(cuenta_id: int, current: ContableDep, db: AsyncSession = Depends(get_db)):
-    cuenta = await db.get(PlanCuentas, cuenta_id)
+    cuenta = await get_for_tenant(db, PlanCuentas, cuenta_id)
     if not cuenta:
         raise HTTPException(404, "Cuenta PUC no encontrada")
     cuenta.activo = not cuenta.activo
@@ -178,7 +178,7 @@ async def create_centro_costo(
 async def update_centro_costo(
     cc_id: int, body: CentroCostoUpdate, current: ContableDep, db: AsyncSession = Depends(get_db)
 ):
-    cc = await db.get(CentroCosto, cc_id)
+    cc = await get_for_tenant(db, CentroCosto, cc_id)
     if not cc:
         raise HTTPException(404, "Centro de costo no encontrado")
     update_data = body.model_dump(exclude_none=True)
@@ -195,7 +195,7 @@ async def update_centro_costo(
 
 @router.patch("/centros-costo/{cc_id}/toggle", response_model=CentroCostoResponse)
 async def toggle_centro_costo(cc_id: int, current: ContableDep, db: AsyncSession = Depends(get_db)):
-    cc = await db.get(CentroCosto, cc_id)
+    cc = await get_for_tenant(db, CentroCosto, cc_id)
     if not cc:
         raise HTTPException(404, "Centro de costo no encontrado")
     cc.activo = not cc.activo
@@ -222,7 +222,11 @@ async def list_periodos(_: ContableDep, db: AsyncSession = Depends(get_db)):
 @router.post("/periodos", response_model=PeriodoContableResponse, status_code=201)
 async def create_periodo(body: PeriodoContableCreate, _: ContableDep, db: AsyncSession = Depends(get_db)):
     periodo_str = f"{body.anio}-{body.mes:02d}"
-    existing = await db.scalar(select(PeriodoContable).where(PeriodoContable.periodo == periodo_str))
+    existing = await db.scalar(
+        select(PeriodoContable).where(
+            PeriodoContable.periodo == periodo_str, tenant_clause(PeriodoContable)
+        )
+    )
     if existing:
         raise HTTPException(400, f"El período {periodo_str} ya existe")
     periodo = PeriodoContable(
@@ -239,7 +243,7 @@ async def create_periodo(body: PeriodoContableCreate, _: ContableDep, db: AsyncS
 
 @router.patch("/periodos/{periodo_id}/toggle", response_model=PeriodoContableResponse)
 async def toggle_periodo(periodo_id: int, current: ContableDep, db: AsyncSession = Depends(get_db)):
-    periodo = await db.get(PeriodoContable, periodo_id)
+    periodo = await get_for_tenant(db, PeriodoContable, periodo_id)
     if not periodo:
         raise HTTPException(404, "Período no encontrado")
     if periodo.estado == EstadoPeriodo.ABIERTO:
@@ -263,7 +267,7 @@ async def toggle_periodo(periodo_id: int, current: ContableDep, db: AsyncSession
 async def list_terceros(_: ContableDep, db: AsyncSession = Depends(get_db)):
     """Listar todos los terceros registrados."""
     result = await db.execute(
-        select(Tercero).order_by(Tercero.razon_social)
+        for_tenant(select(Tercero).order_by(Tercero.razon_social), Tercero)
     )
     return result.scalars().all()
 
@@ -276,7 +280,7 @@ async def list_parametros_tributarios(
     activo: Optional[bool] = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
-    q = select(ParametroTributario).order_by(ParametroTributario.concepto)
+    q = for_tenant(select(ParametroTributario).order_by(ParametroTributario.concepto), ParametroTributario)
     if activo is not None:
         q = q.where(ParametroTributario.activo == activo)
     return (await db.execute(q)).scalars().all()
@@ -287,7 +291,7 @@ async def update_parametro_tributario(
     param_id: int, body: ParametroTributarioUpdate, current: ContableDep,
     db: AsyncSession = Depends(get_db),
 ):
-    param = await db.get(ParametroTributario, param_id)
+    param = await get_for_tenant(db, ParametroTributario, param_id)
     if not param:
         raise HTTPException(404, "Parámetro tributario no encontrado")
     update_data = body.model_dump(exclude_none=True)
@@ -306,7 +310,7 @@ async def update_parametro_tributario(
 async def toggle_parametro_tributario(
     param_id: int, current: ContableDep, db: AsyncSession = Depends(get_db)
 ):
-    param = await db.get(ParametroTributario, param_id)
+    param = await get_for_tenant(db, ParametroTributario, param_id)
     if not param:
         raise HTTPException(404, "Parámetro tributario no encontrado")
     param.activo = not param.activo
@@ -326,7 +330,7 @@ async def list_parametros_nomina(
     activo: Optional[bool] = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
-    q = select(ParametroNomina).order_by(ParametroNomina.concepto)
+    q = for_tenant(select(ParametroNomina).order_by(ParametroNomina.concepto), ParametroNomina)
     if activo is not None:
         q = q.where(ParametroNomina.activo == activo)
     return (await db.execute(q)).scalars().all()
@@ -336,7 +340,7 @@ async def list_parametros_nomina(
 async def update_parametro_nomina(
     param_id: int, body: ParametroNominaUpdate, current: ContableDep, db: AsyncSession = Depends(get_db)
 ):
-    param = await db.get(ParametroNomina, param_id)
+    param = await get_for_tenant(db, ParametroNomina, param_id)
     if not param:
         raise HTTPException(404, "Parámetro de nómina no encontrado")
     update_data = body.model_dump(exclude_none=True)
@@ -353,7 +357,7 @@ async def update_parametro_nomina(
 
 @router.patch("/parametros-nomina/{param_id}/toggle", response_model=ParametroNominaResponse)
 async def toggle_parametro_nomina(param_id: int, current: ContableDep, db: AsyncSession = Depends(get_db)):
-    param = await db.get(ParametroNomina, param_id)
+    param = await get_for_tenant(db, ParametroNomina, param_id)
     if not param:
         raise HTTPException(404, "Parámetro de nómina no encontrado")
     param.activo = not param.activo
@@ -431,10 +435,14 @@ async def cartera_stats(_: CurrentUser, db: AsyncSession = Depends(get_db)):
     hoy = date.today()
 
     cxc_rows = (await db.execute(
-        select(CuentaPorCobrar).where(CuentaPorCobrar.estado.notin_(["Pagado", "Anulado"]))
+        select(CuentaPorCobrar).where(
+            CuentaPorCobrar.estado.notin_(["Pagado", "Anulado"]), tenant_clause(CuentaPorCobrar)
+        )
     )).scalars().all()
     cxp_rows = (await db.execute(
-        select(CuentaPorPagar).where(CuentaPorPagar.estado.notin_(["Pagado", "Anulado"]))
+        select(CuentaPorPagar).where(
+            CuentaPorPagar.estado.notin_(["Pagado", "Anulado"]), tenant_clause(CuentaPorPagar)
+        )
     )).scalars().all()
 
     cxc_pendiente = sum((r.valor_factura or 0) - (r.abonos or 0) for r in cxc_rows)
@@ -448,8 +456,8 @@ async def cartera_stats(_: CurrentUser, db: AsyncSession = Depends(get_db)):
         for r in cxp_rows if r.fecha_vencimiento and r.fecha_vencimiento < hoy
     )
 
-    total_cxc = await db.scalar(select(func.count(CuentaPorCobrar.id)))
-    total_cxp = await db.scalar(select(func.count(CuentaPorPagar.id)))
+    total_cxc = await db.scalar(select(func.count(CuentaPorCobrar.id)).where(tenant_clause(CuentaPorCobrar)))
+    total_cxp = await db.scalar(select(func.count(CuentaPorPagar.id)).where(tenant_clause(CuentaPorPagar)))
 
     return CarteraStats(
         total_cxc=total_cxc or 0,
@@ -503,7 +511,7 @@ async def create_cxc(body: CxCCreate, _: CurrentUser, db: AsyncSession = Depends
 
 @router.put("/cartera/cxc/{cxc_id}", response_model=CxCResponse)
 async def update_cxc(cxc_id: int, body: CxCUpdate, _: CurrentUser, db: AsyncSession = Depends(get_db)):
-    cxc = await db.get(CuentaPorCobrar, cxc_id)
+    cxc = await get_for_tenant(db, CuentaPorCobrar, cxc_id)
     if not cxc:
         raise HTTPException(404, "CxC no encontrada")
     for field, value in body.model_dump(exclude_none=True).items():
@@ -519,7 +527,9 @@ async def abonar_cxc(
 ):
     # #12: bloquear la CxC para serializar abonos concurrentes (doble cobro).
     cxc = await db.scalar(
-        select(CuentaPorCobrar).where(CuentaPorCobrar.id == cxc_id).with_for_update()
+        select(CuentaPorCobrar)
+        .where(CuentaPorCobrar.id == cxc_id, tenant_clause(CuentaPorCobrar))
+        .with_for_update()
     )
     if not cxc:
         raise HTTPException(404, "CxC no encontrada")
@@ -562,7 +572,7 @@ async def abonar_cxc(
 
 @router.patch("/cartera/cxc/{cxc_id}/anular", response_model=CxCResponse)
 async def anular_cxc(cxc_id: int, _: ContableDep, db: AsyncSession = Depends(get_db)):
-    cxc = await db.get(CuentaPorCobrar, cxc_id)
+    cxc = await get_for_tenant(db, CuentaPorCobrar, cxc_id)
     if not cxc:
         raise HTTPException(404, "CxC no encontrada")
     cxc.estado = EstadoDocumento.ANULADO
@@ -613,7 +623,7 @@ async def create_cxp(body: CxPCreate, _: CurrentUser, db: AsyncSession = Depends
 
 @router.put("/cartera/cxp/{cxp_id}", response_model=CxPResponse)
 async def update_cxp(cxp_id: int, body: CxPUpdate, _: CurrentUser, db: AsyncSession = Depends(get_db)):
-    cxp = await db.get(CuentaPorPagar, cxp_id)
+    cxp = await get_for_tenant(db, CuentaPorPagar, cxp_id)
     if not cxp:
         raise HTTPException(404, "CxP no encontrada")
     for field, value in body.model_dump(exclude_none=True).items():
@@ -629,7 +639,9 @@ async def abonar_cxp(
 ):
     # #12: bloquear la CxP para serializar abonos concurrentes (doble pago).
     cxp = await db.scalar(
-        select(CuentaPorPagar).where(CuentaPorPagar.id == cxp_id).with_for_update()
+        select(CuentaPorPagar)
+        .where(CuentaPorPagar.id == cxp_id, tenant_clause(CuentaPorPagar))
+        .with_for_update()
     )
     if not cxp:
         raise HTTPException(404, "CxP no encontrada")
@@ -645,7 +657,7 @@ async def abonar_cxp(
         cxp.notas = (cxp.notas or "") + f"\n[Abono ${body.valor}] {body.notas}"
     # Sincronizar estado_pago en la compra origen si existe
     if cxp.compra_id:
-        compra = await db.get(CompraDocumento, cxp.compra_id)
+        compra = await get_for_tenant(db, CompraDocumento, cxp.compra_id)
         if compra and compra.estado != "Anulada":
             compra.estado_pago = "Pagado" if nuevo_saldo <= 0 else "Parcial"
 
@@ -677,12 +689,12 @@ async def abonar_cxp(
 
 @router.patch("/cartera/cxp/{cxp_id}/anular", response_model=CxPResponse)
 async def anular_cxp(cxp_id: int, _: ContableDep, db: AsyncSession = Depends(get_db)):
-    cxp = await db.get(CuentaPorPagar, cxp_id)
+    cxp = await get_for_tenant(db, CuentaPorPagar, cxp_id)
     if not cxp:
         raise HTTPException(404, "CxP no encontrada")
     cxp.estado = EstadoDocumento.ANULADO
     if cxp.compra_id:
-        compra = await db.get(CompraDocumento, cxp.compra_id)
+        compra = await get_for_tenant(db, CompraDocumento, cxp.compra_id)
         if compra and compra.estado != "Anulada":
             compra.estado_pago = "Anulado"
     await db.commit()
@@ -699,7 +711,7 @@ async def list_pagos(
     cxp_id: Optional[int] = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
-    q = select(Pago).order_by(Pago.fecha.desc())
+    q = for_tenant(select(Pago).order_by(Pago.fecha.desc()), Pago)
     if cxc_id:
         q = q.where(Pago.cxc_id == cxc_id)
     if cxp_id:
@@ -719,7 +731,9 @@ async def anular_pago(
     pero visible (trazabilidad). Bloqueado si el período contable está cerrado.
     """
     # #12: bloquear el pago y el documento de cartera antes de restaurar saldos.
-    pago = await db.scalar(select(Pago).where(Pago.id == pago_id).with_for_update())
+    pago = await db.scalar(
+        select(Pago).where(Pago.id == pago_id, tenant_clause(Pago)).with_for_update()
+    )
     if not pago:
         raise HTTPException(404, "Comprobante de pago no encontrado")
     if pago.anulado:
@@ -737,7 +751,9 @@ async def anular_pago(
     # Restaurar saldo y estado del documento de cartera
     if pago.tipo == TipoPago.CXC and pago.cxc_id:
         cxc = await db.scalar(
-            select(CuentaPorCobrar).where(CuentaPorCobrar.id == pago.cxc_id).with_for_update()
+            select(CuentaPorCobrar)
+            .where(CuentaPorCobrar.id == pago.cxc_id, tenant_clause(CuentaPorCobrar))
+            .with_for_update()
         )
         if cxc:
             cxc.abonos = max((cxc.abonos or Decimal("0")) - pago.valor, Decimal("0"))
@@ -747,7 +763,9 @@ async def anular_pago(
                 )
     elif pago.tipo == TipoPago.CXP and pago.cxp_id:
         cxp = await db.scalar(
-            select(CuentaPorPagar).where(CuentaPorPagar.id == pago.cxp_id).with_for_update()
+            select(CuentaPorPagar)
+            .where(CuentaPorPagar.id == pago.cxp_id, tenant_clause(CuentaPorPagar))
+            .with_for_update()
         )
         if cxp:
             cxp.abonos = max((cxp.abonos or Decimal("0")) - pago.valor, Decimal("0"))
@@ -757,7 +775,7 @@ async def anular_pago(
                 )
             # Re-sincronizar la compra origen
             if cxp.compra_id:
-                compra = await db.get(CompraDocumento, cxp.compra_id)
+                compra = await get_for_tenant(db, CompraDocumento, cxp.compra_id)
                 if compra and compra.estado != "Anulada":
                     compra.estado_pago = "Parcial" if cxp.abonos > 0 else "Pendiente"
 
@@ -813,10 +831,11 @@ async def list_asientos(
     db: AsyncSession = Depends(get_db),
 ):
     """Libro diario: asientos con sus movimientos (filtros por módulo y documento)."""
-    q = (
+    q = for_tenant(
         select(AsientoContable)
         .options(selectinload(AsientoContable.movimientos).selectinload(MovimientoAsiento.cuenta))
-        .order_by(AsientoContable.fecha.desc(), AsientoContable.id.desc())
+        .order_by(AsientoContable.fecha.desc(), AsientoContable.id.desc()),
+        AsientoContable,
     )
     if modulo_origen:
         q = q.where(AsientoContable.modulo_origen == modulo_origen)
@@ -831,7 +850,7 @@ async def get_asiento(asiento_id: int, _: ContableDep, db: AsyncSession = Depend
     asiento = await db.scalar(
         select(AsientoContable)
         .options(selectinload(AsientoContable.movimientos).selectinload(MovimientoAsiento.cuenta))
-        .where(AsientoContable.id == asiento_id)
+        .where(AsientoContable.id == asiento_id, tenant_clause(AsientoContable))
     )
     if not asiento:
         raise HTTPException(404, "Asiento no encontrado")
@@ -853,7 +872,7 @@ async def auxiliar_tercero(
     el saldo del auxiliar de 130505 es lo que debe; para un proveedor en
     220501, el saldo negativo es lo que se le debe.
     """
-    tercero = await db.get(Tercero, tercero_id)
+    tercero = await get_for_tenant(db, Tercero, tercero_id)
     if not tercero:
         raise HTTPException(404, "Tercero no encontrado")
 
@@ -861,7 +880,7 @@ async def auxiliar_tercero(
         select(MovimientoAsiento, AsientoContable, PlanCuentas)
         .join(AsientoContable, AsientoContable.id == MovimientoAsiento.asiento_id)
         .join(PlanCuentas, PlanCuentas.id == MovimientoAsiento.cuenta_id)
-        .where(MovimientoAsiento.tercero_id == tercero_id)
+        .where(MovimientoAsiento.tercero_id == tercero_id, tenant_clause(MovimientoAsiento))
         .order_by(AsientoContable.fecha, AsientoContable.id, MovimientoAsiento.id)
     )
     if fecha_desde:
