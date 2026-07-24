@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from app.api.deps import SessionDep, CurrentUser, AdminDep
 from app.core.config import get_settings
+from app.core.tenancy import for_tenant, get_for_tenant
 from app.modules.alegra.client import alegra_get, alegra_post, alegra_put
 from app.modules.alegra.mappers import cliente_to_alegra, producto_to_alegra, venta_to_alegra, detalle_to_alegra_item
 from app.modules.ventas.models import Cliente, Producto, VentaDocumento, VentaDetalle, EstadoVenta
@@ -84,7 +85,7 @@ async def get_alegra_taxes(_: CurrentUser):
 async def sync_cliente(cliente_id: int, session: SessionDep, _: CurrentUser):
     """Crea o actualiza un cliente en Alegra y guarda su alegra_id en el ERP."""
     _check_credentials()
-    cliente = await session.get(Cliente, cliente_id)
+    cliente = await get_for_tenant(session, Cliente, cliente_id)
     if not cliente:
         raise HTTPException(404, "Cliente no encontrado")
 
@@ -113,7 +114,7 @@ async def sync_producto(producto_id: int, session: SessionDep, _: CurrentUser, i
     iva_tax_id: ID del impuesto IVA en tu cuenta de Alegra (consulta /alegra/taxes para encontrarlo).
     """
     _check_credentials()
-    producto = await session.get(Producto, producto_id)
+    producto = await get_for_tenant(session, Producto, producto_id)
     if not producto:
         raise HTTPException(404, "Producto no encontrado")
 
@@ -145,9 +146,12 @@ async def enviar_factura(venta_id: int, session: SessionDep, _: CurrentUser, iva
     _check_credentials()
 
     result = await session.execute(
-        select(VentaDocumento)
-        .options(selectinload(VentaDocumento.detalles).selectinload(VentaDetalle.producto))
-        .where(VentaDocumento.id == venta_id)
+        for_tenant(
+            select(VentaDocumento)
+            .options(selectinload(VentaDocumento.detalles).selectinload(VentaDetalle.producto))
+            .where(VentaDocumento.id == venta_id),
+            VentaDocumento,
+        )
     )
     venta = result.scalar_one_or_none()
 
@@ -158,7 +162,7 @@ async def enviar_factura(venta_id: int, session: SessionDep, _: CurrentUser, iva
     if venta.alegra_id:
         raise HTTPException(400, f"Esta venta ya fue enviada a Alegra (ID: {venta.alegra_id})")
 
-    cliente = await session.get(Cliente, venta.cliente_id)
+    cliente = await get_for_tenant(session, Cliente, venta.cliente_id)
     if not cliente or not cliente.alegra_id:
         raise HTTPException(
             400,
