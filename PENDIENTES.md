@@ -1,8 +1,10 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **23 de julio de 2026** (47ª revisión).
+Backlog vivo del proyecto. Actualizado: **27 de julio de 2026** (48ª revisión).
 
-**Resumen de la jornada 2026-07-23:** Carril **Perú (Run 6)** — tenant separado + módulo `Ventas Diarias` + importador del histórico Excel, en rama `run6-peru-ventas-diarias` (no mergeada). Tareas 1–5 y 7–8 completas y revisadas; **Tarea 6** (alta real del tenant en producción) pausada por falta de la clave del Superusuario; **Tarea 9** (E2E navegador) interrumpida a medias. Llegó Excel de Ecuador (`CUENTAS ECUADOR.xlsx`) — revisado, estructura distinta a Perú, queda para un Run aparte. Fuente: `BITACORA.md` sesión 23-jul + `docs/hydraia/plans/2026-07-23-run6-peru-tenant-ventas-diarias*.md`.
+**Resumen de la jornada 2026-07-27:** Merge + push a `main` de dos ramas grandes: **auditoría de aislamiento cross-tenant** (`fix-cross-tenant-audit`, 8 commits, 394/394 tests) y pulido de **README/DOCUMENTACION** (versiones de stack, módulos faltantes, roadmap sincronizado). Se avanzó también la rama **login por dominio de email** (`fix-login-tenant-domain`, 405/405 tests, actualizada contra el `main` nuevo) — **queda para mañana:** confirmar que el dominio elegido para Perú (`superozonoperu.com`, elegido por Claude a falta de decisión del negocio) es correcto, la prueba visual en navegador (bloqueada por la extensión Chrome sin conectar), y la decisión de merge. Ver tabla "Snapshot" abajo y `BITACORA.md` sesión de hoy para el detalle completo.
+
+**Resumen de la jornada 2026-07-23:** Carril **Perú (Run 6)** — tenant separado + módulo `Ventas Diarias` + importador del histórico Excel, en rama `run6-peru-ventas-diarias`. ✅ **Mergeada 2026-07-24** (tenant Perú onboardeado en producción real ese mismo día). Llegó Excel de Ecuador (`CUENTAS ECUADOR.xlsx`) — revisado, estructura distinta a Perú, queda para un Run aparte. Fuente: `BITACORA.md` sesión 23-jul + `docs/hydraia/plans/2026-07-23-run6-peru-tenant-ventas-diarias*.md`.
 
 **Resumen de la jornada 2026-07-21:** Carril **gerencial / documentación / preparación Contador** (sin cambios de negocio en código). Entregables en Escritorio: informe gerencial Word (línea de tiempo real + estimación de mercado), presentación PPTX 12 slides, acta de validación contable (Word+PDF) con 7 decisiones, resumen de jornada para área administrativa (PDF). Verificado backlog abierto. Solicitado a admin (próximo): Excel de inventario/cuentas/precios + capturas del ERP actual de auxiliares. Fuente: `BITACORA.md` sesión 21-jul + `DOCUMENTACION.md` §13 #59–#61.
 
@@ -37,7 +39,11 @@ Estado: LAN **v0.3.0** operativa. Suite API (Postgres local) + Vitest + E2E (CI 
 | 27 | Revisar job E2E del CI en cada release | Abierto informativo (`continue-on-error`) |
 | 33op | Rotar clave Superusuario en UI | Opcional |
 | smoke | Smoke diario | ✅ `ops/smoke-diario.bat` + tarea **SuperOzonoERP-SmokeDiario** 08:00. Verificado login Superusuario |
-| 36 | **Tarea 6 Run Perú — alta real del tenant** | 🔴 **Bloqueado:** necesita la clave real de `admin@superozonoglobal.com` (no se encontró en esta sesión). Pasos listos en el plan (`docs/hydraia/plans/2026-07-23-run6-peru-tenant-ventas-diarias-plan.md`, Tarea 6): onboard vía API + ajustar rol + verificar login + registrar en BITACORA |
+| 36 | **Tarea 6 Run Perú — alta real del tenant** | ✅ **Completado 2026-07-24**: tenant Perú (`codigo="peru"`) onboardeado en producción real, admin `auxiliar.peru@superozonoglobal.com` |
+| 37 | **Confirmar dominio de email de Perú** | 🟡 **Dejado para mañana.** El login ahora resuelve el tenant por dominio de email (rama `fix-login-tenant-domain`) — Perú compartía el dominio de Colombia (`superozonoglobal.com`), lo cual rompía el diseño. Se eligió `superozonoperu.com` **sin confirmación del negocio** (a pedido explícito: "solucionalo a tu manera"). **Falta:** verificar que ese dominio es correcto antes de desplegar; si no, es un cambio de una línea en la migración `d2e3f4a5b6c7`. También hay que avisarle a la persona real detrás de `auxiliar.peru@` que su email de login cambia |
+| 38 | **Prueba en navegador — login por dominio** | 🟡 **Dejado para mañana.** La extensión Claude in Chrome no conectó pese a reinstalar y reiniciar Chrome varias veces (incl. matar todos los procesos). Login verificado por API/curl, no visualmente en `LoginView.tsx` |
+| 39 | **Decisión de merge — `fix-login-tenant-domain`** | 🟡 **Dejado para mañana.** 405/405 tests, ya actualizada contra `main`. Depende de #37 y #38 |
+| 40 | **Migración de `UniqueConstraint`s globales a compuestos con `tenant_id`** | 🟡 Hallazgo de la auditoría cross-tenant (`xfail` documentado en `test_contabilidad_tenant_isolation.py`): `PlanCuentas.codigo_puc`, `CentroCosto.codigo`, `PeriodoContable.periodo`, `Tercero.nit_cc`, etc. son únicos globalmente, no por tenant — bloquea a un tercer tenant usar `contabilidad` directamente. Requiere migración Alembic aparte (toca índices de producción en vivo, más riesgosa que un fix de queries) |
 
 ---
 
@@ -56,7 +62,9 @@ Estado: LAN **v0.3.0** operativa. Suite API (Postgres local) + Vitest + E2E (CI 
 | start-paths | start.bat paths con espacios | ✅ 2026-07-18 — `/D` + certs `..\certs\...` |
 | backup-auto | Un solo job SQLite/Postgres | ✅ 2026-07-18 — `scripts/backup_auto.py` |
 | docs-gerencial-21 | Informe gerencial + PPTX + acta Contador + resumen admin | ✅ 2026-07-21 — ver DOCUMENTACION §13 #59–#61 |
-| run6-peru | Tenant Perú + módulo Ventas Diarias + importador Excel | 🟡 Rama `run6-peru-ventas-diarias` (no mergeada): Tareas 1–5, 7–8 ✅ revisadas. **Falta:** Tarea 6 (bloqueada, #36) + Tarea 9 (E2E interrumpida, retomar) + revisión final de rama + decisión de merge. Bug preexistente no relacionado encontrado (migración `c4d5e6f7a8b9` falla en Postgres desde cero — no afecta LAN/SQLite) |
+| run6-peru | Tenant Perú + módulo Ventas Diarias + importador Excel | ✅ **Mergeado 2026-07-24** (`run6-peru-ventas-diarias` → `main`). Bug preexistente no relacionado documentado (migración `c4d5e6f7a8b9` falla en Postgres desde cero — no afecta LAN/SQLite) |
+| cross-tenant-audit | Auditoría de aislamiento cross-tenant (8 módulos/archivos) | ✅ **Mergeado y pusheado 2026-07-27** (`fix-cross-tenant-audit` → `main`). Suite completa 394/394 (+1 xfail, ver #40) |
+| login-tenant-domain | Login resuelve tenant por dominio de email (evita ambigüedad entre tenants) | 🟡 **No mergeado, dejado para mañana** — ver #37/#38/#39 |
 
 ---
 
@@ -94,7 +102,8 @@ Estado: LAN **v0.3.0** operativa. Suite API (Postgres local) + Vitest + E2E (CI 
 
 | Prioridad | Ítems |
 |---|---|
-| **Run Perú (rama sin mergear)** | #36 clave Superusuario para Tarea 6 · retomar Tarea 9 (E2E) · revisión final + merge de `run6-peru-ventas-diarias` |
+| **Mañana — login por dominio (rama sin mergear)** | #37 confirmar dominio de Perú (`superozonoperu.com`, sin verificar) · #38 prueba en navegador (extensión Chrome sin conectar) · #39 decisión de merge |
+| **Cuando quieras** | #40 migración `UniqueConstraint` compuesto en `contabilidad` (schema, riesgo medio) |
 | **Mañana / Contador** | #1 acta firmada · #3 costeo · #8 aprobación · #4 criterio retenedores |
 | **Listo para ti (#7)** | `ops\preflight-entrega-7.bat` + `HOY-ENTREGA-7.md` + Escritorio — **solo falta repartir** |
 | **Pedir a administración** | #34 Excel datos reales · #35 screenshots ERP actual |
