@@ -2213,3 +2213,220 @@ alcance de esta rama, ya documentado como seguimiento). Rama
 `run6-peru-ventas-diarias`: **lista para mergear**, sigue sin mergear a
 la espera de que el usuario lo confirme.
 
+**Actualización el mismo día:** `run6-peru-ventas-diarias` fue mergeada a
+`main` (commit `7df9f49`) y pusheada a `origin`. Se arrancó la auditoría
+de seguimiento del hallazgo Crítico en una rama nueva,
+`fix-cross-tenant-audit` (worktree `.worktrees/fix-cross-tenant-audit/`).
+
+---
+
+## Sesión — 24 de julio 2026 (continuación) — Auditoría de aislamiento cross-tenant
+
+### Resumen
+
+Al arrancar la auditoría del hallazgo Crítico de la revisión de Run 6
+(ventas/alegra/inventario/compras), un grep sistemático reveló que el
+problema es mucho más grande de lo que el revisor había señalado: no son
+~9 puntos sueltos, es un problema sistémico en la mayoría de módulos del
+backend (excepto `usuarios` y `ventas_diarias`, ya corregidos/construidos
+bien). Se decidió abordarlo módulo por módulo, empezando por el más
+grande y el que maneja dinero real.
+
+### Lo que se hizo
+
+**Módulo `contabilidad` — completo, corregido y commiteado
+(`3d7c213` en `fix-cross-tenant-audit`):**
+
+`contabilidad/router.py` resultó ser el peor caso: de 33 queries, solo
+11 filtraban por tenant. Corregido con TDD real (16 tests nuevos en
+`test_contabilidad_tenant_isolation.py`, cada uno confirmado en rojo
+contra el código sin corregir antes del fix):
+
+- Dashboard: 6 conteos (PUC, centros de costo, períodos, terceros,
+  parámetros tributarios/nómina) sin filtrar por tenant.
+- PUC, Centros de Costo, Períodos, Parámetros Tributarios/Nómina: los
+  endpoints de actualizar y activar/desactivar usaban `db.get()` sin
+  scope de tenant.
+- Terceros y ambas listas de Parámetros: `select()` sin ningún filtro,
+  ni siquiera `for_tenant` — exponían el listado completo de otro tenant.
+- Cartera (`/cartera/stats`): conteos y sumatorias de CxC/CxP de todos
+  los tenants mezclados.
+- CxC/CxP: actualizar, abonar (con `with_for_update`, el lock de
+  concurrencia) y anular, todos sin scope — un tenant podía abonar o
+  anular la cartera de otro.
+- Pagos: listado y anulación sin scope.
+- Asientos contables: listado, detalle, y el auxiliar por tercero
+  (estado de cuenta) sin scope.
+- `contabilidad/asientos.py`: 2 lookups de `Cliente` por FK corregidos
+  por consistencia (derivados de una venta ya validada, riesgo real bajo
+  pero mismo patrón de la auditoría).
+
+**Hallazgo nuevo, más profundo — NO corregido, documentado como
+`xfail` + tarea separada:** varios `UniqueConstraint` en el esquema de
+`contabilidad` son **globales**, no compuestos con `tenant_id`:
+`PeriodoContable.periodo` + `(anio, mes)`, `PlanCuentas.codigo_puc`,
+`CentroCosto.codigo`, `Tercero.nit_cc`, `ParametroTributario.concepto`,
+`ParametroNomina.concepto`, `CuentaPorCobrar.numero_factura`,
+`CuentaPorPagar.numero_documento`, `Pago.numero_comprobante`. Un segundo
+tenant literalmente **no puede crear** su propio PUC/centro de
+costo/período/tercero/parámetro con un código que ya exista en otro
+tenant — el INSERT revienta con `IntegrityError` a nivel de Postgres,
+sin importar que las queries de la app ya estén bien filtradas. Requiere
+una migración Alembic (constraints compuestos con `tenant_id`), no un
+fix de queries — mismo mecanismo por el que Perú (tenant 2) hoy no tiene
+ningún dato contable propio (el endpoint de onboarding nunca sembró PUC
+para tenants nuevos, así que el problema no se ha manifestado todavía,
+pero explotaría en cuanto Perú intente usar contabilidad directamente).
+
+Suite completa: 357/357 (+1 `xfailed` documentado).
+
+**Actualización el mismo día:** módulos `alegra` e `inventario` también
+corregidos y commiteados.
+
+- **`alegra`** (commit `5c76daa`): estaba 0% scoped — el hallazgo más
+  grave de toda la auditoría, porque `sync_cliente`/`sync_producto`
+  empujan el dato leído a un servicio **externo** (Alegra). Sin el fix,
+  un tenant podía terminar enviando el cliente/producto de OTRO tenant
+  a su propia cuenta de Alegra. `enviar_factura` tampoco filtraba la
+  venta ni el cliente. 3 tests nuevos, con Alegra mockeado para que la
+  prueba demuestre el leak real (200 OK) en vez de enmascararlo detrás
+  de un error de red hacia la API real.
+- **`inventario`** (commit `e0278fd`): también 0% scoped — dashboard (6
+  queries: valor de inventario, stock bajo, movimientos del mes, top 5
+  productos, alertas de lotes por vencer/vencidos), listado de lotes,
+  kardex de movimientos, y el ajuste manual de stock, todos sin filtrar
+  por tenant. 4 tests nuevos. También se endurecieron por consistencia
+  `inventario/lotes.py` y `inventario/service.py` (reciben `producto_id`
+  ya validado por el caller, riesgo real bajo, mismo patrón).
+
+Nota operativa: durante esta sesión se repitió dos veces el error de
+correr dos `pytest` en paralelo contra la misma base de test de
+Postgres (una vez causó resultados corruptos, otra vez dejó un proceso
+completamente colgado por un lock huérfano) — **nunca correr la suite
+completa mientras otra corrida siga activa**, verificar con
+`Get-CimInstance Win32_Process` antes de lanzar una nueva.
+
+**Actualización el mismo día:** módulo `compras` también corregido y
+commiteado (`623029e`). Dashboard (5 queries: total del mes, mes
+anterior, cantidad, proveedores activos, CxP pendiente, top 5
+proveedores), `create_compra` (lookup de Proveedor), `confirmar_compra`
+y `anular_compra` (lookup de la compra + CxP + Producto por línea), y
+todo el flujo de devoluciones a proveedor (`list_devoluciones_compra`
+filtraba solo por `compra_id` sin tenant — devolvía notas débito de
+otro tenant con el mismo id numérico). 6 tests nuevos — uno de ellos
+falló inicialmente en verde por la razón equivocada (404 por falta de
+datos de prueba, no por el fix) y hubo que corregirlo para que probara
+el aislamiento real. Suite completa: 370/370 (+1 xfailed).
+
+**Actualización el mismo día — cierre de la auditoría:** se corrigieron
+los tres módulos restantes.
+
+- **`reportes`** (`d1001d7`): compras-periodo, ventas-periodo,
+  retenciones-periodo sin filtrar; y — el hallazgo más sensible de toda
+  la auditoría — `estado-resultados`/`balance-general` (via
+  `_saldos_por_clase`, función compartida) mezclaban el libro diario y
+  los saldos iniciales de TODOS los tenants. Sin efecto práctico hoy
+  porque Perú aún no tiene PUC propio (ver hallazgo de esquema abajo),
+  pero es el motor de los estados financieros reales de la empresa.
+  `aging-cartera` ya estaba bien. 5 tests nuevos.
+- **`ventas` (`app/modules/ventas/router.py`, `24fb174`):** se había
+  quedado sin corregir por un error propio durante la auditoría (solo
+  se tocó su dashboard en Run 6). Tenía los 3 puntos originales que
+  señaló el revisor de Run 6 (`delete_producto`, `confirmar_venta`,
+  `anular_venta`) más 9 adicionales, incluyendo un bug **ya documentado
+  desde el 23 de julio** en la memoria de infraestructura del proyecto
+  y nunca corregido hasta ahora: `list_cotizaciones`/`get_cotizacion`
+  sin ningún filtro de tenant. 10 tests nuevos.
+- **`auditoria`** (`6161cb2`): encontrado en el barrido final —
+  `list_auditoria` exponía el log completo de auditoría (quién hizo
+  qué, cuándo, sobre qué entidad, con el diff de cambios) de **todos**
+  los tenants. 1 test nuevo.
+- **Barrido final:** grep sistemático completo de `app/modules/`
+  confirma cero llamadas `session.get()`/`db.get()` sin scope
+  restantes. `tenancy/router.py` fue revisado aparte — sus queries sin
+  filtro de `Tenant`/`Usuario` son correctas por diseño (el admin de la
+  plataforma ve todos los tenants a propósito).
+
+### Resumen completo de la auditoría de aislamiento cross-tenant
+
+7 módulos corregidos con TDD real (test rojo confirmado contra el
+código sin corregir, antes de cada fix): `contabilidad` (`3d7c213`,
+17+ puntos, el peor caso), `alegra` (`5c76daa`, 0% scoped, el más grave
+por empujar datos a un servicio externo), `inventario` (`e0278fd`, 0%
+scoped), `compras` (`623029e`), `reportes` (`d1001d7`, incluye los
+estados financieros), `ventas` (`24fb174`, el que casi se queda sin
+corregir), `auditoria` (`6161cb2`). Más de 45 puntos individuales
+corregidos, ~50 tests de aislamiento nuevos. Suite completa: 386/386
+(+1 xfailed documentado).
+
+**Pendiente, tarea de seguimiento separada (requiere migración
+Alembic, no es un fix de queries):** varios `UniqueConstraint` de
+`contabilidad` son globales en vez de compuestos con `tenant_id`
+(`PlanCuentas.codigo_puc`, `CentroCosto.codigo`,
+`PeriodoContable.periodo`+`(anio,mes)`, `Tercero.nit_cc`,
+`ParametroTributario/Nomina.concepto`, `CuentaPorCobrar.numero_factura`,
+`CuentaPorPagar.numero_documento`, `Pago.numero_comprobante`) — un
+segundo tenant no puede crear sus propios registros contables con
+códigos que ya existan en otro tenant. Documentado como `xfail` en
+`test_contabilidad_tenant_isolation.py`. Sin efecto práctico hoy
+(Perú no tiene PUC propio todavía) pero bloquea cualquier uso real de
+contabilidad por un segundo tenant.
+
+**Actualización el mismo día — revisión final y sus hallazgos, ya
+corregidos (`62dc7b3`):** se despachó una revisión final (mismo proceso
+que Run 6) sobre el diff completo de la rama. Encontró **4 hallazgos
+Críticos y 5 Importantes** que la auditoría original no cubrió — todos
+en archivos de servicio/motor a los que los routers ya corregidos
+delegan (una capa más abajo de lo que se barrió la primera vez):
+
+- **Críticos, en `contabilidad/asientos.py`** (el motor de partida
+  doble usado por TODAS las ventas/compras/abonos/anulaciones):
+  `_get_or_create_cuenta` (cuentas de un tenant sin PUC propio se
+  adjuntaban silenciosamente a las del tenant 1), `validar_periodo_abierto`/
+  `_periodo_para` (el cierre de un período de un tenant bloqueaba a
+  otro), y — el más grave de toda la auditoría — `reversar_asientos`:
+  es una **escritura**, y como `VentaDocumento.numero` no tiene ninguna
+  restricción de unicidad, dos tenants podían colisionar en el mismo
+  número y anular la contabilidad del otro.
+- **Crítico en `ventas/router.py`:** `_sugerir_retenciones` aplicaba
+  tarifas de retención de otro tenant a facturas propias.
+- **Importante en `ventas/services.py`** (el archivo real detrás de
+  `confirmar_venta`/`anular_venta` — los 3 endpoints que originaron
+  toda la auditoría en Run 6 — nunca se había abierto): 5 queries sin
+  scope.
+- Todo corregido con TDD (test rojo confirmado antes de cada fix;
+  varios usan un patrón `try/except IntegrityError` porque interactúan
+  con el gap de esquema ya documentado — prueban que nunca hay reuso
+  silencioso cross-tenant, no que la creación siempre tenga éxito hasta
+  que la migración del constraint compuesto se haga aparte).
+- **Importante NO corregido, documentado como seguimiento (decisión del
+  usuario):** el login (`usuarios/router.py`) busca solo por email, sin
+  distinguir tenant — si dos tenants comparten un email, uno queda
+  bloqueado. No es fuga de datos, es una decisión de producto (cómo
+  identifica el usuario su tenant al loguearse), no un fix mecánico.
+
+Suite completa: 394/394 (+1 xfailed).
+
+### Pendiente para retomar
+
+1. **Decidir si hacer otra pasada de revisión** sobre el commit
+   `62dc7b3` (los nuevos fixes) antes de mergear, o saltar directo al
+   punto 2.
+2. **Decisión de merge/PR** de toda la rama `fix-cross-tenant-audit`
+   (15 commits) — no mergeada todavía.
+3. **Tarea de seguimiento separada** (requiere migración Alembic, ya
+   documentada arriba): hacer compuestos con `tenant_id` los
+   `UniqueConstraint` globales de `contabilidad`/`ventas` listados en
+   el `xfail`.
+4. **Decisión de producto pendiente:** cómo debería identificar un
+   usuario su tenant al loguearse, para resolver de raíz la colisión de
+   emails duplicados entre tenants (`usuarios/router.py`, login).
+
+### Estado al cierre
+
+**Auditoría de aislamiento cross-tenant + su revisión final:
+completas.** 8 módulos/archivos corregidos en total (7 de la auditoría
+original + `asientos.py`/`services.py` de la revisión), suite completa
+en verde (394/394 +1 xfailed). Rama `fix-cross-tenant-audit` (15
+commits) — no mergeada todavía, ver "Pendiente para retomar" arriba.
+
