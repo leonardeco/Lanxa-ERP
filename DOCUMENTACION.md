@@ -3,8 +3,8 @@
 **Empresa:** TECNOLOGIA E INNOVACION SUPER OZONO S.A.S.
 **NIT:** 901841798-5
 **Ciudad:** Armenia, Quindío
-**Versión ERP (LAN):** 0.3.0 · **Docs:** 0.7.3
-**Última actualización:** 2026-07-21
+**Versión ERP (LAN):** 0.3.0 · **Docs:** 0.8.0
+**Última actualización:** 2026-07-27
 
 ---
 
@@ -49,27 +49,27 @@ Detalle ops: `ops/ESTADO-OPERATIVO-PC.md`.
 ### Backend
 | Componente | Tecnología | Versión |
 |---|---|---|
-| Framework web | FastAPI | 0.115.12 |
-| Servidor ASGI | Uvicorn | 0.34.3 |
-| ORM | SQLAlchemy (async) | 2.0.41 |
-| Base de datos (dev) | SQLite + aiosqlite | 0.20.0 |
+| Framework web | FastAPI | 0.139.0 |
+| Servidor ASGI | Uvicorn | 0.51.0 |
+| ORM | SQLAlchemy (async) | 2.0.51 |
+| Base de datos (dev) | SQLite + aiosqlite | 0.22.1 |
 | Base de datos (prod) | PostgreSQL 16 | — |
-| Migraciones | Alembic | 1.15.2 |
-| Validación | Pydantic v2 | 2.11.3 |
+| Migraciones | Alembic | 1.18.5 |
+| Validación | Pydantic v2 | 2.13.4 |
 | Autenticación | JWT access token (PyJWT) + refresh token opaco (cookie HttpOnly) | 2.13.0 |
-| Hashing contraseñas | passlib + bcrypt | 1.7.4 |
-| Rate limiting | slowapi | 0.1.9 |
-| HTTPS (LAN, sin Docker) | uvicorn `--ssl-keyfile/--ssl-certfile` + CA local autofirmada (`cryptography`) | — |
-| Logging | structlog | 25.4.0 |
+| Hashing contraseñas | bcrypt (uso directo — passlib eliminado jul-2026: sin mantenimiento, bloqueaba bcrypt>=4.1) | 5.0.0 |
+| Rate limiting | slowapi | 0.1.10 |
+| HTTPS (LAN, sin Docker) | uvicorn `--ssl-keyfile/--ssl-certfile` + CA local autofirmada (`cryptography`) | 49.0.0 |
+| Logging | structlog | 26.1.0 |
 | HTTP cliente | httpx | 0.28.1 |
 
 ### Frontend
-| Componente | Tecnología |
-|---|---|
-| Framework UI | React 18 + TypeScript |
-| Build tool | Vite |
-| HTTP client | Axios |
-| Estilos | CSS custom (variables) |
+| Componente | Tecnología | Versión |
+|---|---|---|
+| Framework UI | React + TypeScript | React 19.2 · TS 6.0 |
+| Build tool | Vite | 8.1 |
+| HTTP client | Axios | 1.18 |
+| Estilos | CSS custom (variables) | — |
 
 ### Infraestructura (producción)
 | Servicio | Imagen Docker |
@@ -118,9 +118,21 @@ superozono-erp/
 │   │   │   │   ├── schemas.py       # AgingCarteraResponse, ComprasPeriodoResponse, VentasPeriodoResponse, RetencionesPeriodoResponse
 │   │   │   │   └── router.py        # solo lectura, sin modelos propios — agrega sobre contabilidad/compras/ventas
 │   │   │   ├── usuarios/
-│   │   │   │   ├── models.py        # Usuario
+│   │   │   │   ├── models.py        # Usuario, RefreshToken
 │   │   │   │   ├── schemas.py       # Token, UsuarioCreate, UsuarioResponse
 │   │   │   │   └── router.py        # Auth + CRUD usuarios
+│   │   │   ├── tenancy/             # modelo Tenant vive en app/core/tenancy.py
+│   │   │   │   ├── schemas.py       # TenantResponse, TenantOnboardRequest/Response
+│   │   │   │   └── router.py        # Listar tenants, onboarding de empresa nueva
+│   │   │   ├── ventas_diarias/      # registro diario de ventas (tenant Perú)
+│   │   │   │   ├── models.py        # VentaDiaria, PagoSueltoDiario
+│   │   │   │   ├── schemas.py       # CRUD schemas + resumen mensual
+│   │   │   │   └── router.py        # Endpoints ventas diarias + pagos sueltos
+│   │   │   ├── auditoria/
+│   │   │   │   ├── models.py        # Auditoria (acción, entidad, diff, ip)
+│   │   │   │   ├── service.py       # registrar_auditoria(), diff_cambios()
+│   │   │   │   ├── purge.py         # Purga/archivado de registros antiguos
+│   │   │   │   └── router.py        # Consulta del log de auditoría (solo lectura)
 │   │   │   └── alegra/
 │   │   │       ├── client.py        # Cliente HTTP para Alegra API
 │   │   │       ├── mappers.py       # Conversores ERP → Alegra
@@ -416,6 +428,15 @@ Entrega (cuando se decida): Escritorio `Entrega-SuperOzono-v030\` — **entrega 
 
 ## 8. Base de datos — Modelos
 
+### Multi-tenancy (`core/tenancy.py`)
+
+| Tabla / mecanismo | Descripción |
+|---|---|
+| `tenants` | Una fila por empresa/suscriptor (`codigo`, `razon_social`, `nit`, `activo`). Tenant #1 (`superozono`) es la empresa por defecto en el despliegue LAN; tenants adicionales (p.ej. `peru`) se crean vía `POST /api/v1/tenants/onboard` |
+| `tenant_id` | Columna presente en prácticamente todas las tablas de negocio (mixin `TenantScoped`) — cada fila pertenece a un único tenant, con `UniqueConstraint`s compuestos (`tenant_id`, clave de negocio) donde aplica, no globales |
+| RLS (Row-Level Security) | Solo PostgreSQL: política `tenant_isolation` sobre las tablas listadas en `RLS_TABLES`, forzada con `FORCE ROW LEVEL SECURITY`. `apply_rls_tenant()` fija `set_config('app.tenant_id', …)` al abrir cada sesión y de nuevo tras autenticar. No-op en SQLite (despliegue LAN) — el aislamiento ahí depende exclusivamente de que cada query use `tenant_clause`/`for_tenant`/`get_for_tenant` |
+| Auditoría cross-tenant (2026-07-24) | Los 8 módulos de negocio fueron auditados y corregidos para filtrar consistentemente por `tenant_id` en cada consulta (ver `BITACORA.md`, sesión "Auditoría de aislamiento cross-tenant") |
+
 ### Módulo Contabilidad (`contabilidad/models.py`)
 
 | Tabla | Descripción |
@@ -489,6 +510,13 @@ Base URL: `http://[host]:8000/api`
 | PATCH | `/v1/usuarios/{id}/toggle` | Admin | Activar/desactivar usuario |
 | PUT | `/v1/usuarios/me/password` | Autenticado | Cambiar contraseña propia (requiere la actual) |
 | PUT | `/v1/usuarios/{id}/reset-password` | Admin | Resetear la contraseña de otro usuario sin acceso (sin requerir la actual) |
+
+### Multi-tenancy
+
+| Método | Ruta | Acceso | Descripción |
+|---|---|---|---|
+| GET | `/v1/tenants/` | Autenticado | Plataforma (tenant #1) ve todas las empresas; otros tenants solo la propia |
+| POST | `/v1/tenants/onboard` | Admin del tenant plataforma | Da de alta una empresa nueva + su Admin inicial |
 
 ### Contabilidad
 
@@ -828,3 +856,6 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 - ~~**Fix arranque LAN (encoding .env + IP)**~~ → ✅ **2026-07-17**: `backend\.env` reescrito UTF-8; IP **`192.168.1.131`**; `ops/sync-lan-ip.ps1` + `start.bat` valida config, espera health `:8000`, regenera cert. Smoke + login UI Superusuario verificados (usuario dentro del ERP).
 - ~~**Informe gerencial + PPTX + acta Contador + resumen admin**~~ → ✅ **2026-07-21** (DOCUMENTACION §13 #59–#61). Material en Escritorio; generadores locales en `docs/generate-*`.
 - **Pendientes vivos:** ver `PENDIENTES.md` (**46ª rev, 2026-07-21**) — Contador #1–3/#8 (acta lista para firmar); #2/#4 datos; **#34 Excel empresa** y **#35 screenshots ERP actual** (solicitados a admin); #7 ejecutar entrega; token Alegra; resolución DIAN / texto Habeas.
+- ~~**Run 6 — tenant Perú + Ventas Diarias**~~ → ✅ **Mergeado 2026-07-24** (`run6-peru-ventas-diarias`): tenant Perú (`codigo="peru"`) onboardeado en producción real vía `POST /api/v1/tenants/onboard`; módulo `ventas_diarias` nuevo (registro diario + pagos sueltos + resumen mensual). Revisión final encontró un hallazgo Crítico (aislamiento cross-tenant fuera del alcance de esta rama) documentado como seguimiento inmediato.
+- ~~**Auditoría de aislamiento cross-tenant**~~ → ✅ **Mergeado y pusheado 2026-07-27** (`fix-cross-tenant-audit`): 7 módulos de negocio (`contabilidad`, `alegra`, `inventario`, `compras`, `reportes`, `ventas`, `auditoria`) corregidos para filtrar consistentemente por `tenant_id`; revisión final encontró 4 hallazgos Críticos adicionales una capa más abajo (`contabilidad/asientos.py`, `ventas/services.py`), también corregidos. Suite completa 394/394 (+1 `xfail` documentado — `UniqueConstraint`s globales en `contabilidad` pendientes de migración compuesta con `tenant_id`, ver `BITACORA.md`).
+- **En curso, no mergeado (`fix-login-tenant-domain`):** el login ahora resuelve el tenant por el dominio del email antes de buscar el `Usuario` (evita la ambigüedad cuando dos tenants comparten un email). Bloqueado por confirmar el dominio de correo real del tenant Perú y una verificación visual en navegador pendiente — ver `BITACORA.md`.
