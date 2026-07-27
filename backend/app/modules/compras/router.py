@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.numbering import next_sequential_numero
-from app.core.tenancy import for_tenant, tenant_clause
+from app.core.tenancy import for_tenant, get_for_tenant, tenant_clause
 from app.api.deps import CurrentUser, AdminOrAdministradoraDep
 
 from .models import (
@@ -57,6 +57,7 @@ async def get_dashboard(
             extract("year", CompraDocumento.fecha) == anio,
             extract("month", CompraDocumento.fecha) == mes,
             CompraDocumento.estado != "Anulada",
+            tenant_clause(CompraDocumento),
         )
     )
     row = r.one()
@@ -69,12 +70,13 @@ async def get_dashboard(
             extract("year", CompraDocumento.fecha) == anio_ant,
             extract("month", CompraDocumento.fecha) == mes_ant,
             CompraDocumento.estado != "Anulada",
+            tenant_clause(CompraDocumento),
         )
     )
     total_mes_ant = r2.scalar() or Decimal("0")
 
     r3 = await session.execute(
-        select(func.count(Proveedor.id)).where(Proveedor.activo == True)  # noqa: E712
+        select(func.count(Proveedor.id)).where(Proveedor.activo == True, tenant_clause(Proveedor))  # noqa: E712
     )
     prov_activos = r3.scalar() or 0
 
@@ -83,6 +85,7 @@ async def get_dashboard(
         .where(
             CompraDocumento.estado_pago.in_(["Pendiente", "Parcial"]),
             CompraDocumento.estado != "Anulada",
+            tenant_clause(CompraDocumento),
         )
     )
     cxp_pend = r4.scalar() or Decimal("0")
@@ -96,6 +99,7 @@ async def get_dashboard(
             extract("year", CompraDocumento.fecha) == anio,
             extract("month", CompraDocumento.fecha) == mes,
             CompraDocumento.estado != "Anulada",
+            tenant_clause(CompraDocumento),
         )
         .group_by(CompraDocumento.proveedor_razon_social)
         .order_by(func.sum(CompraDocumento.total).desc())
@@ -288,7 +292,7 @@ async def create_compra(
     if not data.detalles:
         raise HTTPException(status_code=400, detail="La compra debe tener al menos una línea de detalle")
 
-    prov = (await session.execute(select(Proveedor).where(Proveedor.id == data.proveedor_id))).scalar_one_or_none()
+    prov = await get_for_tenant(session, Proveedor, data.proveedor_id)
     if not prov:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
 
@@ -342,7 +346,10 @@ async def confirmar_compra(
     session: AsyncSession = Depends(get_db),
 ):
     result = await session.execute(
-        select(CompraDocumento).options(selectinload(CompraDocumento.detalles)).where(CompraDocumento.id == id)
+        for_tenant(
+            select(CompraDocumento).options(selectinload(CompraDocumento.detalles)).where(CompraDocumento.id == id),
+            CompraDocumento,
+        )
     )
     c = result.scalar_one_or_none()
     if not c:
@@ -353,7 +360,9 @@ async def confirmar_compra(
 
     # Crear CxP automáticamente si no existe ya una para esta compra
     existing_cxp = await session.execute(
-        select(CuentaPorPagar).where(CuentaPorPagar.numero_documento == c.numero)
+        select(CuentaPorPagar).where(
+            CuentaPorPagar.numero_documento == c.numero, tenant_clause(CuentaPorPagar)
+        )
     )
     if not existing_cxp.scalar_one_or_none():
         cxp = CuentaPorPagar(
@@ -377,7 +386,7 @@ async def confirmar_compra(
     for d in c.detalles:
         if not d.producto_id:
             continue
-        producto = await session.get(Producto, d.producto_id)
+        producto = await get_for_tenant(session, Producto, d.producto_id)
         if producto and producto.controla_lote:
             if not (d.codigo_lote and d.codigo_lote.strip()):
                 raise HTTPException(
@@ -430,7 +439,10 @@ async def anular_compra(
     session: AsyncSession = Depends(get_db),
 ):
     result = await session.execute(
-        select(CompraDocumento).options(selectinload(CompraDocumento.detalles)).where(CompraDocumento.id == id)
+        for_tenant(
+            select(CompraDocumento).options(selectinload(CompraDocumento.detalles)).where(CompraDocumento.id == id),
+            CompraDocumento,
+        )
     )
     c = result.scalar_one_or_none()
     if not c:
@@ -441,7 +453,9 @@ async def anular_compra(
     # BUG-007 (espejo de ventas): con devoluciones a proveedor no se puede
     # anular — el reverso duplicaría la salida de stock ya hecha por la ND.
     tiene_nd = await session.scalar(
-        select(DevolucionCompra.id).where(DevolucionCompra.compra_id == c.id).limit(1)
+        select(DevolucionCompra.id).where(
+            DevolucionCompra.compra_id == c.id, tenant_clause(DevolucionCompra)
+        ).limit(1)
     )
     if tiene_nd:
         raise HTTPException(
@@ -452,7 +466,9 @@ async def anular_compra(
 
     # BUG-008 (espejo): si la CxP ya tiene abonos, primero se anulan los pagos
     cxp = await session.scalar(
-        select(CuentaPorPagar).where(CuentaPorPagar.numero_documento == c.numero)
+        select(CuentaPorPagar).where(
+            CuentaPorPagar.numero_documento == c.numero, tenant_clause(CuentaPorPagar)
+        )
     )
     if cxp and (cxp.abonos or Decimal("0")) > 0:
         raise HTTPException(
@@ -476,7 +492,7 @@ async def anular_compra(
         for d in c.detalles:
             if not d.producto_id:
                 continue
-            producto = await session.get(Producto, d.producto_id)
+            producto = await get_for_tenant(session, Producto, d.producto_id)
             if producto and producto.controla_lote:
                 await revertir_por_lotes(
                     session,
@@ -525,7 +541,7 @@ async def list_devoluciones_compra(id: int, _: CurrentUser, session: AsyncSessio
     rows = (await session.execute(
         select(DevolucionCompra)
         .options(selectinload(DevolucionCompra.detalles))
-        .where(DevolucionCompra.compra_id == id)
+        .where(DevolucionCompra.compra_id == id, tenant_clause(DevolucionCompra))
         .order_by(DevolucionCompra.id)
     )).scalars().all()
     return rows
@@ -544,9 +560,12 @@ async def crear_devolucion_compra(
     (DB 220501 Proveedores / CR 143501 Inventario + 240802 IVA descontable).
     """
     compra = await session.scalar(
-        select(CompraDocumento)
-        .options(selectinload(CompraDocumento.detalles))
-        .where(CompraDocumento.id == id)
+        for_tenant(
+            select(CompraDocumento)
+            .options(selectinload(CompraDocumento.detalles))
+            .where(CompraDocumento.id == id),
+            CompraDocumento,
+        )
     )
     if not compra:
         raise HTTPException(404, "Compra no encontrada")
@@ -559,7 +578,7 @@ async def crear_devolucion_compra(
     previas = (await session.execute(
         select(DevolucionCompraDetalle.compra_detalle_id, func.sum(DevolucionCompraDetalle.cantidad))
         .join(DevolucionCompra, DevolucionCompra.id == DevolucionCompraDetalle.devolucion_id)
-        .where(DevolucionCompra.compra_id == id)
+        .where(DevolucionCompra.compra_id == id, tenant_clause(DevolucionCompra))
         .group_by(DevolucionCompraDetalle.compra_detalle_id)
     )).all()
     for det_id, cant in previas:
@@ -612,7 +631,7 @@ async def crear_devolucion_compra(
 
         # La mercancía devuelta sale del inventario (si la línea tiene producto)
         if det.producto_id:
-            producto = await session.get(Producto, det.producto_id)
+            producto = await get_for_tenant(session, Producto, det.producto_id)
             stock = producto.stock_actual if producto else Decimal("0")
             if stock < item.cantidad:
                 nombre = producto.nombre if producto else det.descripcion
@@ -657,7 +676,9 @@ async def crear_devolucion_compra(
     # Reducir la CxP de la compra. Si ya se había pagado más de lo que queda,
     # la CxP pasa a Pagado y el saldo a favor se gestiona manualmente.
     cxp = await session.scalar(
-        select(CuentaPorPagar).where(CuentaPorPagar.compra_id == compra.id)
+        select(CuentaPorPagar).where(
+            CuentaPorPagar.compra_id == compra.id, tenant_clause(CuentaPorPagar)
+        )
     )
     if cxp and cxp.estado != EstadoDocumento.ANULADO:
         cxp.valor = max(cxp.valor - devolucion.total, Decimal("0"))

@@ -17,6 +17,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.tenancy import get_for_tenant, tenant_clause
 from app.modules.ventas.models import (
     VentaDocumento, VentaDetalle, EstadoVenta, DevolucionVenta,
 )
@@ -38,7 +39,7 @@ class VentaError(ValueError):
 
 async def _detalles(db: AsyncSession, venta_id: int) -> list[VentaDetalle]:
     return list((await db.execute(
-        select(VentaDetalle).where(VentaDetalle.venta_id == venta_id)
+        select(VentaDetalle).where(VentaDetalle.venta_id == venta_id, tenant_clause(VentaDetalle))
     )).scalars().all())
 
 
@@ -54,7 +55,7 @@ async def confirmar_venta(db: AsyncSession, venta: VentaDocumento, usuario) -> N
     prods: dict[int, Producto] = {}
     for pid in prod_ids:
         prod = await db.scalar(
-            select(Producto).where(Producto.id == pid).with_for_update()
+            select(Producto).where(Producto.id == pid, tenant_clause(Producto)).with_for_update()
         )
         if prod is not None:
             prods[pid] = prod
@@ -106,10 +107,12 @@ async def confirmar_venta(db: AsyncSession, venta: VentaDocumento, usuario) -> N
 
     # CxC automática (espejo de compras→CxP), idempotente
     existing_cxc = await db.scalar(
-        select(CuentaPorCobrar).where(CuentaPorCobrar.numero_factura == venta.numero)
+        select(CuentaPorCobrar).where(
+            CuentaPorCobrar.numero_factura == venta.numero, tenant_clause(CuentaPorCobrar)
+        )
     )
     if not existing_cxc:
-        cliente = await db.get(Cliente, venta.cliente_id)
+        cliente = await get_for_tenant(db, Cliente, venta.cliente_id)
         db.add(CuentaPorCobrar(
             numero_factura=venta.numero,
             fecha_emision=venta.fecha,
@@ -134,7 +137,9 @@ async def anular_venta(db: AsyncSession, venta: VentaDocumento, usuario) -> None
     tiene notas crédito o su CxC ya tiene abonos."""
     # BUG-007: con notas crédito no se puede anular (duplicaría el reingreso de stock)
     tiene_nc = await db.scalar(
-        select(DevolucionVenta.id).where(DevolucionVenta.venta_id == venta.id).limit(1)
+        select(DevolucionVenta.id).where(
+            DevolucionVenta.venta_id == venta.id, tenant_clause(DevolucionVenta)
+        ).limit(1)
     )
     if tiene_nc:
         raise VentaError(
@@ -144,7 +149,9 @@ async def anular_venta(db: AsyncSession, venta: VentaDocumento, usuario) -> None
 
     # BUG-008: si la CxC ya tiene abonos, primero se anulan los pagos en Cartera
     cxc = await db.scalar(
-        select(CuentaPorCobrar).where(CuentaPorCobrar.numero_factura == venta.numero)
+        select(CuentaPorCobrar).where(
+            CuentaPorCobrar.numero_factura == venta.numero, tenant_clause(CuentaPorCobrar)
+        )
     )
     if cxc and (cxc.abonos or Decimal("0")) > 0:
         raise VentaError(
@@ -163,7 +170,7 @@ async def anular_venta(db: AsyncSession, venta: VentaDocumento, usuario) -> None
     # Revertir las salidas de inventario si la venta ya las había generado
     if estado_anterior in (EstadoVenta.CONFIRMADA, EstadoVenta.FACTURADA):
         for d in await _detalles(db, venta.id):
-            prod = await db.get(Producto, d.producto_id)
+            prod = await get_for_tenant(db, Producto, d.producto_id)
             if prod and prod.controla_lote:
                 await revertir_por_lotes(
                     db,

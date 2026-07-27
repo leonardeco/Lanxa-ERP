@@ -13,6 +13,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.tenancy import get_for_tenant, tenant_clause
 from app.core.time import bogota_now
 from app.modules.inventario.models import (
     Lote, MovimientoInventario, TipoMovimientoInventario, OrigenMovimiento,
@@ -50,7 +51,7 @@ async def entrada_lote(
     # #12: bloquear el lote existente (si hay) antes de incrementar cantidad.
     lote = await db.scalar(
         select(Lote)
-        .where(Lote.producto_id == producto_id, Lote.codigo_lote == codigo)
+        .where(Lote.producto_id == producto_id, Lote.codigo_lote == codigo, tenant_clause(Lote))
         .with_for_update()
     )
 
@@ -119,7 +120,10 @@ async def consumir_fefo(
     # (orden estable por id para reducir deadlocks entre transacciones).
     lotes = (await db.execute(
         select(Lote)
-        .where(Lote.producto_id == producto_id, Lote.activo.is_(True), Lote.cantidad_actual > 0)
+        .where(
+            Lote.producto_id == producto_id, Lote.activo.is_(True), Lote.cantidad_actual > 0,
+            tenant_clause(Lote),
+        )
         .order_by(Lote.fecha_vencimiento.is_(None), Lote.fecha_vencimiento, Lote.id)
         .with_for_update()
     )).scalars().all()
@@ -201,7 +205,7 @@ async def revertir_por_lotes(
         cond.append(MovimientoInventario.venta_detalle_id == venta_detalle_id)
 
     originales = (await db.execute(
-        select(MovimientoInventario).where(*cond)
+        select(MovimientoInventario).where(*cond, tenant_clause(MovimientoInventario))
         .order_by(MovimientoInventario.id.desc())
     )).scalars().all()
 
@@ -213,7 +217,7 @@ async def revertir_por_lotes(
     for orig in originales:
         if restante <= 0:
             break
-        lote = await db.get(Lote, orig.lote_id)
+        lote = await get_for_tenant(db, Lote, orig.lote_id)
         if lote is None:
             continue
         if es_reingreso:
