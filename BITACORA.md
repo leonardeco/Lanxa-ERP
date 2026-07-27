@@ -2430,3 +2430,89 @@ original + `asientos.py`/`services.py` de la revisión), suite completa
 en verde (394/394 +1 xfailed). Rama `fix-cross-tenant-audit` (15
 commits) — no mergeada todavía, ver "Pendiente para retomar" arriba.
 
+---
+
+## Sesión — 27 de julio 2026 — Merge auditoría, docs y avance login por dominio
+
+### Resumen
+
+Sesión de cierre de varias ramas abiertas + una rama nueva construida
+de punta a punta con el pipeline Hydraia. Tres frentes:
+
+**1. Merge de `fix-cross-tenant-audit` a `main` — completo.**
+Se commiteó primero una entrada de `BITACORA.md` que había quedado sin
+guardar de la sesión original (documentaba los 8 módulos corregidos).
+Merge limpio (`main` no había avanzado desde que se creó la rama),
+verificado con suite completa **394/394 (+1 xfailed)** antes y después
+del merge. **Pusheado a `origin/main`** (`7df9f49..fdc4fa0`).
+
+**2. Rama nueva `fix-login-tenant-domain` — construida completa,
+revisada tres veces, NO mergeada.** Resuelve el gap de login
+documentado en la auditoría (`usuarios/router.py` buscaba el `Usuario`
+solo por email, sin distinguir tenant). Decisión de producto: resolver
+el tenant por el dominio del email antes de buscar el usuario,
+fail-closed si no hay match. Pipeline completo: diseño interactivo →
+ejecución → dos pases de revisión independiente → un tercer pase de
+verificación. El primer intento de fix tenía un defecto real (comparaba
+con `func.lower()` en el login, lo que reintroducía la misma
+ambigüedad del bug original pero *dentro* de un tenant) — corregido
+normalizando en escritura, no en lectura, tras que el segundo revisor lo
+detectara con una prueba empírica.
+
+**Hallazgo crítico en producción real:** al revisar los datos reales
+para backfillear el dominio de Perú, se encontró que el admin real de
+ese tenant (`auxiliar.peru@superozonoglobal.com`) usa el MISMO dominio
+que el tenant 1 — incompatible con el diseño (dominio único por
+tenant). Se le explicó el problema al usuario; decidió que Claude lo
+resolviera directamente ("solucionalo a tu manera", sin capacidad
+propia para decidir el dominio). Resuelto: dominio elegido
+`superozonoperu.com` (**no verificado con el negocio**, documentado
+explícitamente en la migración y en `DESPLIEGUE.md` para corregir si no
+es correcto), migración automática del email de ese usuario real +
+backfill del tenant, todo dentro de la misma migración Alembic (sin SQL
+manual en producción). Rama luego actualizada (merge) contra el `main`
+ya avanzado por el punto 1 — único conflicto en `BITACORA.md`
+(resuelto reordenando cronológicamente), sin overlap de código.
+**Suite final: 405/405 (+1 xfailed).**
+
+**Verificación en navegador: no se pudo completar.** La extensión
+Claude in Chrome nunca conectó pese a reinstalarla y reiniciar Chrome
+por completo varias veces (incluyendo matar todos los procesos
+`chrome.exe` a la fuerza) — confirmado que quedaba activa y logueada
+del lado del usuario. Login sí verificado end-to-end vía API/curl
+contra una instancia desechable con datos del seed real.
+
+**3. README y DOCUMENTACION pulidos — completo, mergeado y pusheado.**
+Auditoría encontró contradicciones reales entre ambos documentos
+(versiones de stack obsoletas en DOCUMENTACION.md: FastAPI 0.115 vs
+0.139, React 18 vs 19, passlib+bcrypt vs bcrypt directo), 3 módulos
+enteros faltantes en las tablas/árboles de estructura de ambos
+documentos (`tenancy`, `auditoria`, `ventas_diarias`), multi-tenancy
+invisible en las secciones de referencia (solo aparecía en el
+changelog), y roadmap desincronizado desde el 21-jul. Corregido todo +
+badges de versión/stack en el README (repo privado, sin `LICENSE` — se
+usó un badge de "uso privado", no de licencia OSS). Pusheado a
+`origin/main` (`fdc4fa0..d1711fb`).
+
+### Pendiente — dejado explícitamente para mañana
+
+Ver `PENDIENTES.md` (48ª revisión) para el detalle. En resumen:
+
+1. **Confirmar el dominio de Perú** (`superozonoperu.com`, elegido sin
+   verificación del negocio) antes de desplegar `fix-login-tenant-domain`
+   a producción.
+2. **Prueba visual en navegador** de esa misma rama (bloqueada por la
+   extensión de Chrome).
+3. **Decisión de merge** de `fix-login-tenant-domain` a `main` —
+   depende de los dos puntos anteriores.
+4. **Migración de `UniqueConstraint`s compuestos** en `contabilidad`
+   (hallazgo de la auditoría cross-tenant, documentado como `xfail`) —
+   sin urgencia inmediata, tarea separada de mayor riesgo.
+
+### Estado al cierre
+
+`main`: auditoría cross-tenant + docs pulidas, **mergeado y pusheado**.
+`fix-login-tenant-domain`: 405/405 tests, actualizada contra `main`,
+**no mergeada** — a la espera de los puntos 1–3 de arriba, retomar
+mañana.
+
