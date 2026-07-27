@@ -7,6 +7,7 @@ from sqlalchemy import select, func, extract, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.tenancy import for_tenant, get_for_tenant, tenant_clause
 from app.api.deps import CurrentUser, AdminOrAdministradoraDep
 from app.modules.ventas.models import Producto
 
@@ -56,12 +57,12 @@ async def get_dashboard(_: CurrentUser, session: AsyncSession = Depends(get_db))
 
     valor_inventario = await session.scalar(
         select(func.coalesce(func.sum(Producto.stock_actual * func.coalesce(Producto.precio_costo, 0)), 0))
-        .where(Producto.activo == True)  # noqa: E712
+        .where(Producto.activo == True, tenant_clause(Producto))  # noqa: E712
     )
 
     stock_bajo = await session.scalar(
         select(func.count(Producto.id))
-        .where(Producto.activo == True, Producto.stock_actual <= Producto.stock_minimo)  # noqa: E712
+        .where(Producto.activo == True, Producto.stock_actual <= Producto.stock_minimo, tenant_clause(Producto))  # noqa: E712
     )
 
     movimientos_mes = await session.scalar(
@@ -69,6 +70,7 @@ async def get_dashboard(_: CurrentUser, session: AsyncSession = Depends(get_db))
         .where(
             extract("year", MovimientoInventario.fecha) == hoy.year,
             extract("month", MovimientoInventario.fecha) == hoy.month,
+            tenant_clause(MovimientoInventario),
         )
     )
 
@@ -78,7 +80,7 @@ async def get_dashboard(_: CurrentUser, session: AsyncSession = Depends(get_db))
             Producto.sku,
             (Producto.stock_actual * func.coalesce(Producto.precio_costo, 0)).label("valor"),
         )
-        .where(Producto.activo == True)  # noqa: E712
+        .where(Producto.activo == True, tenant_clause(Producto))  # noqa: E712
         .order_by(desc("valor"))
         .limit(5)
     )
@@ -92,6 +94,7 @@ async def get_dashboard(_: CurrentUser, session: AsyncSession = Depends(get_db))
         Lote.activo.is_(True),
         Lote.cantidad_actual > 0,
         Lote.fecha_vencimiento.is_not(None),
+        tenant_clause(Lote),
     )
     lotes_por_vencer = await session.scalar(
         select(func.count(Lote.id)).where(
@@ -132,10 +135,11 @@ async def list_lotes(
     """Existencias por lote con su estado de vencimiento derivado. Ordena por
     vencimiento (los que vencen antes primero; los sin fecha al final)."""
     hoy = date.today()
-    query = (
+    query = for_tenant(
         select(Lote, Producto.nombre, Producto.sku)
         .join(Producto, Producto.id == Lote.producto_id)
-        .order_by(Lote.fecha_vencimiento.is_(None), Lote.fecha_vencimiento, Lote.id)
+        .order_by(Lote.fecha_vencimiento.is_(None), Lote.fecha_vencimiento, Lote.id),
+        Lote,
     )
     if producto_id:
         query = query.where(Lote.producto_id == producto_id)
@@ -179,10 +183,11 @@ async def list_movimientos(
     fecha_hasta: Optional[date] = Query(None),
     session: AsyncSession = Depends(get_db),
 ):
-    query = (
+    query = for_tenant(
         select(MovimientoInventario, Producto.nombre, Producto.sku)
         .join(Producto, Producto.id == MovimientoInventario.producto_id)
-        .order_by(MovimientoInventario.fecha.desc(), MovimientoInventario.id.desc())
+        .order_by(MovimientoInventario.fecha.desc(), MovimientoInventario.id.desc()),
+        MovimientoInventario,
     )
     if producto_id:
         query = query.where(MovimientoInventario.producto_id == producto_id)
@@ -218,7 +223,7 @@ async def crear_ajuste(
     current: AdminOrAdministradoraDep,
     session: AsyncSession = Depends(get_db),
 ):
-    producto = await session.get(Producto, data.producto_id)
+    producto = await get_for_tenant(session, Producto, data.producto_id)
     if not producto:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
 

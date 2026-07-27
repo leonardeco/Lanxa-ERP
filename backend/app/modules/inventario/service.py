@@ -14,6 +14,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.tenancy import tenant_clause
 from app.modules.ventas.models import Producto
 from .models import MovimientoInventario, TipoMovimientoInventario, OrigenMovimiento
 
@@ -51,7 +52,7 @@ async def registrar_movimiento(
     concurrente aunque el caller no re-valide).
     """
     producto = await session.scalar(
-        select(Producto).where(Producto.id == producto_id).with_for_update()
+        select(Producto).where(Producto.id == producto_id, tenant_clause(Producto)).with_for_update()
     )
     if not producto:
         raise ValueError(f"Producto {producto_id} no encontrado")
