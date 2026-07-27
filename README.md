@@ -1,6 +1,10 @@
 # Super Ozono ERP
 
 [![CI](https://github.com/leonardeco/superozono-erp/actions/workflows/ci.yml/badge.svg)](https://github.com/leonardeco/superozono-erp/actions/workflows/ci.yml)
+![Versión](https://img.shields.io/badge/version-0.3.0-blue)
+![Python](https://img.shields.io/badge/python-3.13-blue?logo=python&logoColor=white)
+![Node](https://img.shields.io/badge/node-20%2B-339933?logo=node.js&logoColor=white)
+![Uso](https://img.shields.io/badge/uso-privado%20%2F%20propietario-lightgrey)
 
 Sistema de gestión empresarial (ERP) desarrollado a medida para **TECNOLOGÍA E INNOVACIÓN SUPER OZONO S.A.S.** — empresa colombiana del sector agroindustrial especializada en biocidas naturales con tecnología de ozono.
 
@@ -39,6 +43,9 @@ Sistema de gestión empresarial (ERP) desarrollado a medida para **TECNOLOGÍA E
 | **Inventario** | ✅ Producción | Kardex de movimientos (Entrada/Salida/Ajuste), entradas automáticas al confirmar compra, salidas automáticas al confirmar venta, reversa al anular, dashboard de valorización, **importador de inventario inicial (.xlsx)** |
 | **Lote & Vencimiento** | ✅ Producción | Opt-in `controla_lote`, consumo **FEFO**, enganche compras/ventas/devoluciones/ajuste/importador, pestaña Lotes + alertas de vencimiento en dashboard |
 | **Usuarios** | ✅ Producción | CRUD de usuarios, gestión de roles, cambio de contraseña |
+| **Multi-tenancy** | ✅ Producción | Aislamiento por `tenant_id` en toda tabla de negocio, RLS en PostgreSQL, onboarding de nuevas empresas (`POST /api/v1/tenants/onboard`) — 2 tenants activos en producción (Colombia, Perú) |
+| **Ventas Diarias (Perú)** | ✅ Producción | Registro diario de ventas + pagos sueltos, resumen mensual — módulo específico del tenant Perú |
+| **Auditoría** | ✅ Producción | Log inmutable de creación/actualización con diff de cambios, filtrado por tenant |
 | **Alegra** | ✅ Construido | Integración con API de Alegra para facturación electrónica DIAN Colombia |
 | **RRHH & Nómina** | 🔄 Fase 2 | Empleados, contratos, liquidación mensual |
 | **Motor de asientos (partida doble)** | 🧪 Borrador contable | Asientos automáticos al confirmar venta/compra y abonar CxC/CxP, con reverso al anular. Mapeo PUC estándar (Decreto 2650) **pendiente de validar con el contador** |
@@ -128,8 +135,8 @@ modules/<nombre>/
 | structlog | 26.1 | Logging estructurado JSON |
 | aiosqlite | 0.22 | Driver SQLite async (desarrollo local) |
 | asyncpg | 0.31 | Driver PostgreSQL async (producción) |
-| uvicorn | 0.49 | Servidor ASGI |
-| pytest + httpx | 9.1 | Testing de API (198 tests, cobertura 95%) |
+| uvicorn | 0.51 | Servidor ASGI |
+| pytest + httpx | 9.1 | Testing de API (394 tests +1 xfailed documentado) |
 | flake8 + mypy | 7.3 / 2.1 | Análisis estático y verificación de tipos (QA) |
 | Alembic | 1.18 | Migraciones de esquema (async, baseline + revisiones) |
 
@@ -139,8 +146,8 @@ modules/<nombre>/
 |----------|---------|-----|
 | React | 19 | UI |
 | TypeScript | 6.0 | Tipado estático |
-| Vite | 8.0 | Bundler y dev server |
-| Axios | 1.17 | HTTP client con interceptores JWT |
+| Vite | 8.1 | Bundler y dev server |
+| Axios | 1.18 | HTTP client con interceptores JWT |
 | jwt-decode | 4.0 | Decodificación de token en cliente |
 | Vitest + Testing Library | 4.1 | Tests de componentes (25) |
 | Playwright | 1.61 | Smoke E2E en navegador real (5 flujos) |
@@ -187,9 +194,21 @@ backend/app/modules/
 │   ├── schemas.py   # AgingCarteraResponse, ComprasPeriodoResponse, VentasPeriodoResponse, RetencionesPeriodoResponse
 │   └── router.py    # /api/v1/reportes/* (solo lectura, sin modelos propios)
 ├── usuarios/
-│   ├── models.py    # Usuario (email, rol, bcrypt hash)
+│   ├── models.py    # Usuario (email, rol, bcrypt hash), RefreshToken
 │   ├── schemas.py   # Token, UsuarioCreate/Update/Response
 │   └── router.py    # /api/login, /api/users/me, /api/v1/usuarios/*
+├── tenancy/         # Multi-empresa: modelo Tenant vive en app/core/tenancy.py
+│   ├── schemas.py   # TenantResponse, TenantOnboardRequest/Response
+│   └── router.py    # /api/v1/tenants/* (listar, onboardear empresa nueva)
+├── ventas_diarias/  # Registro diario de ventas + pagos sueltos (tenant Perú)
+│   ├── models.py    # VentaDiaria, PagoSueltoDiario
+│   ├── schemas.py   # CRUD schemas + VentaDiariaResumenMensual
+│   └── router.py    # /api/v1/ventas-diarias/*
+├── auditoria/
+│   ├── models.py    # Auditoria (acción, entidad, diff de cambios, ip)
+│   ├── service.py   # registrar_auditoria() + diff_cambios()
+│   ├── purge.py     # Purga/archivado de registros antiguos
+│   └── router.py    # /api/v1/auditoria/* (solo lectura)
 └── alegra/
     ├── client.py    # HTTP client Basic Auth → api.alegra.com/api/v1
     ├── mappers.py   # ERP models → Alegra JSON format
@@ -263,7 +282,7 @@ pip install -r requirements.txt -r requirements-dev.txt
 
 La configuración vive en `backend/.flake8` (línea máx. 120), `backend/mypy.ini`, `backend/pytest.ini` y `backend/.coveragerc` (con `concurrency = greenlet` — necesario para que coverage trace los endpoints async de SQLAlchemy). Además, `.github/workflows/ci.yml` corre lint + tipos + tests con cobertura (backend), ESLint + tsc + Vitest + build (frontend) y `pip-audit` (seguridad) en cada push/PR a `main`; Dependabot propone actualizaciones semanales.
 
-El proyecto tiene **tres capas de tests**: 198 de API (pytest, cobertura 95%), 25 de componentes (Vitest + Testing Library) y 5 E2E de navegador real (Playwright — `npm run test:e2e` levanta backend con BD propia + frontend y prueba login, navegación y reportes financieros).
+El proyecto tiene **tres capas de tests**: 394 de API (pytest, +1 xfailed documentado), 25 de componentes (Vitest + Testing Library) y 5 E2E de navegador real (Playwright — `npm run test:e2e` levanta backend con BD propia + frontend y prueba login, navegación y reportes financieros).
 
 Opcionalmente, instala los hooks de pre-commit para que el lint corra automático antes de cada commit:
 
@@ -650,6 +669,14 @@ El sistema tiene **5 roles** (estructura LAN típica: 7 cuentas). Detalle canón
 - [x] Motor de asientos contables — partida doble automática al confirmar venta/compra y abonar cartera, reverso al anular, endpoints `/contabilidad/asientos` (2026-07-02). **Mapeo PUC borrador: validar con el contador antes de usar para reportes oficiales** (`backend/app/modules/contabilidad/asientos.py`)
 - [x] P&L y Balance General — `/reportes/estado-resultados` y `/reportes/balance-general` con verificación de ecuación contable, UI con pestañas propias y export a Excel (2026-07-02)
 - [x] Libro Diario consultable (UI con asientos expandibles, filtros y export) + registro único de terceros materializado desde los asientos (2026-07-02)
+
+### Fase 4 — Multi-tenancy
+- [x] Fundación: modelo `Tenant`, `tenant_id` en toda tabla de negocio, RLS en PostgreSQL (2026-07-15)
+- [x] Onboarding de empresas nuevas (`POST /api/v1/tenants/onboard`), uniques compuestos por tenant (2026-07-15)
+- [x] Tenant Perú onboardeado en producción real + módulo Ventas Diarias (2026-07-24)
+- [x] Auditoría de aislamiento cross-tenant — 8 módulos/archivos corregidos con TDD (2026-07-27)
+- [ ] Login por dominio de email (evita ambigüedad si dos tenants comparten un email) — rama abierta, pendiente de confirmar el dominio real de Perú y verificación en navegador
+- [ ] Migración de `UniqueConstraint`s globales a compuestos con `tenant_id` en `contabilidad`/`ventas` (bloquea a un tercer tenant usar esos módulos)
 - [x] Devoluciones en ventas (NC-, full-stack) y compras (ND-, API) — reverso parcial de inventario/cartera/asientos (2026-07-03)
 - [x] Alertas de vencimiento CxC/CxP en el Dashboard — vencidas y por vencer en 7 días (2026-07-02)
 
