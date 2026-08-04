@@ -4,6 +4,67 @@ import { useAuth } from '../contexts/auth';
 import Toast from '../components/Toast';
 import Modal from '../components/Modal';
 
+// ── PasswordInput: campo con ojo mostrar/ocultar ─────────
+
+function EyeIcon({ open }: { open: boolean }) {
+  return open ? (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+      <line x1="1" y1="1" x2="23" y2="23"/>
+    </svg>
+  ) : (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>
+  );
+}
+
+function PasswordInput({
+  value,
+  onChange,
+  placeholder,
+  autoComplete,
+  required,
+  className,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  autoComplete?: string;
+  required?: boolean;
+  className?: string;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <div style={{ position: 'relative' }}>
+      <input
+        className={className}
+        type={show ? 'text' : 'password'}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        required={required}
+        style={{ paddingRight: '2.2rem', width: '100%', boxSizing: 'border-box' }}
+      />
+      <button
+        type="button"
+        onClick={() => setShow(v => !v)}
+        aria-label={show ? 'Ocultar contraseña' : 'Ver contraseña'}
+        style={{
+          position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)',
+          background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem',
+          color: 'var(--neutral-400, #9ca3af)', display: 'flex', alignItems: 'center',
+        }}
+      >
+        <EyeIcon open={show} />
+      </button>
+    </div>
+  );
+}
+
 // ── Helpers ──────────────────────────────────────────────
 
 function getInitials(name: string) {
@@ -109,11 +170,10 @@ function UsuarioFormModal({
         {!isEdit && (
           <div className="form-group">
             <label className="form-label">Contraseña *</label>
-            <input
+            <PasswordInput
               className="form-input"
-              type="password"
               value={form.password}
-              onChange={e => set('password', e.target.value)}
+              onChange={v => set('password', v)}
               placeholder="Mínimo 8 caracteres"
               autoComplete="new-password"
             />
@@ -161,15 +221,15 @@ function ChangePasswordModal({ onClose, onSaved }: { onClose: () => void; onSave
       <form onSubmit={handleSubmit} className="form-vertical">
         <div className="form-group">
           <label className="form-label">Contraseña actual</label>
-          <input className="form-input" type="password" value={current} onChange={e => setCurrent(e.target.value)} autoComplete="current-password" required />
+          <PasswordInput className="form-input" value={current} onChange={setCurrent} autoComplete="current-password" required />
         </div>
         <div className="form-group">
           <label className="form-label">Nueva contraseña</label>
-          <input className="form-input" type="password" value={next} onChange={e => setNext(e.target.value)} placeholder="Mínimo 8 caracteres" autoComplete="new-password" required />
+          <PasswordInput className="form-input" value={next} onChange={setNext} placeholder="Mínimo 8 caracteres" autoComplete="new-password" required />
         </div>
         <div className="form-group">
           <label className="form-label">Confirmar nueva contraseña</label>
-          <input className="form-input" type="password" value={confirm} onChange={e => setConfirm(e.target.value)} autoComplete="new-password" required />
+          <PasswordInput className="form-input" value={confirm} onChange={setConfirm} autoComplete="new-password" required />
         </div>
         {error && <div className="form-error">{error}</div>}
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
@@ -213,11 +273,11 @@ function ResetPasswordModal({ usuario, onClose, onSaved }: { usuario: Usuario; o
         </p>
         <div className="form-group">
           <label className="form-label">Contraseña nueva</label>
-          <input className="form-input" type="password" value={next} onChange={e => setNext(e.target.value)} placeholder="Mínimo 8 caracteres" autoComplete="new-password" required />
+          <PasswordInput className="form-input" value={next} onChange={setNext} placeholder="Mínimo 8 caracteres" autoComplete="new-password" required />
         </div>
         <div className="form-group">
           <label className="form-label">Confirmar contraseña nueva</label>
-          <input className="form-input" type="password" value={confirm} onChange={e => setConfirm(e.target.value)} autoComplete="new-password" required />
+          <PasswordInput className="form-input" value={confirm} onChange={setConfirm} autoComplete="new-password" required />
         </div>
         {error && <div className="form-error">{error}</div>}
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
