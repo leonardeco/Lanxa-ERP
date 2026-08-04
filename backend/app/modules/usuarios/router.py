@@ -11,6 +11,7 @@ from app.core.security import (
     verify_password, create_access_token, get_password_hash,
     generate_refresh_token, hash_refresh_token, refresh_token_expiry,
 )
+from app.core.tenancy import Tenant
 from app.modules.usuarios.models import (
     Usuario, RefreshToken, ROLES_VALIDOS, ROL_SUPERUSUARIO,
 )
@@ -48,12 +49,30 @@ async def login_access_token(
     request: Request, response: Response, session: SessionDep,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> Token:
-    user = await session.scalar(select(Usuario).where(Usuario.email == form_data.username))
-    # Mensaje único para credenciales malas Y usuario inactivo — evita enumerar
-    # cuentas válidas o revelar su estado a un atacante (el Admin ve el estado
-    # real en el módulo de Usuarios).
+    # Mensaje único para todas las fallas — evita enumerar cuentas válidas.
+    _bad = HTTPException(status_code=400, detail="Correo o contraseña incorrectos")
+
+    # Resolución de tenant por dominio del email (normalizado en escritura).
+    # Fail-closed: si el dominio no corresponde a ningún tenant activo, rechazar.
+    email_lower = form_data.username.lower()
+    if "@" not in email_lower:
+        raise _bad
+    email_domain = email_lower.split("@", 1)[1]
+
+    tenant = await session.scalar(
+        select(Tenant).where(Tenant.dominio == email_domain, Tenant.activo.is_(True))
+    )
+    if tenant is None:
+        raise _bad
+
+    user = await session.scalar(
+        select(Usuario).where(
+            Usuario.email == email_lower,
+            Usuario.tenant_id == tenant.id,
+        )
+    )
     if not user or not verify_password(form_data.password, user.hashed_password) or not user.is_active:
-        raise HTTPException(status_code=400, detail="Correo o contraseña incorrectos")
+        raise _bad
 
     user_id = user.id  # capturado antes del commit: la sesion expira atributos al commitear
     tenant_id = getattr(user, "tenant_id", None) or 1

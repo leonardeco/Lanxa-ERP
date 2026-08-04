@@ -137,6 +137,12 @@ class Tenant(Base):
     codigo: Mapped[str] = mapped_column(String(40), unique=True, index=True, nullable=False)
     razon_social: Mapped[str] = mapped_column(String(200), nullable=False)
     nit: Mapped[str | None] = mapped_column(String(30))
+    # dominio: parte después del @ en los emails de este tenant (minúsculas, sin @).
+    # Ej: "superozonoglobal.com". Se usa para resolver tenant en el login antes
+    # de buscar al usuario — evita la colisión de emails iguales entre tenants.
+    # Debe almacenarse ya normalizado (minúsculas). Null solo si el tenant aún
+    # no fue configurado; en ese caso el login falla con error claro.
+    dominio: Mapped[str | None] = mapped_column(String(200), unique=True, index=True)
     activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     notas: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime | None] = mapped_column(DateTime, default=utcnow)
