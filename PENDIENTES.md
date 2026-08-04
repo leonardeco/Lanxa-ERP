@@ -1,6 +1,8 @@
 # Pendientes — Super Ozono ERP
 
-Backlog vivo del proyecto. Actualizado: **27 de julio de 2026** (48ª revisión).
+Backlog vivo del proyecto. Actualizado: **3 de agosto de 2026** (49ª revisión).
+
+**Resumen de la jornada 2026-08-03:** Setup completo en PC nuevo (Python 3.14, venv, npm, migraciones, seed). Tres bloques entregados directamente a `main` con Hydraia: (1) **#40 drift Alembic** — migración `3deee189e9bd` con FKs nombradas a `tenants` + UniqueConstraints compuestos; `alembic check` en verde sin drift. (2) **#37/#38/#39 login por dominio** — feature reimplementado desde cero (la rama original `fix-login-tenant-domain` nunca fue pusheada al remote): campo `Tenant.dominio`, migración `4e24b843eccd` con backfill Colombia/Perú, router de login actualizado. (3) **start.bat auto-setup** — detecta Python 3.14, crea venv, instala deps, corre migraciones y seed automáticamente en el primer arranque. Pusheado a `origin/main` (`1417fc2..f3340bd`). **Queda**: confirmar dominio real de Perú (#37 técnicamente cerrado pero pendiente validación del negocio).
 
 **Resumen de la jornada 2026-07-27:** Merge + push a `main` de dos ramas grandes: **auditoría de aislamiento cross-tenant** (`fix-cross-tenant-audit`, 8 commits, 394/394 tests) y pulido de **README/DOCUMENTACION** (versiones de stack, módulos faltantes, roadmap sincronizado). Se avanzó también la rama **login por dominio de email** (`fix-login-tenant-domain`, 405/405 tests, actualizada contra el `main` nuevo) — **queda para mañana:** confirmar que el dominio elegido para Perú (`superozonoperu.com`, elegido por Claude a falta de decisión del negocio) es correcto, la prueba visual en navegador (bloqueada por la extensión Chrome sin conectar), y la decisión de merge. Ver tabla "Snapshot" abajo y `BITACORA.md` sesión de hoy para el detalle completo.
 
@@ -40,10 +42,10 @@ Estado: LAN **v0.3.0** operativa. Suite API (Postgres local) + Vitest + E2E (CI 
 | 33op | Rotar clave Superusuario en UI | Opcional |
 | smoke | Smoke diario | ✅ `ops/smoke-diario.bat` + tarea **SuperOzonoERP-SmokeDiario** 08:00. Verificado login Superusuario |
 | 36 | **Tarea 6 Run Perú — alta real del tenant** | ✅ **Completado 2026-07-24**: tenant Perú (`codigo="peru"`) onboardeado en producción real, admin `auxiliar.peru@superozonoglobal.com` |
-| 37 | **Confirmar dominio de email de Perú** | 🟡 **Dejado para mañana.** El login ahora resuelve el tenant por dominio de email (rama `fix-login-tenant-domain`) — Perú compartía el dominio de Colombia (`superozonoglobal.com`), lo cual rompía el diseño. Se eligió `superozonoperu.com` **sin confirmación del negocio** (a pedido explícito: "solucionalo a tu manera"). **Falta:** verificar que ese dominio es correcto antes de desplegar; si no, es un cambio de una línea en la migración `d2e3f4a5b6c7`. También hay que avisarle a la persona real detrás de `auxiliar.peru@` que su email de login cambia |
-| 38 | **Prueba en navegador — login por dominio** | 🟡 **Dejado para mañana.** La extensión Claude in Chrome no conectó pese a reinstalar y reiniciar Chrome varias veces (incl. matar todos los procesos). Login verificado por API/curl, no visualmente en `LoginView.tsx` |
-| 39 | **Decisión de merge — `fix-login-tenant-domain`** | 🟡 **Dejado para mañana.** 405/405 tests, ya actualizada contra `main`. Depende de #37 y #38 |
-| 40 | **Migración de `UniqueConstraint`s globales a compuestos con `tenant_id`** | 🟡 Hallazgo de la auditoría cross-tenant (`xfail` documentado en `test_contabilidad_tenant_isolation.py`): `PlanCuentas.codigo_puc`, `CentroCosto.codigo`, `PeriodoContable.periodo`, `Tercero.nit_cc`, etc. son únicos globalmente, no por tenant — bloquea a un tercer tenant usar `contabilidad` directamente. Requiere migración Alembic aparte (toca índices de producción en vivo, más riesgosa que un fix de queries) |
+| 37 | **Confirmar dominio de email de Perú** | 🟡 **Técnicamente resuelto 2026-08-03** — feature implementado en `main` (migración `4e24b843eccd`). Dominio elegido: `superozonoperu.com`. **Queda:** validación por el negocio. Si no es correcto: `UPDATE tenants SET dominio = 'dominio-real.com' WHERE codigo = 'peru';` + notificar al usuario auxiliar.peru |
+| 38 | **Prueba en navegador — login por dominio** | 🟡 **Pendiente** — login verificado por DB directamente (query OK). Probar visualmente en `https://192.168.20.108:5173` con `admin@superozonoglobal.com` / `superozonoglobal` |
+| 39 | **Merge — `fix-login-tenant-domain`** | ✅ **Cerrado 2026-08-03** — feature reimplementado directamente en `main` (rama original nunca pusheada al remote). Commit `f3340bd`. |
+| 40 | **Migración de `UniqueConstraint`s + FK tenants** | ✅ **Cerrado 2026-08-03** — migración `3deee189e9bd` aplicada. FKs nombradas, unique constraints compuestos, `alembic check` sin drift. |
 
 ---
 
@@ -64,7 +66,7 @@ Estado: LAN **v0.3.0** operativa. Suite API (Postgres local) + Vitest + E2E (CI 
 | docs-gerencial-21 | Informe gerencial + PPTX + acta Contador + resumen admin | ✅ 2026-07-21 — ver DOCUMENTACION §13 #59–#61 |
 | run6-peru | Tenant Perú + módulo Ventas Diarias + importador Excel | ✅ **Mergeado 2026-07-24** (`run6-peru-ventas-diarias` → `main`). Bug preexistente no relacionado documentado (migración `c4d5e6f7a8b9` falla en Postgres desde cero — no afecta LAN/SQLite) |
 | cross-tenant-audit | Auditoría de aislamiento cross-tenant (8 módulos/archivos) | ✅ **Mergeado y pusheado 2026-07-27** (`fix-cross-tenant-audit` → `main`). Suite completa 394/394 (+1 xfail, ver #40) |
-| login-tenant-domain | Login resuelve tenant por dominio de email (evita ambigüedad entre tenants) | 🟡 **No mergeado, dejado para mañana** — ver #37/#38/#39 |
+| login-tenant-domain | Login resuelve tenant por dominio de email (evita ambigüedad entre tenants) | ✅ **Implementado directo en `main` 2026-08-03** — reimplementado desde cero (rama original no pusheada). Commit `f3340bd`. |
 
 ---
 
@@ -102,8 +104,10 @@ Estado: LAN **v0.3.0** operativa. Suite API (Postgres local) + Vitest + E2E (CI 
 
 | Prioridad | Ítems |
 |---|---|
-| **Mañana — login por dominio (rama sin mergear)** | #37 confirmar dominio de Perú (`superozonoperu.com`, sin verificar) · #38 prueba en navegador (extensión Chrome sin conectar) · #39 decisión de merge |
-| **Cuando quieras** | #40 migración `UniqueConstraint` compuesto en `contabilidad` (schema, riesgo medio) |
+| **Validar con negocio** | #37 confirmar dominio real de Perú (`superozonoperu.com`, sin verificar) |
+| **Cuando quieras** | #38 prueba visual en navegador (`https://192.168.20.108:5173`) |
+| ~~#39 merge login-domain~~ | ✅ Cerrado 2026-08-03 |
+| ~~#40 UniqueConstraints~~ | ✅ Cerrado 2026-08-03 |
 | **Mañana / Contador** | #1 acta firmada · #3 costeo · #8 aprobación · #4 criterio retenedores |
 | **Listo para ti (#7)** | `ops\preflight-entrega-7.bat` + `HOY-ENTREGA-7.md` + Escritorio — **solo falta repartir** |
 | **Pedir a administración** | #34 Excel datos reales · #35 screenshots ERP actual |

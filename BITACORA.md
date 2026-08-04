@@ -2516,3 +2516,35 @@ Ver `PENDIENTES.md` (48ª revisión) para el detalle. En resumen:
 **no mergeada** — a la espera de los puntos 1–3 de arriba, retomar
 mañana.
 
+
+---
+
+## Sesión — 3 de agosto 2026 — Setup PC nuevo + login por dominio + schema fix
+
+### Resumen
+
+Sesión de retoma en un PC distinto al de las sesiones anteriores. El repo estaba correctamente clonado pero sin entorno de ejecución (sin venv Python, sin node_modules, sin DB). Se completaron tres bloques con Hydraia en modo automático:
+
+**1. Setup completo del entorno — completo.**
+Python 3.14 detectado en `AppData\Local\Python\pythoncore-3.14-64\`. Venv creado, `requirements.txt` instalado, `npm install` ejecutado en frontend, `alembic upgrade head` + `seeds/seed` corridos sobre DB fresca (SQLite). Config: `backend/.env` con `DEBUG=true`, `SEED_ADMIN_PASSWORD=superozonoglobal`, `DATABASE_URL=sqlite+aiosqlite:///./superozono.db`, IP LAN `192.168.20.108`. Certificado TLS generado para esa IP. `start.bat` mejorado con auto-setup: si detecta que falta el venv, node_modules o la DB, los crea automáticamente antes de arrancar — cero fricción en primer arranque.
+
+**2. Migración #40 — cerrado.**
+`alembic check` detectó drift entre modelos SQLAlchemy y el esquema en BD: FKs a `tenants` sin nombre (SQLite batch las rechaza) y varios unique constraints. Migración `3deee189e9bd` generada y corregida manualmente (todas las FKs nombradas `fk_{tabla}_tenant_id`). Aplicada correctamente. `alembic check` después: `No new upgrade operations detected`.
+
+**3. Login por dominio de email (#37/#38/#39) — cerrado en main.**
+La rama `fix-login-tenant-domain` de la sesión del 27-jul nunca fue pusheada al remote (existía solo en local). Feature reimplementado desde cero:
+- `Tenant.dominio` (String 200, unique, indexed, nullable) añadido al modelo.
+- Migración `4e24b843eccd`: columna + índice + backfill (`superozono` → `superozonoglobal.com`, `peru` → `superozonoperu.com`).
+- Router de login (`usuarios/router.py`): extrae dominio del email, busca tenant activo por dominio, falla-cerrado si no hay match, luego busca usuario dentro de ese tenant. Email normalizado a minúsculas.
+- Seed actualizado: tenant default incluye `dominio="superozonoglobal.com"`, email admin normalizado a lower.
+- Verificación manual en DB: tenant Colombia encontrado por dominio, admin encontrado en ese tenant, dominio desconocido devuelve None.
+
+Todo pusheado a `origin/main` (commit `f3340bd`).
+
+**Pendiente que queda abierto tras esta sesión:**
+- #37 (parcial): dominio de Perú `superozonoperu.com` NO confirmado por el negocio. Si es incorrecto: 1 línea SQL en producción + notificar a `auxiliar.peru@`.
+- #38: prueba visual en navegador — pendiente hacer doble clic en start.bat y verificar login con `admin@superozonoglobal.com` / `superozonoglobal`.
+
+### Estado al cierre
+
+`main`: todo cerrado, **pusheado** (`1417fc2..f3340bd`). IP LAN activa: `192.168.20.108`. Login: `admin@superozonoglobal.com` / `superozonoglobal`.
