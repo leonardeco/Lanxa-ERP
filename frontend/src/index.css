@@ -2018,3 +2018,235 @@ body {
   .form-actions { flex-direction: column-reverse; }
   .form-actions .btn { width: 100%; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   ALIASES — clases usadas en vistas que mapean al design system
+   ═══════════════════════════════════════════════════════════════ */
+
+/* .btn base + .btn-ghost (usado junto a .btn .btn-primary, .btn .btn-ghost) */
+.btn {
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* .btn.btn-primary sobreescribe colores del .btn base */
+.btn.btn-primary {
+  background: linear-gradient(135deg, var(--oz-green-600), var(--oz-green-500));
+  color: white;
+  border-color: transparent;
+  padding: 8px 16px;
+}
+.btn.btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0,166,124,0.3);
+}
+
+/* .btn-ghost — botón secundario transparente con borde */
+.btn-ghost,
+.btn.btn-ghost {
+  padding: 8px 16px;
+  background: transparent;
+  color: var(--neutral-300);
+  border: 1px solid var(--neutral-700);
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.btn-ghost:hover:not(:disabled),
+.btn.btn-ghost:hover:not(:disabled) {
+  background: var(--neutral-800);
+  color: var(--neutral-100);
+  border-color: var(--neutral-600);
+}
+.btn-ghost:disabled,
+.btn.btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* .kpi-grid / .kpi-card → alias de .stats-grid / .stat-card */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.kpi-card {
+  background: var(--neutral-900);
+  border: 1px solid var(--neutral-800);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  transition: border-color var(--transition-fast);
+}
+.kpi-card:hover { border-color: var(--neutral-600); }
+.kpi-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--neutral-400);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+.kpi-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--neutral-100);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.kpi-change {
+  font-size: 0.72rem;
+  margin-top: 4px;
+  color: var(--neutral-400);
+}
+.kpi-change.positive { color: var(--oz-green-400); }
+.kpi-change.negative { color: var(--red-400); }
+
+/* .erp-table → alias de .data-table */
+.erp-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.erp-table th {
+  background: var(--neutral-850);
+  color: var(--neutral-400);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--neutral-800);
+  white-space: nowrap;
+}
+.erp-table td {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--neutral-850);
+  color: var(--neutral-200);
+  vertical-align: middle;
+}
+.erp-table tbody tr:hover td { background: rgba(255,255,255,0.02); }
+
+/* .table-card / .table-card-header → alias de .table-container / .table-header */
+.table-card {
+  background: var(--neutral-900);
+  border: 1px solid var(--neutral-800);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.table-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--neutral-800);
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.table-card-header h3,
+.table-card-header .table-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--neutral-200);
+  margin: 0;
+}
+
+/* .form-label → label suelto (fuera de .form-group) */
+.form-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--neutral-400);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+/* .form-input / .form-select → inputs sueltos (fuera de .form-group) */
+.form-input,
+.form-select {
+  width: 100%;
+  padding: 9px 12px;
+  background: var(--neutral-850);
+  border: 1px solid var(--neutral-700);
+  border-radius: var(--radius-sm);
+  color: var(--neutral-100);
+  font-size: 0.82rem;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+  outline: none;
+  box-sizing: border-box;
+}
+.form-input:focus,
+.form-select:focus {
+  border-color: var(--oz-green-500);
+  box-shadow: 0 0 0 2px rgba(0,166,124,0.15);
+}
+.form-input:disabled,
+.form-select:disabled { opacity: 0.5; cursor: not-allowed; }
+.form-select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+
+/* .modal-footer → alias de .modal-actions */
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--neutral-800);
+}
+
+/* .table-count → badge numérico en cabeceras de tabla */
+.table-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--neutral-800);
+  color: var(--neutral-400);
+  font-size: 0.68rem;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 1px 7px;
+  margin-left: 6px;
+}
+
+/* .search-input → alias de .form-search para inputs de búsqueda */
+.search-input {
+  padding: 7px 12px;
+  background: var(--neutral-850);
+  border: 1px solid var(--neutral-700);
+  border-radius: var(--radius-sm);
+  color: var(--neutral-200);
+  font-size: 0.82rem;
+  font-family: inherit;
+  outline: none;
+  transition: all var(--transition-fast);
+  box-sizing: border-box;
+}
+.search-input:focus {
+  border-color: var(--oz-green-500);
+  box-shadow: 0 0 0 2px rgba(0,166,124,0.15);
+}
+
+/* .form-vertical → layout vertical de formulario en modales */
+.form-vertical { display: flex; flex-direction: column; gap: 14px; }
+
+@media (max-width: 480px) {
+  .kpi-grid { grid-template-columns: 1fr 1fr; }
+  .btn, .btn-ghost { font-size: 0.78rem; padding: 7px 12px; }
+}
