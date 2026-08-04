@@ -290,11 +290,16 @@ Esto abre dos ventanas de cmd (HTTPS, con certificado local — ver sección 6):
 - `Backend — FastAPI :8000` → `https://localhost:8000/docs`
 - `Frontend — Vite :5173` → `https://localhost:5173`
 
-**Credenciales iniciales:**
-```
-Email:      admin@superozonoglobal.com
-Contraseña: Admin2026!
-```
+**Credenciales de acceso:**
+
+| Rol | Email | Contraseña | Acceso |
+|---|---|---|---|
+| Superusuario (dueño) | `admin@superozonoglobal.com` | `superozonoglobal` | Todo el sistema — ve los 3 países |
+| Auxiliar Perú | `admin@superozonoperu.com` | *(definida en Usuarios)* | Solo datos de Perú |
+| Auxiliar Ecuador | `admin@superozonoglobal.ec` | *(definida en Usuarios)* | Solo datos de Ecuador |
+
+> **Nota:** La contraseña del Superusuario se configura en `backend/.env` → `SEED_ADMIN_PASSWORD`.
+> El valor actual es `superozonoglobal`. Cámbiala en producción.
 
 ### Con Docker (producción — PC Servidor)
 
@@ -732,7 +737,7 @@ El seeder (`seeds/seed.py`) se ejecuta automáticamente al iniciar el backend. E
 | Parámetros nómina | 15 conceptos de prestación de servicios |
 | Productos | 15 productos de las 10 marcas |
 | Clientes | 6 distribuidores B2B de ejemplo |
-| Usuario inicial | `admin@superozonoglobal.com` (rol: **Superusuario**). Clave: `SEED_ADMIN_PASSWORD` del `.env` del servidor (no usar `Admin2026!` de fábrica en prod) |
+| Usuario inicial | `admin@superozonoglobal.com` / `superozonoglobal` (rol: **Superusuario**). Clave definida en `SEED_ADMIN_PASSWORD` del `backend/.env` |
 
 ---
 
