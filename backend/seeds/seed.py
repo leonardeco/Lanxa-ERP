@@ -282,6 +282,7 @@ async def seed_tenant(session):
         codigo="superozono",
         razon_social=settings.EMPRESA_RAZON_SOCIAL or "Super Ozono Global",
         nit=settings.EMPRESA_NIT,
+        dominio="superozonoglobal.com",
         activo=True,
         notas="Tenant por defecto (despliegue LAN / Run 2)",
     ))
@@ -303,7 +304,7 @@ async def seed_usuarios(session):
         )
 
     admin = Usuario(
-        email=settings.SEED_ADMIN_EMAIL,
+        email=settings.SEED_ADMIN_EMAIL.lower(),
         nombre_completo="Administrador del Sistema",
         hashed_password=get_password_hash(settings.SEED_ADMIN_PASSWORD),
         rol="Superusuario",
