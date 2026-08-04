@@ -9,27 +9,53 @@ import ErrorState from '../components/ErrorState';
 
 const ESTADOS = ['Pendiente', 'Entregado', 'En destino', 'Devolución'];
 
-export default function VentasDiariasView() {
+const PAISES = [
+  { label: '🇨🇴 Colombia', tenant_id: 1 },
+  { label: '🇵🇪 Perú',     tenant_id: 2 },
+  { label: '🇪🇨 Ecuador',  tenant_id: 3 },
+];
+
+// Mes anterior al actual (donde hay datos del Excel)
+function ultimoMesConDatos() {
+  const hoy = new Date();
+  const mes = hoy.getMonth(); // getMonth() devuelve 0-based, si es 0 usamos dic del año anterior
+  return {
+    anio: mes === 0 ? hoy.getFullYear() - 1 : hoy.getFullYear(),
+    mes: mes === 0 ? 12 : mes,
+  };
+}
+
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+export default function VentasDiariasView({ defaultTenantId = 2 }: { defaultTenantId?: number }) {
   const [ventas, setVentas] = useState<VentaDiaria[]>([]);
   const [resumen, setResumen] = useState<ResumenMensual | null>(null);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [filtroEstado, setFiltroEstado] = useState('');
+  const [filtroFechaDesde, setFiltroFechaDesde] = useState('');
+  const [filtroFechaHasta, setFiltroFechaHasta] = useState('');
+  const [paisTenantId, setPaisTenantId] = useState<number>(defaultTenantId);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [mostrarForm, setMostrarForm] = useState(false);
 
-  const hoy = new Date();
-  const [anio] = useState(hoy.getFullYear());
-  const [mes] = useState(hoy.getMonth() + 1);
+  const defMes = ultimoMesConDatos();
+  const [anio, setAnio] = useState(defMes.anio);
+  const [mes, setMes] = useState(defMes.mes);
 
   const cargar = useCallback(() => {
     setLoading(true);
     setError(false);
+    const params: { estado?: string; ver_tenant_id?: number; fecha_desde?: string; fecha_hasta?: string } = {};
+    if (filtroEstado) params.estado = filtroEstado;
+    if (filtroFechaDesde) params.fecha_desde = filtroFechaDesde;
+    if (filtroFechaHasta) params.fecha_hasta = filtroFechaHasta;
+    params.ver_tenant_id = paisTenantId;
     Promise.all([
-      ventasDiariasApi.list(filtroEstado ? { estado: filtroEstado } : undefined),
-      ventasDiariasApi.resumenMensual(anio, mes),
+      ventasDiariasApi.list(params),
+      ventasDiariasApi.resumenMensual(anio, mes, paisTenantId),
       ventasApi.getProductos(),
       ventasApi.getClientes(),
     ])
@@ -41,7 +67,7 @@ export default function VentasDiariasView() {
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [filtroEstado, anio, mes]);
+  }, [filtroEstado, filtroFechaDesde, filtroFechaHasta, anio, mes, paisTenantId]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -78,17 +104,37 @@ export default function VentasDiariasView() {
     <div className="fade-in">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
+      {/* KPI del mes seleccionado */}
       {resumen && (
         <div className="kpi-row">
-          <div className="kpi-tile"><span>Venta del mes</span><strong>{resumen.total_venta}</strong></div>
-          <div className="kpi-tile"><span>Recaudado</span><strong>{resumen.total_abonado}</strong></div>
-          <div className="kpi-tile"><span>Saldo pendiente</span><strong>{resumen.total_saldo}</strong></div>
-          <div className="kpi-tile"><span>Entregados</span><strong>{resumen.cantidad_entregado}</strong></div>
-          <div className="kpi-tile"><span>Devoluciones</span><strong>{resumen.cantidad_devolucion}</strong></div>
+          <div className="kpi-tile"><span>Venta {MESES[mes-1]} {anio}</span><strong>{Number(resumen.total_venta).toLocaleString('es-CO', {style:'currency',currency:'COP',maximumFractionDigits:0})}</strong></div>
+          <div className="kpi-tile"><span>Recaudado</span><strong>{Number(resumen.total_abonado).toLocaleString('es-CO', {style:'currency',currency:'COP',maximumFractionDigits:0})}</strong></div>
+          <div className="kpi-tile"><span>Saldo pendiente</span><strong style={{color: Number(resumen.total_saldo) > 0 ? 'var(--amber-400)' : undefined}}>{Number(resumen.total_saldo).toLocaleString('es-CO', {style:'currency',currency:'COP',maximumFractionDigits:0})}</strong></div>
+          <div className="kpi-tile"><span>Entregados</span><strong style={{color:'var(--oz-green-400)'}}>{resumen.cantidad_entregado}</strong></div>
+          <div className="kpi-tile"><span>Devoluciones</span><strong style={{color:'var(--red-400)'}}>{resumen.cantidad_devolucion}</strong></div>
         </div>
       )}
 
-      <div className="toolbar">
+      <div className="toolbar" style={{flexWrap:'wrap', gap: 8}}>
+        {/* Selector de mes/año para KPIs */}
+        <div style={{display:'flex', alignItems:'center', gap:6, background:'rgba(0,0,0,0.2)', borderRadius:8, padding:'4px 10px'}}>
+          <span style={{fontSize:'0.75rem', color:'var(--neutral-400)'}}>KPI:</span>
+          <select value={mes} onChange={e => setMes(Number(e.target.value))} style={{fontSize:'0.8rem', padding:'3px 6px'}}>
+            {MESES.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+          </select>
+          <select value={anio} onChange={e => setAnio(Number(e.target.value))} style={{fontSize:'0.8rem', padding:'3px 6px'}}>
+            {[2024,2025,2026].map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+        </div>
+
+        {/* Filtro por fecha */}
+        <div style={{display:'flex', alignItems:'center', gap:6, background:'rgba(0,0,0,0.2)', borderRadius:8, padding:'4px 10px'}}>
+          <span style={{fontSize:'0.75rem', color:'var(--neutral-400)'}}>Desde:</span>
+          <input type="date" value={filtroFechaDesde} onChange={e => setFiltroFechaDesde(e.target.value)} style={{fontSize:'0.8rem', padding:'3px 6px'}} />
+          <span style={{fontSize:'0.75rem', color:'var(--neutral-400)'}}>Hasta:</span>
+          <input type="date" value={filtroFechaHasta} onChange={e => setFiltroFechaHasta(e.target.value)} style={{fontSize:'0.8rem', padding:'3px 6px'}} />
+        </div>
+
         <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}>
           <option value="">Todos los estados</option>
           {ESTADOS.map(e => <option key={e} value={e}>{e}</option>)}

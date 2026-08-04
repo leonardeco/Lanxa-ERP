@@ -72,6 +72,41 @@ class VentaDiariaResumenMensual(BaseModel):
     cantidad_devolucion: int
 
 
+class VentaDiariaResumenAnual(BaseModel):
+    anio: int
+    tenant_id: int
+    pais: str
+    total_venta: Decimal
+    total_abonado: Decimal
+    total_saldo: Decimal
+    cantidad_ventas: int
+    cantidad_entregado: int
+    cantidad_devolucion: int
+
+
+class ResumenGlobalResponse(BaseModel):
+    anio: int
+    paises: list[VentaDiariaResumenAnual]
+    total_venta_global: Decimal
+    total_abonado_global: Decimal
+    total_saldo_global: Decimal
+
+
+class ResumenMesPais(BaseModel):
+    mes: int
+    pais: str
+    tenant_id: int
+    total_venta: Decimal
+    total_abonado: Decimal
+    total_saldo: Decimal
+    cantidad_ventas: int
+
+
+class TendenciaMensualResponse(BaseModel):
+    anio: int
+    meses: list[ResumenMesPais]
+
+
 class PagoSueltoResponse(BaseModel):
     id: int
     fecha: date

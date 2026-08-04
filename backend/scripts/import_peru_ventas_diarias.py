@@ -19,6 +19,7 @@ from app.core.database import async_session  # noqa: E402
 from app.core.tenancy import (  # noqa: E402
     set_tenant_id, apply_rls_tenant, reset_tenant_id, tenant_clause,
 )
+import app.modules.contabilidad.models  # noqa: E402,F401 — registra CentroCosto en el mapper
 from app.modules.ventas.models import Producto, Cliente  # noqa: E402
 from app.modules.ventas_diarias.models import (  # noqa: E402
     VentaDiaria, VentaDiariaDetalle, PagoSuelto, EstadoVentaDiaria,

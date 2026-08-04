@@ -35,6 +35,8 @@ export type ViewId =
   | 'nomina'
   | 'ventas'
   | 'ventas-diarias'
+  | 'ventas-diarias-colombia'
+  | 'ventas-diarias-ecuador'
   | 'compras'
   | 'inventario'
   | 'rrhh'
@@ -57,6 +59,8 @@ const VIEW_TITLES: Record<ViewId, string> = {
   nomina: 'Parámetros de Nómina',
   ventas: 'Ventas & Comercial',
   'ventas-diarias': 'Ventas Diarias (Perú)',
+  'ventas-diarias-colombia': 'Ventas Diarias — Colombia 🇨🇴',
+  'ventas-diarias-ecuador': 'Ventas Diarias — Ecuador 🇪🇨',
   compras: 'Compras & Proveedores',
   cartera: 'Cartera — CxC & CxP',
   inventario: 'Inventario & Logística',
@@ -70,15 +74,17 @@ const VIEW_TITLES: Record<ViewId, string> = {
 const ROLE_VIEWS: Record<RolUsuario, ViewId[]> = {
   Superusuario: [
     'dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios', 'nomina',
-    'ventas', 'ventas-diarias', 'compras', 'cartera', 'inventario', 'rrhh', 'plataformas', 'reportes', 'usuarios',
+    'ventas', 'ventas-diarias', 'ventas-diarias-colombia', 'ventas-diarias-ecuador',
+    'compras', 'cartera', 'inventario', 'rrhh', 'plataformas', 'reportes', 'usuarios',
   ],
   // Dirección operativa (antes Administradora)
   Directora: [
     'dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios', 'nomina',
-    'ventas', 'ventas-diarias', 'compras', 'cartera', 'inventario', 'reportes',
+    'ventas', 'ventas-diarias', 'ventas-diarias-colombia', 'ventas-diarias-ecuador',
+    'compras', 'cartera', 'inventario', 'reportes',
   ],
   // CEO: dashboards, reportes y consulta de operación
-  CEO: ['dashboard', 'reportes', 'ventas', 'ventas-diarias', 'compras', 'cartera', 'inventario'],
+  CEO: ['dashboard', 'reportes', 'ventas', 'ventas-diarias', 'ventas-diarias-colombia', 'ventas-diarias-ecuador', 'compras', 'cartera', 'inventario'],
   Contador: [
     'dashboard', 'puc', 'centros-costo', 'periodos', 'tributarios',
     'cartera', 'reportes', 'ventas', 'ventas-diarias', 'compras',
@@ -153,7 +159,11 @@ function App() {
       case 'ventas':
         return <VentasView />
       case 'ventas-diarias':
-        return <VentasDiariasView />
+        return <VentasDiariasView defaultTenantId={2} />
+      case 'ventas-diarias-colombia':
+        return <VentasDiariasView defaultTenantId={1} />
+      case 'ventas-diarias-ecuador':
+        return <VentasDiariasView defaultTenantId={3} />
       case 'compras':
         return <ComprasView />
       case 'cartera':

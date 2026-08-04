@@ -31,7 +31,9 @@ const NAV_SECTIONS = [
     title: 'Operaciones',
     items: [
       { id: 'ventas' as ViewId, icon: '🛒', label: 'Ventas & Comercial' },
-      { id: 'ventas-diarias' as ViewId, icon: '🌎', label: 'Ventas Diarias (Perú)' },
+      { id: 'ventas-diarias-colombia' as ViewId, icon: '📦', label: '🇨🇴 Ventas Colombia' },
+      { id: 'ventas-diarias' as ViewId, icon: '📦', label: '🇵🇪 Ventas Perú' },
+      { id: 'ventas-diarias-ecuador' as ViewId, icon: '📦', label: '🇪🇨 Ventas Ecuador' },
       { id: 'compras' as ViewId, icon: '📥', label: 'Compras & Proveedores' },
       { id: 'cartera' as ViewId, icon: '💰', label: 'Cartera CxC & CxP' },
       { id: 'inventario' as ViewId, icon: '📦', label: 'Inventario' },
@@ -74,15 +76,7 @@ export default function Sidebar({
       {/* ── Logo & Brand ─────────────────────────────── */}
       <div className="sidebar-header">
         <div className="sidebar-logo" onClick={() => onViewChange('dashboard')} title="Super Ozono Global ERP">
-          <svg viewBox="0 0 32 32" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="16" cy="16" r="14" stroke="white" strokeWidth="2" opacity="0.8"/>
-            <circle cx="16" cy="16" r="8" stroke="white" strokeWidth="1.5" opacity="0.5"/>
-            <circle cx="16" cy="16" r="3" fill="white"/>
-            <path d="M16 2 L16 6" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-            <path d="M16 26 L16 30" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-            <path d="M2 16 L6 16" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-            <path d="M26 16 L30 16" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-          </svg>
+          <img src="/logo_ozono.png" alt="Super Ozono" style={{ width: 34, height: 34, objectFit: 'contain', borderRadius: 6 }} />
         </div>
         {!collapsed && (
           <div className="sidebar-brand">
