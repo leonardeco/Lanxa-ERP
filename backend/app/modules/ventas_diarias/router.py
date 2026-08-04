@@ -10,8 +10,9 @@ from decimal import Decimal
 from datetime import date
 
 from app.core.database import get_db
-from app.core.tenancy import for_tenant, get_for_tenant
+from app.core.tenancy import for_tenant, get_for_tenant, set_tenant_id, get_tenant_id
 from app.api.deps import ContableDep
+from app.modules.usuarios.models import ROL_SUPERUSUARIO, Usuario
 from app.modules.ventas.models import Cliente, Producto
 from app.modules.ventas_diarias.models import (
     VentaDiaria, VentaDiariaDetalle, PagoSuelto, EstadoVentaDiaria,
@@ -19,6 +20,8 @@ from app.modules.ventas_diarias.models import (
 from app.modules.ventas_diarias.schemas import (
     VentaDiariaCreate, VentaDiariaResponse,
     VentaDiariaResumenMensual, PagoSueltoResponse, PagoSueltoUpdate,
+    ResumenGlobalResponse, VentaDiariaResumenAnual,
+    TendenciaMensualResponse, ResumenMesPais,
 )
 
 router = APIRouter(prefix="/api/v1/ventas-diarias", tags=["Ventas Diarias"])
@@ -49,32 +52,39 @@ async def _get_venta_diaria_or_404(db: AsyncSession, venta_diaria_id: int) -> Ve
 
 @router.get("/", response_model=List[VentaDiariaResponse])
 async def list_ventas_diarias(
-    _: ContableDep,
+    current_user: ContableDep,
     fecha_desde: Optional[date] = Query(None),
     fecha_hasta: Optional[date] = Query(None),
     estado: Optional[str] = Query(None),
     asesor: Optional[str] = Query(None),
     limit: int = Query(500, ge=1, le=2000),
     offset: int = Query(0, ge=0),
+    ver_tenant_id: Optional[int] = Query(None, description="Solo Superusuario: ver datos de otro tenant"),
     db: AsyncSession = Depends(get_db),
 ):
-    """Listar ventas diarias del tenant actual (paginado, mas recientes primero)."""
-    query = for_tenant(
-        select(VentaDiaria).options(*_EAGER)
-        .order_by(desc(VentaDiaria.fecha), desc(VentaDiaria.id))
-        .limit(limit).offset(offset),
-        VentaDiaria,
-    )
-    if fecha_desde:
-        query = query.where(VentaDiaria.fecha >= fecha_desde)
-    if fecha_hasta:
-        query = query.where(VentaDiaria.fecha <= fecha_hasta)
-    if estado:
-        query = query.where(VentaDiaria.estado == estado)
-    if asesor:
-        query = query.where(VentaDiaria.asesor == asesor)
-    rows = (await db.execute(query)).scalars().unique().all()
-    return rows
+    """Listar ventas diarias. Superusuario puede pasar ver_tenant_id para ver otros paises."""
+    tenant_original = get_tenant_id()
+    if ver_tenant_id is not None and isinstance(current_user, Usuario) and current_user.rol == ROL_SUPERUSUARIO:
+        set_tenant_id(ver_tenant_id)
+    try:
+        query = for_tenant(
+            select(VentaDiaria).options(*_EAGER)
+            .order_by(desc(VentaDiaria.fecha), desc(VentaDiaria.id))
+            .limit(limit).offset(offset),
+            VentaDiaria,
+        )
+        if fecha_desde:
+            query = query.where(VentaDiaria.fecha >= fecha_desde)
+        if fecha_hasta:
+            query = query.where(VentaDiaria.fecha <= fecha_hasta)
+        if estado:
+            query = query.where(VentaDiaria.estado == estado)
+        if asesor:
+            query = query.where(VentaDiaria.asesor == asesor)
+        rows = (await db.execute(query)).scalars().unique().all()
+        return rows
+    finally:
+        set_tenant_id(tenant_original)
 
 
 @router.post("/", response_model=VentaDiariaResponse, status_code=201)
@@ -124,51 +134,181 @@ async def create_venta_diaria(
 
 @router.get("/resumen/{anio}/{mes}", response_model=VentaDiariaResumenMensual)
 async def resumen_mensual(
-    anio: int, mes: int, _: ContableDep, db: AsyncSession = Depends(get_db),
+    anio: int, mes: int, current_user: ContableDep,
+    ver_tenant_id: Optional[int] = Query(None),
+    db: AsyncSession = Depends(get_db),
 ):
     """Totales del mes para el tenant actual: venta, abonado, saldo pendiente
     y conteo de entregados/devoluciones."""
-    totales_query = for_tenant(
-        select(
-            func.coalesce(func.sum(VentaDiariaDetalle.venta), 0),
-            func.coalesce(
-                func.sum(
-                    func.coalesce(VentaDiariaDetalle.abono_1, 0)
-                    + func.coalesce(VentaDiariaDetalle.abono_2, 0)
+    tenant_original = get_tenant_id()
+    if ver_tenant_id is not None and isinstance(current_user, Usuario) and current_user.rol == ROL_SUPERUSUARIO:
+        set_tenant_id(ver_tenant_id)
+    try:
+        totales_query = for_tenant(
+            select(
+                func.coalesce(func.sum(VentaDiariaDetalle.venta), 0),
+                func.coalesce(
+                    func.sum(
+                        func.coalesce(VentaDiariaDetalle.abono_1, 0)
+                        + func.coalesce(VentaDiariaDetalle.abono_2, 0)
+                    ),
+                    0,
                 ),
-                0,
+                func.coalesce(func.sum(VentaDiariaDetalle.saldo), 0),
+            )
+            .join(VentaDiaria, VentaDiaria.id == VentaDiariaDetalle.venta_diaria_id)
+            .where(
+                extract("year", VentaDiaria.fecha) == anio,
+                extract("month", VentaDiaria.fecha) == mes,
             ),
-            func.coalesce(func.sum(VentaDiariaDetalle.saldo), 0),
+            VentaDiariaDetalle,
         )
-        .join(VentaDiaria, VentaDiaria.id == VentaDiariaDetalle.venta_diaria_id)
-        .where(
-            extract("year", VentaDiaria.fecha) == anio,
-            extract("month", VentaDiaria.fecha) == mes,
-        ),
-        VentaDiariaDetalle,
-    )
-    total_venta, total_abonado, total_saldo = (await db.execute(totales_query)).one()
+        total_venta, total_abonado, total_saldo = (await db.execute(totales_query)).one()
 
-    conteo_query = for_tenant(
-        select(VentaDiaria.estado, func.count(VentaDiaria.id))
-        .where(
-            extract("year", VentaDiaria.fecha) == anio,
-            extract("month", VentaDiaria.fecha) == mes,
+        conteo_query = for_tenant(
+            select(VentaDiaria.estado, func.count(VentaDiaria.id))
+            .where(
+                extract("year", VentaDiaria.fecha) == anio,
+                extract("month", VentaDiaria.fecha) == mes,
+            )
+            .group_by(VentaDiaria.estado),
+            VentaDiaria,
         )
-        .group_by(VentaDiaria.estado),
-        VentaDiaria,
-    )
-    conteos = dict((await db.execute(conteo_query)).all())
+        conteos = dict((await db.execute(conteo_query)).all())
 
-    return VentaDiariaResumenMensual(
+        return VentaDiariaResumenMensual(
+            anio=anio,
+            mes=mes,
+            total_venta=total_venta,
+            total_abonado=total_abonado,
+            total_saldo=total_saldo,
+            cantidad_entregado=conteos.get(EstadoVentaDiaria.ENTREGADO, 0),
+            cantidad_devolucion=conteos.get(EstadoVentaDiaria.DEVOLUCION, 0),
+        )
+    finally:
+        set_tenant_id(tenant_original)
+
+
+_PAISES = {1: "Colombia", 2: "Perú", 3: "Ecuador"}
+
+
+@router.get("/resumen-global/{anio}", response_model=ResumenGlobalResponse)
+async def resumen_global_anual(
+    anio: int,
+    current_user: ContableDep,
+    db: AsyncSession = Depends(get_db),
+):
+    """Totales anuales de todos los países. Solo Superusuario."""
+    if not (isinstance(current_user, Usuario) and current_user.rol == ROL_SUPERUSUARIO):
+        raise HTTPException(status_code=403, detail="Solo el superusuario puede ver el resumen global")
+
+    tenant_original = get_tenant_id()
+    paises = []
+    try:
+        for tenant_id, nombre_pais in _PAISES.items():
+            set_tenant_id(tenant_id)
+            totales = (await db.execute(
+                for_tenant(
+                    select(
+                        func.coalesce(func.sum(VentaDiariaDetalle.venta), 0),
+                        func.coalesce(func.sum(
+                            func.coalesce(VentaDiariaDetalle.abono_1, 0)
+                            + func.coalesce(VentaDiariaDetalle.abono_2, 0)
+                        ), 0),
+                        func.coalesce(func.sum(VentaDiariaDetalle.saldo), 0),
+                        func.count(VentaDiaria.id),
+                    )
+                    .join(VentaDiaria, VentaDiaria.id == VentaDiariaDetalle.venta_diaria_id)
+                    .where(extract("year", VentaDiaria.fecha) == anio),
+                    VentaDiariaDetalle,
+                )
+            )).one()
+            t_venta, t_abonado, t_saldo, cant = totales
+
+            conteos = dict((await db.execute(
+                for_tenant(
+                    select(VentaDiaria.estado, func.count(VentaDiaria.id))
+                    .where(extract("year", VentaDiaria.fecha) == anio)
+                    .group_by(VentaDiaria.estado),
+                    VentaDiaria,
+                )
+            )).all())
+
+            paises.append(VentaDiariaResumenAnual(
+                anio=anio,
+                tenant_id=tenant_id,
+                pais=nombre_pais,
+                total_venta=t_venta,
+                total_abonado=t_abonado,
+                total_saldo=t_saldo,
+                cantidad_ventas=cant,
+                cantidad_entregado=conteos.get(EstadoVentaDiaria.ENTREGADO, 0),
+                cantidad_devolucion=conteos.get(EstadoVentaDiaria.DEVOLUCION, 0),
+            ))
+    finally:
+        set_tenant_id(tenant_original)
+
+    total_venta = sum(p.total_venta for p in paises)
+    total_abonado = sum(p.total_abonado for p in paises)
+    total_saldo = sum(p.total_saldo for p in paises)
+
+    return ResumenGlobalResponse(
         anio=anio,
-        mes=mes,
-        total_venta=total_venta,
-        total_abonado=total_abonado,
-        total_saldo=total_saldo,
-        cantidad_entregado=conteos.get(EstadoVentaDiaria.ENTREGADO, 0),
-        cantidad_devolucion=conteos.get(EstadoVentaDiaria.DEVOLUCION, 0),
+        paises=paises,
+        total_venta_global=total_venta,
+        total_abonado_global=total_abonado,
+        total_saldo_global=total_saldo,
     )
+
+
+@router.get("/tendencia/{anio}", response_model=TendenciaMensualResponse)
+async def tendencia_mensual(
+    anio: int,
+    current_user: ContableDep,
+    db: AsyncSession = Depends(get_db),
+):
+    """Tendencia mensual de todos los países para el año. Solo Superusuario."""
+    if not (isinstance(current_user, Usuario) and current_user.rol == ROL_SUPERUSUARIO):
+        raise HTTPException(status_code=403, detail="Solo el superusuario puede ver la tendencia global")
+
+    tenant_original = get_tenant_id()
+    meses = []
+    try:
+        for tenant_id, nombre_pais in _PAISES.items():
+            set_tenant_id(tenant_id)
+            rows = (await db.execute(
+                for_tenant(
+                    select(
+                        extract("month", VentaDiaria.fecha).label("mes"),
+                        func.coalesce(func.sum(VentaDiariaDetalle.venta), 0),
+                        func.coalesce(func.sum(
+                            func.coalesce(VentaDiariaDetalle.abono_1, 0)
+                            + func.coalesce(VentaDiariaDetalle.abono_2, 0)
+                        ), 0),
+                        func.coalesce(func.sum(VentaDiariaDetalle.saldo), 0),
+                        func.count(VentaDiaria.id),
+                    )
+                    .join(VentaDiaria, VentaDiaria.id == VentaDiariaDetalle.venta_diaria_id)
+                    .where(extract("year", VentaDiaria.fecha) == anio)
+                    .group_by(extract("month", VentaDiaria.fecha))
+                    .order_by(extract("month", VentaDiaria.fecha)),
+                    VentaDiariaDetalle,
+                )
+            )).all()
+            for row in rows:
+                meses.append(ResumenMesPais(
+                    mes=int(row[0]),
+                    pais=nombre_pais,
+                    tenant_id=tenant_id,
+                    total_venta=row[1],
+                    total_abonado=row[2],
+                    total_saldo=row[3],
+                    cantidad_ventas=row[4],
+                ))
+    finally:
+        set_tenant_id(tenant_original)
+
+    return TendenciaMensualResponse(anio=anio, meses=meses)
 
 
 @router.get("/pagos-sueltos/", response_model=List[PagoSueltoResponse])

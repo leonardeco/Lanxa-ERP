@@ -125,6 +125,11 @@ if errorlevel 1 (
 popd
 
 :: ── 2) Backend ────────────────────────────────────────
+echo  [2/4] Cerrando procesos viejos en :8000...
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8000 " ^| findstr "LISTENING"') do (
+    taskkill /F /PID %%a >nul 2>&1
+)
+timeout /t 2 /nobreak > nul
 echo  [2/4] Arrancando backend (FastAPI, HTTPS :8000)...
 :: /D + rutas relativas de certs: evita rotura por espacios en "MI PC"
 start "Backend-FastAPI" /D "%~dp0backend" cmd /k "venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --ssl-keyfile ..\certs\server.key --ssl-certfile ..\certs\server.crt"
