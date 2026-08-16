@@ -1,5 +1,5 @@
 ﻿"""
-Super Ozono Global — Módulo de Inventario: Modelos SQLAlchemy
+Lanxa ERP — Módulo de Inventario: Modelos SQLAlchemy
 Kardex de movimientos de stock, generado automáticamente desde Compras y Ventas
 o registrado manualmente como ajuste.
 """

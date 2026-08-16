@@ -1,5 +1,5 @@
 """
-Super Ozono Global — Schemas Pydantic para Ventas & Comercial
+Lanxa ERP — Schemas Pydantic para Ventas & Comercial
 """
 
 from pydantic import BaseModel, EmailStr, Field, field_serializer, field_validator, model_validator

@@ -1,5 +1,5 @@
 """
-Super Ozono Global -- Modulo Alegra (Facturacion Electronica)
+Lanxa ERP — Modulo Alegra (Facturacion Electronica)
 Endpoints para sincronizar clientes, productos y enviar facturas a Alegra
 """
 

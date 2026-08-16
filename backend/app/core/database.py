@@ -1,5 +1,5 @@
 """
-Super Ozono Global — Database connection (async SQLAlchemy 2.0)
+Lanxa ERP — Database connection (async SQLAlchemy 2.0)
 Soporta PostgreSQL (producción/Docker) y SQLite (desarrollo local)
 """
 

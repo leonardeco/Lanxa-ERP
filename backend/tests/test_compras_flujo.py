@@ -115,7 +115,7 @@ async def test_compra_borrador_calcula_totales(client: AsyncClient, auth_headers
     compra = await _crear_compra(client, auth_headers, prov["id"], cantidad="10", precio="50000.00")
 
     assert compra["estado"] == "Borrador"
-    assert compra["numero"].startswith("SOG-CP-")
+    assert compra["numero"].startswith("LNX-CP-")
     assert float(compra["subtotal"]) == 500000.00
     assert float(compra["iva_total"]) == 95000.00  # IVA 19% default
     assert float(compra["total"]) == 595000.00

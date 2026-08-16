@@ -1,5 +1,5 @@
 """
-Pruebas de regresión de bugs — Super Ozono Global ERP
+Pruebas de regresión de bugs — Lanxa ERP
 Cada test documenta un comportamiento específico y fallará si el bug reaparece.
 """
 
@@ -188,7 +188,7 @@ async def test_bug004_numeros_venta_son_unicos_secuencial(client: AsyncClient, a
     numeros = [v1["numero"], v2["numero"], v3["numero"]]
     assert len(set(numeros)) == 3, f"Números duplicados detectados: {numeros}"
     for num in numeros:
-        assert num.startswith("SOG-V-"), f"Formato de número incorrecto: {num}"
+        assert num.startswith("LNX-V-"), f"Formato de número incorrecto: {num}"
 
 
 # ══════════════════════════════════════════════════════════
@@ -239,8 +239,8 @@ async def test_bug005_numeros_compra_son_unicos_secuencial(client: AsyncClient, 
     n1 = c1.json()["numero"]
     n2 = c2.json()["numero"]
     assert n1 != n2, f"Números de compra duplicados: {n1} y {n2}"
-    assert n1.startswith("SOG-CP-")
-    assert n2.startswith("SOG-CP-")
+    assert n1.startswith("LNX-CP-")
+    assert n2.startswith("LNX-CP-")
 
 
 # ══════════════════════════════════════════════════════════
@@ -324,13 +324,13 @@ async def test_bug007_anular_venta_confirmada_restaura_inventario(client: AsyncC
 # BUG-008: Formato incorrecto de número de compra si hay nombres con "-"
 # Archivo: app/modules/compras/router.py línea ~248
 # `max(int(n.split("-")[-1]) for n in nums)` — el campo 'numero' tiene formato
-# SOG-CP-0001, split("-")[-1] = "0001" → int("0001") = 1. Funciona.
+# LNX-CP-0001, split("-")[-1] = "0001" → int("0001") = 1. Funciona.
 # PERO si el numero tuviera más "-" en el futuro, esto fallaría.
 # ══════════════════════════════════════════════════════════
 
 @pytest.mark.asyncio
 async def test_bug008_numero_compra_formato_correcto(client: AsyncClient, auth_headers: dict):
-    """El número de compra debe tener el formato SOG-CP-NNNN."""
+    """El número de compra debe tener el formato LNX-CP-NNNN."""
     prov_resp = await client.post(
         "/api/v1/compras/proveedores",
         json={"nit_cc": "BUG008-NIT", "razon_social": "Proveedor Bug 008"},
@@ -364,7 +364,7 @@ async def test_bug008_numero_compra_formato_correcto(client: AsyncClient, auth_h
 
     parts = numero.split("-")
     assert len(parts) == 3, f"Formato de número incorrecto: {numero}"
-    assert parts[0] == "SOG"
+    assert parts[0] == "LNX"
     assert parts[1] == "CP"
     assert parts[2].isdigit(), f"La parte numérica no es un dígito: {parts[2]}"
 

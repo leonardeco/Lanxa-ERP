@@ -1,5 +1,5 @@
 /**
- * Super Ozono Global — API Service para el log de Auditoría (solo lectura)
+ * Lanxa ERP — API Service para el log de Auditoría (solo lectura)
  */
 
 import { api } from './api';

@@ -1,5 +1,5 @@
 """
-Super Ozono Global — Funciones criptográficas y JWT
+Lanxa ERP — Funciones criptográficas y JWT
 """
 
 import hashlib

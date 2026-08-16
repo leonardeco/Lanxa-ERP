@@ -1,5 +1,5 @@
 /**
- * Super Ozono Global — API Service para Ventas & Comercial
+ * Lanxa ERP — API Service para Ventas & Comercial
  * CRUD de Productos, Clientes y Documentos de Venta
  */
 

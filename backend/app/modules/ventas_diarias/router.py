@@ -1,5 +1,5 @@
 """
-Super Ozono Global — API Routes (Ventas Diarias, Run 6)
+Lanxa ERP — API Routes (Ventas Diarias, Run 6)
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession

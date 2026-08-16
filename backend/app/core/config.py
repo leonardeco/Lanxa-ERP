@@ -1,5 +1,5 @@
 """
-Super Ozono Global -- ERP Backend Configuration
+Lanxa ERP — Backend Configuration
 """
 
 from decimal import Decimal
@@ -29,7 +29,7 @@ class Settings(BaseSettings):
 
     # App
     DEBUG: bool = False
-    APP_NAME: str = "Super Ozono Global ERP"
+    APP_NAME: str = "Lanxa ERP"
     APP_VERSION: str = "0.3.0"
 
     # Retenciones en ventas — VERIFICAR/ACTUALIZAR con el contador cada año.
@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     RETENCION_REDONDEO: str = "half_even"
 
     # Seed — usuario administrador inicial (override vía .env en producción)
-    SEED_ADMIN_EMAIL: str = "admin@superozonoglobal.com"
+    SEED_ADMIN_EMAIL: str = "admin@lanxa.local"
     SEED_ADMIN_PASSWORD: str = _DEFAULT_SEED_ADMIN_PASSWORD
 
     # Datos DEMO (productos/clientes de ejemplo). En blanco por defecto: solo se
@@ -51,9 +51,9 @@ class Settings(BaseSettings):
     SEED_DEMO: bool = False
 
     # Empresa
-    EMPRESA_NIT: str = "901841798-5"
-    EMPRESA_RAZON_SOCIAL: str = "TECNOLOGIA E INNOVACION SUPER OZONO S.A.S."
-    EMPRESA_CIUDAD: str = "Armenia, Quindio"
+    EMPRESA_NIT: str = ""
+    EMPRESA_RAZON_SOCIAL: str = "LANXA S.A.S."
+    EMPRESA_CIUDAD: str = ""
 
     # Facturación electrónica / resolución DIAN (#22) — rellenar en .env cuando
     # la DIAN autorice la numeración (o vía Alegra). Vacío = documento interno.
@@ -68,9 +68,9 @@ class Settings(BaseSettings):
     # Sustituir por el texto legal validado por la empresa (no es asesoría jurídica).
     HABEAS_DATA_TEXTO: str = (
         "El titular autoriza el tratamiento de sus datos personales conforme a la "
-        "Ley 1581 de 2012 y políticas de TECNOLOGÍA E INNOVACIÓN SUPER OZONO S.A.S. "
+        "Ley 1581 de 2012 y políticas de LANXA S.A.S. "
         "para fines comerciales y de facturación. Puede ejercer sus derechos de "
-        "habeas data escribiendo a info@superozonoglobal.com."
+        "habeas data escribiendo a admin@lanxa.local."
     )
 
     # CORS — orígenes permitidos separados por coma
@@ -81,7 +81,7 @@ class Settings(BaseSettings):
     ALEGRA_TOKEN: str = ""
 
     # Backups cifrados Fernet: SQLite (backup_db.py) y/o Postgres (backup_pg.py)
-    BACKUP_DIR: str = "C:/SuperOzono-Backups"
+    BACKUP_DIR: str = "C:/Lanxa-Backups"
     BACKUP_ENCRYPTION_KEY: str = ""
     BACKUP_RETENTION_DAYS: int = 30
 

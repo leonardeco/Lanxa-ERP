@@ -22,20 +22,20 @@ class _DocStub(Base):
 
 @pytest.mark.asyncio
 async def test_next_sequential_empieza_en_1(db_session):
-    n1 = await next_sequential_numero(db_session, _DocStub.numero, "SOG-V")
-    n2 = await next_sequential_numero(db_session, _DocStub.numero, "SOG-V")
-    assert n1 == "SOG-V-0001"
-    assert n2 == "SOG-V-0002"
+    n1 = await next_sequential_numero(db_session, _DocStub.numero, "LNX-V")
+    n2 = await next_sequential_numero(db_session, _DocStub.numero, "LNX-V")
+    assert n1 == "LNX-V-0001"
+    assert n2 == "LNX-V-0002"
 
 
 @pytest.mark.asyncio
 async def test_next_sequential_siembra_desde_max_existente(db_session):
-    db_session.add(_DocStub(numero="SOG-V-0007"))
-    db_session.add(_DocStub(numero="SOG-V-0003"))
+    db_session.add(_DocStub(numero="LNX-V-0007"))
+    db_session.add(_DocStub(numero="LNX-V-0003"))
     await db_session.flush()
 
-    n = await next_sequential_numero(db_session, _DocStub.numero, "SOG-V")
-    assert n == "SOG-V-0008"
+    n = await next_sequential_numero(db_session, _DocStub.numero, "LNX-V")
+    assert n == "LNX-V-0008"
 
 
 @pytest.mark.asyncio

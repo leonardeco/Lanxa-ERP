@@ -78,8 +78,17 @@ const LoginView: React.FC = () => {
     <div className="login-container">
       <div className="login-glass-card fade-in">
         <div className="login-header">
-          <img src="/logo_ozono.png" alt="Super Ozono" className="login-logo-small" />
-          <h2>Super Ozono Global</h2>
+          <svg viewBox="0 0 40 40" width={48} height={48} aria-label="Lanxa" className="login-logo-small" style={{ display: 'block', margin: '0 auto' }}>
+            <defs>
+              <linearGradient id="lanxa-login" x1="0" y1="1" x2="1" y2="0">
+                <stop offset="0" stopColor="#7c5cff" />
+                <stop offset="1" stopColor="#1fe6cd" />
+              </linearGradient>
+            </defs>
+            <path d="M9 31 L21 7 L26 7 L14 31 Z" fill="url(#lanxa-login)" />
+            <path d="M18 31 L30 7 L35 7 L23 31 Z" fill="url(#lanxa-login)" opacity={0.55} />
+          </svg>
+          <h2>Lanxa ERP</h2>
           <p>Portal ERP Corporativo · v{APP_VERSION}</p>
         </div>
 
@@ -108,7 +117,7 @@ const LoginView: React.FC = () => {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="usuario@superozonoglobal.com"
+              placeholder="usuario@lanxa.local"
               required
             />
           </div>
@@ -189,7 +198,7 @@ const LoginView: React.FC = () => {
             lineHeight: 1.5,
           }}
         >
-          TECNOLOGÍA E INNOVACIÓN SUPER OZONO S.A.S. · NIT: 901841798-5
+          LANXA S.A.S.
           <br />
           API: {apiHostLabel()} · v{APP_VERSION}
         </div>

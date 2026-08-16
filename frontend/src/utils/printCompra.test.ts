@@ -9,7 +9,7 @@ const COP = (n: number | string) =>
 function makeCompra(overrides: Partial<Compra> = {}): Compra {
   return {
     id: 1,
-    numero: 'SOG-CP-0001',
+    numero: 'LNX-CP-0001',
     fecha: '2026-07-11',
     proveedor_id: 1,
     proveedor_razon_social: 'Insumos del Quindío Ltda.',
@@ -57,7 +57,7 @@ describe('printCompra', () => {
     expect(close).toHaveBeenCalledTimes(1);
     const out = html();
     expect(out).toContain('Documento de Compra');
-    expect(out).toContain('SOG-CP-0001');
+    expect(out).toContain('LNX-CP-0001');
   });
 
   it('incluye proveedor, ítem, ref. proveedor y total formateado', () => {

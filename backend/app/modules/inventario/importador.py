@@ -381,7 +381,7 @@ def generar_plantilla() -> bytes:
 
     ins = wb.create_sheet("Instrucciones")
     guia = [
-        "Plantilla de inventario inicial — Super Ozono ERP",
+        "Plantilla de inventario inicial — Lanxa ERP",
         "",
         "1. Una fila por producto en la hoja 'Inventario'.",
         "2. Encabezado VERDE = obligatorio; GRIS = opcional.",

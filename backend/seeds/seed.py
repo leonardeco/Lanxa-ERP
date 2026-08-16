@@ -1,7 +1,6 @@
 """
-Super Ozono Global — Seeder de datos base
-Carga inicial del PUC, Centros de Costo, Períodos, Parámetros, Productos y Clientes
-Basado en: SuperOzono_Carga_Inicial_Contable.xlsx
+Lanxa ERP — Seeder de datos base
+Carga inicial del PUC, Centros de Costo, Períodos y Parámetros
 """
 
 import asyncio
@@ -270,7 +269,7 @@ async def seed_parametros_nomina(session):
 
 
 async def seed_tenant(session):
-    """Empresa #1 (LAN / Super Ozono) — Run 2 foundation."""
+    """Empresa #1 — Tenant por defecto."""
     existing = await session.scalar(
         select(Tenant).where(Tenant.id == DEFAULT_TENANT_ID)
     )
@@ -279,15 +278,15 @@ async def seed_tenant(session):
         return
     session.add(Tenant(
         id=DEFAULT_TENANT_ID,
-        codigo="superozono",
-        razon_social=settings.EMPRESA_RAZON_SOCIAL or "Super Ozono Global",
-        nit=settings.EMPRESA_NIT,
-        dominio="superozonoglobal.com",
+        codigo="lanxa",
+        razon_social=settings.EMPRESA_RAZON_SOCIAL or "LANXA S.A.S.",
+        nit=settings.EMPRESA_NIT or None,
+        dominio=None,
         activo=True,
-        notas="Tenant por defecto (despliegue LAN / Run 2)",
+        notas="Tenant por defecto — despliegue LAN v0.3.x",
     ))
     await session.commit()
-    logger.info("[OK] Tenant default (id=1, codigo=superozono) creado")
+    logger.info("[OK] Tenant default (id=1, codigo=lanxa) creado")
 
 
 async def seed_usuarios(session):
@@ -384,7 +383,7 @@ async def seed_clientes(session):
 
 async def run_seeds():
     """Ejecuta todos los seeders en orden."""
-    logger.info("[SEED] Iniciando carga de datos base -- Super Ozono Global ERP")
+    logger.info("[SEED] Iniciando carga de datos base — Lanxa ERP")
 
     # Create all tables
     async with engine.begin() as conn:

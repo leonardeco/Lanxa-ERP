@@ -10,7 +10,7 @@ const COP = (n: number | string) =>
 function makeVenta(overrides: Partial<Venta> = {}): Venta {
   return {
     id: 1,
-    numero: 'SOG-V-0001',
+    numero: 'LNX-V-0001',
     fecha: '2026-07-11',
     cliente_id: 1,
     vendedor: 'Leonardo',
@@ -60,7 +60,7 @@ describe('printFactura', () => {
     const out = html();
     expect(out).toContain('<!DOCTYPE html>');
     expect(out).toContain('Documento de Venta');
-    expect(out).toContain('SOG-V-0001');
+    expect(out).toContain('LNX-V-0001');
     expect(out).toContain('TECNOLOGÍA E INNOVACIÓN SUPER OZONO S.A.S.');
     expect(out).toContain('sin resolución DIAN configurada');
   });

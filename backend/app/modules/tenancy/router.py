@@ -1,7 +1,7 @@
 """
 Onboarding multi-empresa (Run 5).
 
-Solo un Admin del tenant plataforma (DEFAULT_TENANT_ID = Super Ozono) puede
+Solo un Admin del tenant plataforma (DEFAULT_TENANT_ID = tenant por defecto) puede
 crear nuevas empresas. Cada empresa nace con su propio Admin.
 """
 
@@ -38,7 +38,7 @@ def _require_platform_admin(admin: Usuario) -> None:
     if int(tid) != DEFAULT_TENANT_ID:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Solo el Admin de la plataforma (tenant Super Ozono) puede dar de alta empresas",
+            detail="Solo el Admin de la plataforma (tenant por defecto) puede dar de alta empresas",
         )
 
 

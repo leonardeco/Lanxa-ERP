@@ -1,5 +1,5 @@
 """
-Super Ozono Global — Schemas Pydantic para Ventas Diarias (Run 6)
+Lanxa ERP — Schemas Pydantic para Ventas Diarias (Run 6)
 """
 from pydantic import BaseModel, Field
 from typing import Optional, List

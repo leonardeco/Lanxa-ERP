@@ -1,5 +1,5 @@
 """
-Super Ozono Global — Mapeo de modelos ERP → formato Alegra API
+Lanxa ERP — Mapeo de modelos ERP → formato Alegra API
 """
 
 from typing import Any

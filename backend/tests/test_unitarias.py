@@ -1,5 +1,5 @@
 """
-Pruebas unitarias — Super Ozono Global ERP
+Pruebas unitarias — Lanxa ERP
 Cubre: ventas CRUD, clientes, productos, usuarios, cálculo de totales y permisos.
 """
 
@@ -332,8 +332,8 @@ async def test_numeros_venta_son_secuenciales(client: AsyncClient, auth_headers:
     producto = await _crear_producto(client, auth_headers, "SEQ-001")
     v1 = await _crear_venta(client, auth_headers, cliente["id"], producto["id"])
     v2 = await _crear_venta(client, auth_headers, cliente["id"], producto["id"])
-    assert v1["numero"].startswith("SOG-V-")
-    assert v2["numero"].startswith("SOG-V-")
+    assert v1["numero"].startswith("LNX-V-")
+    assert v2["numero"].startswith("LNX-V-")
     n1 = int(v1["numero"].split("-")[-1])
     n2 = int(v2["numero"].split("-")[-1])
     assert n2 == n1 + 1
@@ -528,7 +528,7 @@ def test_logging_persistente_escribe_archivo_rotado(tmp_path, monkeypatch):
     monkeypatch.setattr(logging_config, "LOG_DIR", tmp_path)
     logging_config.configurar_logging(debug=False)
 
-    structlog.get_logger("erp").info("evento_de_prueba", venta="SOG-V-0001")
+    structlog.get_logger("erp").info("evento_de_prueba", venta="LNX-V-0001")
     logging.getLogger("uvicorn.error").error("error de prueba stdlib")
     for h in logging.getLogger().handlers:
         h.flush()

@@ -1,5 +1,5 @@
 """
-Pruebas de humo — Super Ozono Global ERP
+Pruebas de humo — Lanxa ERP
 Verifica que todos los endpoints principales respondan sin errores 5xx.
 """
 

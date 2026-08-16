@@ -1,1 +1,1 @@
-# Super Ozono Global — ERP Backend
+# Lanxa ERP — ERP Backend

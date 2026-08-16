@@ -60,8 +60,8 @@ async def test_numbering_scoped_by_tenant(db_session):
 
     set_tenant_id(1)
     await apply_rls_tenant(db_session, 1)
-    n1 = await next_sequential_numero(db_session, VentaDocumento.numero, "SOG-V")
-    assert n1 == "SOG-V-0001"
+    n1 = await next_sequential_numero(db_session, VentaDocumento.numero, "LNX-V")
+    assert n1 == "LNX-V-0001"
 
     # segundo tenant (tenants no tiene RLS)
     db_session.add(Tenant(
@@ -70,22 +70,22 @@ async def test_numbering_scoped_by_tenant(db_session):
     await db_session.flush()
     set_tenant_id(2)
     await apply_rls_tenant(db_session, 2)
-    n2 = await next_sequential_numero(db_session, VentaDocumento.numero, "SOG-V")
-    assert n2 == "SOG-V-0001"  # reinicia por tenant
+    n2 = await next_sequential_numero(db_session, VentaDocumento.numero, "LNX-V")
+    assert n2 == "LNX-V-0001"  # reinicia por tenant
 
     set_tenant_id(1)
     await apply_rls_tenant(db_session, 1)
-    n3 = await next_sequential_numero(db_session, VentaDocumento.numero, "SOG-V")
-    assert n3 == "SOG-V-0002"
+    n3 = await next_sequential_numero(db_session, VentaDocumento.numero, "LNX-V")
+    assert n3 == "LNX-V-0002"
 
     rows = (await db_session.execute(select(DocumentSequence))).scalars().all()
     by_t = {(r.tenant_id, r.prefix): r.last_value for r in rows}
-    assert by_t[(1, "SOG-V")] == 2
+    assert by_t[(1, "LNX-V")] == 2
     # con RLS activo en PG, desde tenant 1 no vemos filas de tenant 2
     if db_session.get_bind().dialect.name == "postgresql":
-        assert (2, "SOG-V") not in by_t
+        assert (2, "LNX-V") not in by_t
     else:
-        assert by_t.get((2, "SOG-V")) == 1
+        assert by_t.get((2, "LNX-V")) == 1
     reset_tenant_id()
 
 

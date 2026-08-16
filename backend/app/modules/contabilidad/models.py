@@ -1,5 +1,5 @@
 ﻿"""
-Super Ozono Global — Contabilidad Núcleo: Modelos SQLAlchemy
+Lanxa ERP — Contabilidad Núcleo: Modelos SQLAlchemy
 Basado en el Excel de Carga Inicial Contable y la documentación v2.0
 """
 
@@ -186,7 +186,7 @@ class AsientoContable(TenantScoped, Base):
     descripcion: Mapped[str] = mapped_column(String(500))
     tipo_documento: Mapped[str | None] = mapped_column(String(50))  # Factura, Recibo, Nota, etc.
     modulo_origen: Mapped[str | None] = mapped_column(String(50))  # ventas, compras, cartera, etc.
-    # Referencia al documento de negocio (SOG-V-0001, SOG-CP-0001, RC-0001, CE-0001)
+    # Referencia al documento de negocio (LNX-V-0001, LNX-CP-0001, RC-0001, CE-0001)
     documento_ref: Mapped[str | None] = mapped_column(String(50), index=True)
     usuario_id: Mapped[int | None] = mapped_column()  # FK a usuarios (futuro)
     periodo_id: Mapped[int | None] = mapped_column(ForeignKey("periodos_contables.id"))

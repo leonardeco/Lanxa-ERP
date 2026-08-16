@@ -1,5 +1,5 @@
 /**
- * Super Ozono Global — API Service para Ventas Diarias (Run 6)
+ * Lanxa ERP — API Service para Ventas Diarias (Run 6)
  */
 import { api } from './api';
 

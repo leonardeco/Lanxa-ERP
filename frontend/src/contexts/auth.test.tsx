@@ -5,7 +5,7 @@ import { AuthContext, useAuth, type AuthContextType, type User } from './auth';
 
 const usuario: User = {
   id: 1,
-  email: 'admin@superozonoglobal.com',
+  email: 'admin@lanxa.local',
   nombre_completo: 'Admin Test',
   rol: 'Superusuario',
   is_active: true,

@@ -1,5 +1,5 @@
 """
-Pruebas de seguridad — Super Ozono Global ERP
+Pruebas de seguridad — Lanxa ERP
 Verifica autenticación, autorización, exposición de datos y comportamiento ante entradas maliciosas.
 """
 

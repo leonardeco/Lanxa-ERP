@@ -12,7 +12,7 @@ vi.mock('./contexts/auth', () => ({
   useAuth: () => ({
     user: {
       id: 1,
-      email: 'admin@superozono.co',
+      email: 'admin@lanxa.local',
       nombre_completo: 'Leonardo Guzmán',
       rol: 'Superusuario',
       is_active: true,

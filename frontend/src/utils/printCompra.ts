@@ -5,10 +5,10 @@ const COP = (n: number | string) =>
   Number(n).toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
 const EMPRESA = {
-  nombre: 'TECNOLOGÍA E INNOVACIÓN SUPER OZONO S.A.S.',
-  nit: '901.841.798-5',
-  ciudad: 'Armenia, Quindío — Colombia',
-  email: 'info@superozonoglobal.com',
+  nombre: 'LANXA S.A.S.',
+  nit: '',
+  ciudad: '',
+  email: 'admin@lanxa.local',
 };
 
 export function printCompra(compra: Compra) {
