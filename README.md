@@ -1,12 +1,12 @@
-# Super Ozono ERP
+# Lanxa ERP
 
-[![CI](https://github.com/leonardeco/superozono-erp/actions/workflows/ci.yml/badge.svg)](https://github.com/leonardeco/superozono-erp/actions/workflows/ci.yml)
+[![CI](https://github.com/leonardeco/Lanxa-ERP/actions/workflows/ci.yml/badge.svg)](https://github.com/leonardeco/Lanxa-ERP/actions/workflows/ci.yml)
 ![Versión](https://img.shields.io/badge/version-0.3.0-blue)
 ![Python](https://img.shields.io/badge/python-3.13-blue?logo=python&logoColor=white)
 ![Node](https://img.shields.io/badge/node-20%2B-339933?logo=node.js&logoColor=white)
 ![Uso](https://img.shields.io/badge/uso-privado%20%2F%20propietario-lightgrey)
 
-Sistema de gestión empresarial (ERP) desarrollado a medida para **TECNOLOGÍA E INNOVACIÓN SUPER OZONO S.A.S.** — empresa colombiana del sector agroindustrial especializada en biocidas naturales con tecnología de ozono.
+Sistema de gestión empresarial (ERP) desarrollado a medida para **LANXA S.A.S.** — empresa colombiana multi-tenant con módulos completos de contabilidad, ventas, compras, cartera, inventario y reportes financieros.
 
 > **Stack:** FastAPI · React 19 · TypeScript · SQLAlchemy 2.0 async · PostgreSQL / SQLite · Docker Compose
 
@@ -57,7 +57,7 @@ Sistema de gestión empresarial (ERP) desarrollado a medida para **TECNOLOGÍA E
 ## Arquitectura
 
 ```
-superozono-erp/
+Lanxa-ERP/
 ├── backend/              # FastAPI — API REST async
 │   └── app/
 │       ├── api/          # Dependencias compartidas (auth, sesión DB)
@@ -337,8 +337,8 @@ npm run lint
 ### 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/leonardeco/superozono-erp.git
-cd superozono-erp
+git clone https://github.com/leonardeco/Lanxa-ERP.git
+cd Lanxa-ERP
 ```
 
 ### 2. Configurar variables de entorno
@@ -422,7 +422,7 @@ python -m seeds.seed_demo --clean --clientes 50 --ventas 200
 
 **Acceso directo de escritorio (opcional, una sola vez):**
 
-Ejecuta `crear-acceso-escritorio.bat` (doble clic) para crear un ícono **"Super Ozono ERP"** en el escritorio con el logo de la empresa, que al abrirlo ejecuta `start.bat`. Usa la carpeta donde está el proyecto en *ese* PC — funciona igual si copias el proyecto a otra máquina, solo hay que volver a ejecutarlo ahí (no se puede copiar el `.lnk` directamente porque apunta a una ruta absoluta).
+Ejecuta `crear-acceso-escritorio.bat` (doble clic) para crear un ícono **"Lanxa ERP"** en el escritorio con el logo de la empresa, que al abrirlo ejecuta `start.bat`. Usa la carpeta donde está el proyecto en *ese* PC — funciona igual si copias el proyecto a otra máquina, solo hay que volver a ejecutarlo ahí (no se puede copiar el `.lnk` directamente porque apunta a una ruta absoluta).
 
 ### 6. Acceder
 
@@ -436,7 +436,7 @@ El navegador va a marcar la conexión como no segura hasta que se instale `certs
 **Credenciales por defecto:**
 
 ```
-Email:      admin@superozonoglobal.com
+Email:      admin@lanxa.local
 Contraseña: Admin2026!
 ```
 
@@ -475,7 +475,7 @@ docker-compose up -d
 
 | Variable | Requerida | Descripción |
 |----------|-----------|-------------|
-| `DATABASE_URL` | ✅ | `postgresql+asyncpg://...` (prod) o `sqlite+aiosqlite:///./superozono.db` (dev) |
+| `DATABASE_URL` | ✅ | `postgresql+asyncpg://...` (prod) o `sqlite+aiosqlite:///./lanxa.db` (dev) |
 | `SECRET_KEY` | ✅ | Clave JWT, **mínimo 32 caracteres** (recomendado 64) — genera con `python -c "import secrets; print(secrets.token_hex(32))"` |
 | `POSTGRES_USER` | Docker | Usuario PostgreSQL |
 | `POSTGRES_PASSWORD` | Docker | Contraseña PostgreSQL |
@@ -625,7 +625,7 @@ Estado real de las prácticas de seguridad del proyecto — qué está implement
 
 | Ítem | Riesgo | Recomendación |
 |---|---|---|
-| **Clave de cifrado de backups** | Sin `BACKUP_ENCRYPTION_KEY` los `.enc` no se restauran | Fuente: `backend/.env`. Guardar también en gestor de contraseñas. Offsite diario: OneDrive `SuperOzono-Backups-Offsite` (ver `backend/scripts/LEEME-BACKUPS-OFFSITE.md`) |
+| **Clave de cifrado de backups** | Sin `BACKUP_ENCRYPTION_KEY` los `.enc` no se restauran | Fuente: `backend/.env`. Guardar también en gestor de contraseñas. Offsite diario: OneDrive `Lanxa-Backups-Offsite` (ver `backend/scripts/LEEME-BACKUPS-OFFSITE.md`) |
 | **IDs secuenciales** | Todas las tablas usan `Integer autoincrement` — los IDs son adivinables/enumerables | Aceptable en LAN cerrada; si se expone la API públicamente, migrar a UUID o reforzar autorización por objeto |
 
 ---
@@ -688,11 +688,10 @@ El sistema tiene **5 roles** (estructura LAN típica: 7 cuentas). Detalle canón
 
 ## Empresa
 
-**TECNOLOGÍA E INNOVACIÓN SUPER OZONO S.A.S.**
-NIT: 901.841.798-5
-Armenia, Quindío — Colombia
-Sector: Agroindustria / Biocidas naturales con tecnología de ozono
+**LANXA S.A.S.**
+Colombia
+Sector: Tecnología empresarial — ERP multi-tenant
 
 ---
 
-*Desarrollado a medida para Super Ozono Global — 2026*
+*Desarrollado a medida para LANXA S.A.S. — 2026*
