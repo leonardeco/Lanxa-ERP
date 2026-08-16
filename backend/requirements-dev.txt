@@ -15,4 +15,4 @@ autopep8==2.3.2
 
 # ── Stubs de tipos para mypy ─────────────────────────────
 # PyJWT trae sus propios tipos (py.typed) — no necesita stub
-types-openpyxl==3.1.5.20260518
+types-openpyxl==3.1.5.20260807
