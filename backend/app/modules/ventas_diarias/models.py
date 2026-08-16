@@ -1,5 +1,5 @@
 """
-Super Ozono Global — Módulo Ventas Diarias (Run 6)
+Lanxa ERP — Módulo Ventas Diarias (Run 6)
 Ventas contraentrega por guía de transportadora — flujo Perú/Ecuador,
 separado del módulo `ventas` (Colombia: IVA, retenciones, Alegra).
 """

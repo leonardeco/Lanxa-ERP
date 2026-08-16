@@ -297,7 +297,7 @@ async def create_compra(
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
 
     # Auto-number robusto y basado en MAX del sufijo
-    numero = await next_sequential_numero(session, CompraDocumento.numero, "SOG-CP")
+    numero = await next_sequential_numero(session, CompraDocumento.numero, "LNX-CP")
 
     subtotal, desc_total, base_grav, iva_total, lineas = _calc_lineas(data.detalles)
     rete = Decimal(str(data.retefuente))

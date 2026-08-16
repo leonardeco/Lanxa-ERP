@@ -1,5 +1,5 @@
 """
-Super Ozono Global — API de consulta del log de auditoría (solo lectura).
+Lanxa ERP — API de consulta del log de auditoría (solo lectura).
 Los registros se crean desde los endpoints instrumentados vía service.py.
 """
 

@@ -1,5 +1,5 @@
 ﻿"""
-Super Ozono Global — Módulo de Ventas & Comercial: Modelos SQLAlchemy
+Lanxa ERP — Módulo de Ventas & Comercial: Modelos SQLAlchemy
 Productos, Clientes, Documentos de Venta y Detalles de Venta
 """
 
@@ -157,7 +157,7 @@ class VentaDocumento(TenantScoped, Base):
     __tablename__ = "ventas_documentos"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    numero: Mapped[str] = mapped_column(String(20), index=True)  # SOG-V-0001 (único por tenant)
+    numero: Mapped[str] = mapped_column(String(20), index=True)  # LNX-V-0001 (único por tenant)
     fecha: Mapped[date] = mapped_column(Date, default=date.today)
     fecha_vencimiento: Mapped[date | None] = mapped_column(Date)
     cliente_id: Mapped[int] = mapped_column(ForeignKey("clientes.id"))

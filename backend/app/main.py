@@ -1,5 +1,5 @@
 """
-Super Ozono Global — ERP Backend (FastAPI)
+Lanxa ERP — Backend (FastAPI)
 Punto de entrada principal
 """
 
@@ -42,7 +42,7 @@ logger = structlog.get_logger("erp")
 async def lifespan(app: FastAPI):
     """Startup: create tables + run seeders. Shutdown: dispose engine."""
     logger.info(
-        "[START] Iniciando Super Ozono Global ERP",
+        "[START] Iniciando Lanxa ERP",
         version=settings.APP_VERSION,
         empresa=settings.EMPRESA_RAZON_SOCIAL,
     )
@@ -77,9 +77,9 @@ async def lifespan(app: FastAPI):
 # ══════════════════════════════════════════════════════════
 
 app = FastAPI(
-    title="Super Ozono Global — ERP API",
+    title="Lanxa ERP API",
     description=(
-        "API REST para el sistema ERP de Super Ozono Global. "
+        "API REST para el sistema Lanxa ERP. "
         "Módulos: Contabilidad, Ventas, Inventario, RRHH, Plataformas y Reportes."
     ),
     version=settings.APP_VERSION,
@@ -184,7 +184,7 @@ async def health_check():
         status="ok" if db_status == "connected" else "degraded",
         database=db_status,
         version=settings.APP_VERSION,
-        empresa="Super Ozono Global",
+        empresa=settings.EMPRESA_RAZON_SOCIAL,
     )
 
 

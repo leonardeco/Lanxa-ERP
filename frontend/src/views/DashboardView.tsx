@@ -89,7 +89,7 @@ export default function DashboardView() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--neutral-100)' }}>
-            📊 Resumen Global Super Ozono
+            📊 Resumen Global Lanxa
           </div>
           <div style={{ fontSize: '0.78rem', color: 'var(--neutral-400)', marginTop: 2 }}>
             Consolidado de Colombia, Perú y Ecuador — ventas diarias

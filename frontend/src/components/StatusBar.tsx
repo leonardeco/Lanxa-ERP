@@ -73,7 +73,7 @@ export default function StatusBar({ role, userName }: StatusBarProps) {
         <div className="status-bar-divider" />
         <div className="status-bar-item">
           <span className="status-bar-icon">🏢</span>
-          <span>NIT: 901841798-5</span>
+          <span>LANXA S.A.S.</span>
         </div>
       </div>
       <div className="status-bar-right">

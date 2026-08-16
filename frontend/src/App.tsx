@@ -114,7 +114,7 @@ function App() {
     return (
       <div className="loading-screen">
         <div className="loading-spinner" />
-        <div className="loading-text">Cargando Super Ozono ERP...</div>
+        <div className="loading-text">Cargando Lanxa ERP...</div>
         <div className="loading-sub">Conectando con el sistema</div>
       </div>
     )

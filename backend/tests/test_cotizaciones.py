@@ -82,7 +82,7 @@ async def test_flujo_completo_hasta_venta(client: AsyncClient, auth_headers: dic
     convertida = resp.json()
     assert convertida["estado"] == "Convertida"
     assert convertida["venta_id"] is not None
-    assert convertida["venta_numero"] == "SOG-V-0001"
+    assert convertida["venta_numero"] == "LNX-V-0001"
 
     venta = (await client.get(
         f"/api/v1/ventas/{convertida['venta_id']}", headers=auth_headers)).json()

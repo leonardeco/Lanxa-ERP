@@ -46,7 +46,7 @@ describe('LoginView', () => {
     const user = userEvent.setup();
     renderLogin();
 
-    await user.type(screen.getByPlaceholderText('usuario@superozonoglobal.com'), 'admin@test.com');
+    await user.type(screen.getByPlaceholderText('usuario@lanxa.local'), 'admin@test.com');
     await user.type(screen.getByPlaceholderText('••••••••'), 'clave123');
     await user.click(screen.getByRole('button', { name: 'Acceder al Sistema' }));
 
@@ -65,7 +65,7 @@ describe('LoginView', () => {
     const user = userEvent.setup();
     renderLogin();
 
-    await user.type(screen.getByPlaceholderText('usuario@superozonoglobal.com'), 'x@test.com');
+    await user.type(screen.getByPlaceholderText('usuario@lanxa.local'), 'x@test.com');
     await user.type(screen.getByPlaceholderText('••••••••'), 'mala');
     await user.click(screen.getByRole('button', { name: 'Acceder al Sistema' }));
 
@@ -78,7 +78,7 @@ describe('LoginView', () => {
     const user = userEvent.setup();
     renderLogin();
 
-    await user.type(screen.getByPlaceholderText('usuario@superozonoglobal.com'), 'x@test.com');
+    await user.type(screen.getByPlaceholderText('usuario@lanxa.local'), 'x@test.com');
     await user.type(screen.getByPlaceholderText('••••••••'), 'clave123');
     await user.click(screen.getByRole('button', { name: 'Acceder al Sistema' }));
 
@@ -100,7 +100,7 @@ describe('LoginView', () => {
     const user = userEvent.setup();
     renderLogin();
 
-    await user.type(screen.getByPlaceholderText('usuario@superozonoglobal.com'), 'x@test.com');
+    await user.type(screen.getByPlaceholderText('usuario@lanxa.local'), 'x@test.com');
     await user.type(screen.getByPlaceholderText('••••••••'), 'clave123');
     await user.click(screen.getByRole('button', { name: 'Acceder al Sistema' }));
 

@@ -1,5 +1,5 @@
 ﻿"""
-Super Ozono Global — Auditoría de cambios (audit log)
+Lanxa ERP — Auditoría de cambios (audit log)
 Quién modificó qué en los datos maestros (productos, clientes, proveedores,
 parámetros) y acciones administrativas (usuarios, períodos).
 """

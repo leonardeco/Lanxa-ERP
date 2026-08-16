@@ -329,7 +329,7 @@ async def test_periodo_cerrado_bloquea_operaciones(client: AsyncClient, auth_hea
 async def test_mes_sin_periodo_creado_no_bloquea(client: AsyncClient, auth_headers: dict):
     """Si el mes no tiene PeriodoContable, las operaciones fluyen normal."""
     venta = await _setup_venta(client, auth_headers)  # julio sin período creado
-    assert venta["numero"].startswith("SOG-V-")
+    assert venta["numero"].startswith("LNX-V-")
 
 
 @pytest.mark.asyncio

@@ -30,7 +30,7 @@ export default function HeaderBar({ title, role }: HeaderBarProps) {
           <span className="header-breadcrumb">
             <span className="breadcrumb-home">🏠</span>
             <span className="breadcrumb-sep">›</span>
-            <span>Super Ozono</span>
+            <span>Lanxa</span>
             <span className="breadcrumb-sep">›</span>
             <span className="breadcrumb-current">{title}</span>
           </span>
@@ -40,7 +40,7 @@ export default function HeaderBar({ title, role }: HeaderBarProps) {
         <div className="header-time">
           {time.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
         </div>
-        <div className="header-nit">NIT: 901841798-5</div>
+        <div className="header-nit">LANXA S.A.S.</div>
 
         {/* Notificaciones */}
         <div className="header-notifications-wrapper">

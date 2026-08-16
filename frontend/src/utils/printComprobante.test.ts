@@ -9,7 +9,7 @@ const COP = (n: number | string) =>
 function makeCxC(overrides: Partial<CxC> = {}): CxC {
   return {
     id: 1,
-    numero_factura: 'SOG-V-0001',
+    numero_factura: 'LNX-V-0001',
     fecha_emision: '2026-07-01',
     cliente_nit: '900123456-7',
     nombre_cliente: 'Distribuidora El Ozono S.A.S.',
@@ -26,7 +26,7 @@ function makeCxC(overrides: Partial<CxC> = {}): CxC {
 function makeCxP(overrides: Partial<CxP> = {}): CxP {
   return {
     id: 1,
-    numero_documento: 'SOG-CP-0001',
+    numero_documento: 'LNX-CP-0001',
     fecha: '2026-07-01',
     proveedor_nit: '890111222-3',
     razon_social: 'Insumos del Quindío Ltda.',
@@ -72,7 +72,7 @@ describe('printComprobante — CxC (Recibo de Caja)', () => {
     expect(out).toContain('Cliente');
     expect(out).toContain('Distribuidora El Ozono S.A.S.');
     expect(out).toContain('RC-0001');
-    expect(out).toContain('Doc. relacionado: SOG-V-0001');
+    expect(out).toContain('Doc. relacionado: LNX-V-0001');
     expect(out).toContain('Valor recibido');
     expect(out).toContain(COP(50000));
   });
@@ -104,7 +104,7 @@ describe('printComprobante — CxP (Comprobante de Egreso)', () => {
     expect(out).toContain('Proveedor');
     expect(out).toContain('Insumos del Quindío Ltda.');
     expect(out).toContain('CE-0001');
-    expect(out).toContain('Doc. relacionado: SOG-CP-0001');
+    expect(out).toContain('Doc. relacionado: LNX-CP-0001');
     expect(out).toContain('Valor pagado');
   });
 

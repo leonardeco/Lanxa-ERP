@@ -1,5 +1,5 @@
 """
-Super Ozono Global — Cliente HTTP para la API de Alegra
+Lanxa ERP — Cliente HTTP para la API de Alegra
 Documentación: https://developer.alegra.com/
 Auth: Basic Auth con email:token en base64
 """

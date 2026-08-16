@@ -5,12 +5,12 @@ import { test, expect, type Page } from '@playwright/test';
  * seeders del lifespan) y navegación por los módulos principales.
  */
 
-const ADMIN_EMAIL = 'admin@superozonoglobal.com';
+const ADMIN_EMAIL = 'admin@lanxa.local';
 const ADMIN_PASSWORD = 'Admin2026!';
 
 async function login(page: Page) {
   await page.goto('/');
-  await page.getByPlaceholder('usuario@superozonoglobal.com').fill(ADMIN_EMAIL);
+  await page.getByPlaceholder('usuario@lanxa.local').fill(ADMIN_EMAIL);
   await page.getByPlaceholder('••••••••').fill(ADMIN_PASSWORD);
   await page.getByRole('button', { name: 'Acceder al Sistema' }).click();
   await expect(page.getByText('Cerrar Sesión')).toBeVisible({ timeout: 15_000 });
@@ -18,7 +18,7 @@ async function login(page: Page) {
 
 test('login con credenciales malas muestra el error del backend', async ({ page }) => {
   await page.goto('/');
-  await page.getByPlaceholder('usuario@superozonoglobal.com').fill('nadie@test.com');
+  await page.getByPlaceholder('usuario@lanxa.local').fill('nadie@test.com');
   await page.getByPlaceholder('••••••••').fill('clave-mala');
   await page.getByRole('button', { name: 'Acceder al Sistema' }).click();
   await expect(page.getByText('Correo o contraseña incorrectos')).toBeVisible();

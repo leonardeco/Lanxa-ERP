@@ -1,5 +1,5 @@
 """
-Super Ozono Global — Schemas Pydantic para Auditoría
+Lanxa ERP — Schemas Pydantic para Auditoría
 """
 
 from datetime import datetime

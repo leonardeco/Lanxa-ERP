@@ -150,14 +150,14 @@ async def test_confirmar_venta_con_stock_descuenta_ok(client: AsyncClient, auth_
 
 @pytest.mark.asyncio
 async def test_numeracion_ventas_es_secuencial(client: AsyncClient, auth_headers: dict):
-    """Dos ventas consecutivas deben numerarse SOG-V-0001 y SOG-V-0002."""
+    """Dos ventas consecutivas deben numerarse LNX-V-0001 y LNX-V-0002."""
     prod = await _crear_producto(client, auth_headers, "VAL-NUM")
     cli = await _crear_cliente(client, auth_headers, "904")
 
     v1 = await _crear_venta(client, auth_headers, cli["id"], prod["id"])
     v2 = await _crear_venta(client, auth_headers, cli["id"], prod["id"])
-    assert v1.json()["numero"] == "SOG-V-0001"
-    assert v2.json()["numero"] == "SOG-V-0002"
+    assert v1.json()["numero"] == "LNX-V-0001"
+    assert v2.json()["numero"] == "LNX-V-0002"
 
 
 # ══════════════════════════════════════════════════════════

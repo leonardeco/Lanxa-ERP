@@ -1,5 +1,5 @@
 """
-Super Ozono Global — API Routes (Contabilidad Núcleo)
+Lanxa ERP — API Routes (Contabilidad Núcleo)
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query

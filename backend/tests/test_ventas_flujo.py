@@ -172,7 +172,7 @@ async def test_venta_borrador_calcula_totales(client: AsyncClient, auth_headers:
     venta = await _crear_venta(client, auth_headers, cli["id"], prod["id"], cantidad="2", precio="100000.00")
 
     assert venta["estado"] == "Borrador"
-    assert venta["numero"].startswith("SOG-V-")
+    assert venta["numero"].startswith("LNX-V-")
     assert float(venta["subtotal"]) == 200000.00
     # IVA 19% por defecto
     assert float(venta["iva_total"]) == 38000.00

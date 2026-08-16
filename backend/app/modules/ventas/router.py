@@ -1,5 +1,5 @@
 """
-Super Ozono Global — API Routes (Ventas & Comercial)
+Lanxa ERP — API Routes (Ventas & Comercial)
 CRUD completo para Productos, Clientes y Documentos de Venta
 """
 
@@ -94,8 +94,8 @@ async def _sugerir_retenciones(db: AsyncSession, cliente, base_gravable: Decimal
 # ══════════════════════════════════════════════════════════
 
 async def _next_venta_numero(db: AsyncSession) -> str:
-    """Genera el siguiente número de venta: SOG-V-0001, SOG-V-0002..."""
-    return await next_sequential_numero(db, VentaDocumento.numero, "SOG-V")
+    """Genera el siguiente número de venta: LNX-V-0001, LNX-V-0002..."""
+    return await next_sequential_numero(db, VentaDocumento.numero, "LNX-V")
 
 
 def _calcular_detalle(detalle_data) -> dict:
