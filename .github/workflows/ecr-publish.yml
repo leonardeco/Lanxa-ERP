@@ -34,7 +34,7 @@ jobs:
       AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
       ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY || 'superozono-prod-api' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Configure AWS credentials (OIDC)
         if: ${{ secrets.AWS_ROLE_TO_ASSUME != '' }}
